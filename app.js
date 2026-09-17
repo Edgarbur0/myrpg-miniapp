@@ -1,7 +1,7 @@
 // ================================================
 // СЯНЬСЯ MINI APP — логика
-// VK Bridge → получение user_id → загрузка данных
-// с API → отрисовка 4 экранов и действия игрока.
+// VK Bridge → получение user_id и аватара → загрузка
+// данных с API → отрисовка персонажа и техник.
 // ================================================
 
 'use strict';
@@ -27,14 +27,14 @@ const ELEMENT_ICONS = {
     none: '⚔️',
 };
 
-// Подписи характеристик
+// Характеристики на экране персонажа (порядок из макета)
 const STATS = [
-    { key: 'strength', label: 'Сила', icon: '💪' },
-    { key: 'agility', label: 'Ловкость', icon: '🏃' },
-    { key: 'intelligence', label: 'Интеллект', icon: '🧠' },
-    { key: 'endurance', label: 'Выносливость', icon: '❤️' },
-    { key: 'armor', label: 'Броня', icon: '🛡️' },
-    { key: 'luck', label: 'Удача', icon: '🍀' },
+    { key: 'strength', label: 'Сила' },
+    { key: 'damage', label: 'Урон' },
+    { key: 'agility', label: 'Ловкость' },
+    { key: 'luck', label: 'Удача' },
+    { key: 'armor', label: 'Броня' },
+    { key: 'endurance', label: 'Выносливость' },
 ];
 
 // Подписи основных типов предметов
@@ -48,10 +48,12 @@ const ITEM_TYPE_LABELS = {
 
 // ---------- Состояние ----------
 let userId = null;
+let userAvatar = null;
 let playerData = null;
 let inventoryData = null;
 let techniquesData = null;
 let toastTimer = null;
+let activeItemCode = null;
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -59,7 +61,7 @@ async function ensureUserId() {
         return userId;
     }
 
-    // Пробуем получить ID через VK Bridge
+    // Пробуем получить ID и аватар через VK Bridge
     if (window.vkBridge) {
         try {
             await vkBridge.send('VKWebAppInit');
@@ -70,6 +72,9 @@ async function ensureUserId() {
             const info = await vkBridge.send('VKWebAppGetUserInfo');
             if (info && info.id) {
                 userId = info.id;
+                if (info.photo_200) {
+                    userAvatar = info.photo_200;
+                }
                 return userId;
             }
         } catch (error) {
@@ -137,6 +142,49 @@ function showError() {
     document.getElementById('errorBox').classList.remove('hidden');
 }
 
+// ---------- Шапка и аватар ----------
+function renderAvatar(src) {
+    const headerImg = document.getElementById('headerAvatar');
+    const headerFallback = document.getElementById('headerAvatarFallback');
+    const artImg = document.getElementById('artAvatar');
+    const artFallback = document.getElementById('artAvatarFallback');
+
+    if (src) {
+        headerImg.src = src;
+        artImg.src = src;
+        headerImg.classList.remove('hidden');
+        artImg.classList.remove('hidden');
+        headerFallback.classList.add('hidden');
+        artFallback.classList.add('hidden');
+    } else {
+        headerImg.classList.add('hidden');
+        artImg.classList.add('hidden');
+        headerFallback.classList.remove('hidden');
+        artFallback.classList.remove('hidden');
+    }
+}
+
+function renderHeader() {
+    const player = playerData;
+    if (!player) {
+        return;
+    }
+
+    document.getElementById('playerName').textContent = player.nickname;
+
+    const cultivation = player.cultivation;
+    const cultivationLine = cultivation
+        ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
+        : '—';
+    document.getElementById('cultivationLine').textContent = cultivationLine;
+
+    // Аватар: приоритет у VK Bridge, затем у данных с API
+    renderAvatar(userAvatar || player.avatar_url);
+
+    document.getElementById('artName').textContent = player.nickname;
+    document.getElementById('artLevel').textContent = `Уровень ${player.level}`;
+}
+
 // ---------- Экран: Персонаж ----------
 function renderCharacter() {
     const player = playerData;
@@ -144,11 +192,16 @@ function renderCharacter() {
         return;
     }
 
-    document.getElementById('charName').textContent = player.nickname;
-    document.getElementById('charLevel').textContent = `Уровень ${player.level}`;
-    document.getElementById('charCult').textContent = player.cultivation
-        ? player.cultivation.stage_name
-        : '—';
+    // Бары ресурсов
+    const depletionMax = player.qi_depletion_max || 0;
+    const qiLeft = Math.max(0, depletionMax - (player.qi_depletion || 0));
+
+    setBar(
+        document.getElementById('qiDepFill'),
+        document.getElementById('qiDepText'),
+        player.qi_depletion,
+        depletionMax
+    );
 
     setBar(
         document.getElementById('hpFill'),
@@ -157,18 +210,6 @@ function renderCharacter() {
         player.max_hp
     );
 
-    // MP показываем только если API отдаёт эти поля
-    const hasMp = player.max_mp > 0;
-    document.getElementById('mpWrap').classList.toggle('hidden', !hasMp);
-    if (hasMp) {
-        setBar(
-            document.getElementById('mpFill'),
-            document.getElementById('mpText'),
-            player.mp,
-            player.max_mp
-        );
-    }
-
     setBar(
         document.getElementById('xpFill'),
         document.getElementById('xpText'),
@@ -176,67 +217,57 @@ function renderCharacter() {
         player.experience_needed
     );
 
+    setBar(
+        document.getElementById('qiFill'),
+        document.getElementById('qiText'),
+        qiLeft,
+        depletionMax
+    );
+
     // Характеристики
     document.getElementById('statsGrid').innerHTML = STATS.map(
         (stat) => `
         <div class="stat">
-            <span class="stat-icon">${stat.icon}</span>
-            <span class="stat-label">${stat.label}</span>
-            <span class="stat-value">${esc(player[stat.key])}</span>
+            <span>${stat.label}</span>
+            <b>${esc(player[stat.key])}</b>
         </div>`
     ).join('');
 
-    // Ресурсы
-    document.getElementById('resources').innerHTML = `
-        <div class="resource"><span>🪙</span><span>${esc(player.gold)}</span><span class="res-name">золото</span></div>
-        <div class="resource"><span>💎</span><span>${esc(player.crystals)}</span><span class="res-name">кристаллы</span></div>
-        <div class="resource"><span>✨</span><span>${esc(player.spirit_crystals)}</span><span class="res-name">дух. кристаллы</span></div>
-    `;
-
-    // Локация
-    const location = player.location;
-    const locationBlock = document.getElementById('locationBlock');
-    if (location) {
-        locationBlock.innerHTML = `
-            <div class="location-name">📍 ${esc(location.name)}</div>
-            <div class="location-desc">${esc(location.description)}</div>
-        `;
-    } else {
-        locationBlock.innerHTML = `<div class="location-desc">Локация неизвестна</div>`;
-    }
+    renderInventoryPanel();
 }
 
-// ---------- Экран: Инвентарь ----------
-function renderInventory() {
+// ---------- Инвентарь (мини-панель на экране персонажа) ----------
+function renderInventoryPanel() {
     const data = inventoryData;
-    if (!data) {
-        return;
-    }
-
-    const inventory = data.inventory || {};
+    const inventory = (data && data.inventory) || {};
     const codes = Object.keys(inventory);
 
-    document.getElementById('invSlots').textContent = `Слоты ${data.used_slots}/${data.max_slots}`;
     document.getElementById('invEmpty').classList.toggle('hidden', codes.length > 0);
-    document.getElementById('invGrid').classList.toggle('hidden', codes.length === 0);
 
-    const grid = document.getElementById('invGrid');
-    grid.innerHTML = codes
-        .map((code) => {
-            const item = inventory[code];
-            const usable = item.type === 'consumable';
-            return `
-            <button class="inv-cell ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button">
-                <span class="inv-icon">${item.icon}</span>
-                <span class="inv-name">${esc(item.name)}</span>
-                <span class="inv-count">×${esc(item.count)}</span>
-            </button>`;
-        })
-        .join('');
+    // Первый элемент — всегда золото
+    const tiles = [
+        `<div class="item tile-gold" title="Золото">
+            <span class="item-icon">💰</span>
+            <span class="item-count">${esc(playerData ? playerData.gold : 0)}</span>
+        </div>`,
+    ];
 
-    // Клик по предмету — модальное окно
-    grid.querySelectorAll('.inv-cell').forEach((cell) => {
-        cell.addEventListener('click', () => openItemModal(grid.dataset.source || inventory, cell.dataset.code));
+    codes.forEach((code) => {
+        const item = inventory[code];
+        const usable = item.type === 'consumable';
+        tiles.push(`
+            <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" title="${esc(item.name)}">
+                <span class="item-icon">${item.icon}</span>
+                <span class="item-count">×${esc(item.count)}</span>
+            </button>`);
+    });
+
+    const grid = document.getElementById('inventoryGrid');
+    grid.innerHTML = tiles.join('');
+
+    // Клик по расходнику — модальное окно с действием
+    grid.querySelectorAll('.item[data-code]').forEach((cell) => {
+        cell.addEventListener('click', () => openItemModal(inventory, cell.dataset.code));
     });
 }
 
@@ -246,30 +277,29 @@ function openItemModal(inventory, code) {
         return;
     }
 
+    activeItemCode = code;
     const usable = item.type === 'consumable';
-    const body = document.getElementById('modalBody');
-    body.innerHTML = `
+
+    document.getElementById('modalTitle').textContent = item.name;
+    document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${item.icon}</div>
         <div class="modal-title">${esc(item.name)}</div>
         <div class="modal-desc">
-            <div>Тип<span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
-            <div>Количество<span>×${esc(item.count)}</span></div>
-        </div>
-        <div class="modal-actions">
-            ${usable ? '<button id="modalUse" class="btn btn-gold" type="button">Использовать</button>' : ''}
-            <button id="modalCancel" class="btn btn-outline" type="button">Закрыть</button>
+            <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
+            <div><span class="muted">Количество</span><span>×${esc(item.count)}</span></div>
         </div>
     `;
 
+    document.getElementById('modalUse').classList.toggle('hidden', !usable);
     openModal();
-    if (usable) {
-        document.getElementById('modalUse').addEventListener('click', usePotion);
-    }
-    document.getElementById('modalCancel').addEventListener('click', closeModal);
 }
 
 // Использование зелья (POST /api/player/<id>/use_potion)
 async function usePotion() {
+    if (!activeItemCode) {
+        return;
+    }
+
     try {
         const data = await apiFetch(`/player/${userId}/use_potion`, { method: 'POST' });
         closeModal();
@@ -278,64 +308,26 @@ async function usePotion() {
             // Обновляем данные на месте, без полной перезагрузки
             playerData.hp = data.hp;
             playerData.max_hp = data.max_hp;
-            if (inventoryData.inventory.potion_heal) {
-                inventoryData.inventory.potion_heal.count = data.potions_left;
-                if (data.potions_left <= 0) {
-                    delete inventoryData.inventory.potion_heal;
+            const item = inventoryData.inventory[activeItemCode];
+            if (item) {
+                item.count = data.potions_left;
+                if (item.count <= 0) {
+                    delete inventoryData.inventory[activeItemCode];
                 }
             }
+            activeItemCode = null;
             renderCharacter();
-            renderInventory();
             showToast(`+${data.heal} HP 💚`);
         }
     } catch (error) {
         closeModal();
+        activeItemCode = null;
         const messages = {
             no_potion: 'Зелий лечения не осталось',
             full_hp: 'Здоровье уже полное',
             'player not found': 'Игрок не найден',
         };
         showToast(messages[error.code] || 'Не удалось использовать предмет');
-    }
-}
-
-// ---------- Экран: Культивация ----------
-function renderCultivation() {
-    const cultivation = playerData && playerData.cultivation;
-    if (!cultivation) {
-        return;
-    }
-
-    document.getElementById('cultName').textContent = cultivation.stage_name;
-    // В БД ступени 0–14, игроку показываем 1–15
-    document.getElementById('cultNum').textContent = `${cultivation.stage + 1}/15`;
-    document.getElementById('cultSubstage').textContent = `Стадия ${cultivation.substage}/9`;
-
-    setBar(
-        document.getElementById('cultFill'),
-        document.getElementById('cultExpText'),
-        cultivation.stage_experience,
-        cultivation.stage_experience_needed
-    );
-
-    document.getElementById('cultInfo').innerHTML = `
-        <div class="cult-chip">🌀 Ци: <b>${esc(cultivation.qi_type || '—')}</b></div>
-        <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
-    `;
-
-    // Кнопка прорыва активна, только когда опыт стадии заполнен
-    const canBreakthrough = cultivation.stage_experience >= cultivation.stage_experience_needed;
-    document.getElementById('btnBreakthrough').disabled = !canBreakthrough;
-}
-
-// Прорыв (эндпоинт появится в следующих этапах)
-async function breakthrough() {
-    try {
-        await apiFetch(`/player/${userId}/breakthrough`, { method: 'POST' });
-        await loadAll(false);
-        showToast('Прорыв совершён ✨');
-    } catch (error) {
-        showToast('Прорыв недоступен');
     }
 }
 
@@ -347,9 +339,30 @@ function renderTechniques() {
     }
 
     const techniques = data.techniques || [];
-    const equipped = techniques.filter((t) => t.is_equipped).length;
 
-    document.getElementById('techSlots').textContent = `Экип ${equipped}/${data.max_equipped}`;
+    // Слоты экипировки
+    const slots = document.getElementById('techSlots');
+    slots.innerHTML = '';
+    for (let index = 0; index < data.max_equipped; index += 1) {
+        const technique = techniques[index];
+        if (technique) {
+            const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
+            const cell = document.createElement('button');
+            cell.className = 'tech-slot filled';
+            cell.type = 'button';
+            cell.dataset.code = technique.code;
+            cell.title = `${technique.name} (Ур. ${technique.level})`;
+            cell.innerHTML = `${icon}<span>${esc(technique.name)}</span>`;
+            cell.addEventListener('click', () => openTechniqueModal(techniques, technique.code));
+            slots.appendChild(cell);
+        } else {
+            const cell = document.createElement('div');
+            cell.className = 'tech-slot empty';
+            cell.textContent = '—';
+            slots.appendChild(cell);
+        }
+    }
+
     document.getElementById('techEmpty').classList.toggle('hidden', techniques.length > 0);
     document.getElementById('techList').classList.toggle('hidden', techniques.length === 0);
 
@@ -358,18 +371,19 @@ function renderTechniques() {
         .map((technique) => {
             const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
             return `
-            <button class="tech-row" data-code="${esc(technique.code)}" type="button">
-                <span class="tech-icon">${icon}</span>
-                <span class="tech-name">${esc(technique.name)}</span>
-                <span class="tech-chip">${esc(technique.element || '—')}</span>
-                <span class="tech-level">Ур. ${esc(technique.level)}</span>
-                ${technique.is_equipped ? '<span class="tech-equipped">★</span>' : ''}
+            <button class="tech-item" data-code="${esc(technique.code)}" type="button">
+                <span class="tech-item-icon">${icon}</span>
+                <span class="tech-item-meta">
+                    <span class="tech-item-name">${esc(technique.name)}</span>
+                    <span class="tech-item-sub">${esc(technique.element || '—')}</span>
+                </span>
+                <span class="tech-item-level">Ур. ${esc(technique.level)}</span>
             </button>`;
         })
         .join('');
 
     // Клик по технике — модальное окно
-    list.querySelectorAll('.tech-row').forEach((row) => {
+    list.querySelectorAll('.tech-item').forEach((row) => {
         row.addEventListener('click', () => openTechniqueModal(techniques, row.dataset.code));
     });
 }
@@ -381,22 +395,18 @@ function openTechniqueModal(techniques, code) {
     }
 
     const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
-    const body = document.getElementById('modalBody');
-    body.innerHTML = `
+    document.getElementById('modalTitle').textContent = technique.name;
+    document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${icon}</div>
         <div class="modal-title">${esc(technique.name)}</div>
         <div class="modal-desc">
-            <div>Элемент<span>${esc(technique.element || '—')}</span></div>
-            <div>Уровень<span>${esc(technique.level)}</span></div>
-            <div>Экипирована<span>${technique.is_equipped ? 'да' : 'нет'}</span></div>
-        </div>
-        <div class="modal-actions">
-            <button id="modalCancel" class="btn btn-outline" type="button">Закрыть</button>
+            <div><span class="muted">Элемент</span><span>${esc(technique.element || '—')}</span></div>
+            <div><span class="muted">Уровень</span><span>${esc(technique.level)}</span></div>
+            <div><span class="muted">Экипирована</span><span>${technique.is_equipped ? 'да' : 'нет'}</span></div>
         </div>
     `;
-
+    document.getElementById('modalUse').classList.add('hidden');
     openModal();
-    document.getElementById('modalCancel').addEventListener('click', closeModal);
 }
 
 // ---------- Модальное окно ----------
@@ -406,6 +416,7 @@ function openModal() {
 
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
+    activeItemCode = null;
 }
 
 // ---------- Загрузка данных ----------
@@ -435,17 +446,16 @@ async function loadAll(showLoadingIndicator = true) {
 }
 
 function renderAll() {
+    renderHeader();
     renderCharacter();
-    renderInventory();
-    renderCultivation();
     renderTechniques();
 }
 
 // ---------- Переключение вкладок ----------
 function initTabs() {
-    document.querySelectorAll('.nav-btn').forEach((button) => {
+    document.querySelectorAll('.tab').forEach((button) => {
         button.addEventListener('click', () => {
-            document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
             document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
 
             button.classList.add('active');
@@ -462,7 +472,7 @@ function init() {
     document.getElementById('btnRefresh').addEventListener('click', () => loadAll(true));
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
-    document.getElementById('btnBreakthrough').addEventListener('click', breakthrough);
+    document.getElementById('modalUse').addEventListener('click', usePotion);
 
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
