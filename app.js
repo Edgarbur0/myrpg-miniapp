@@ -328,17 +328,6 @@ function renderCultivation() {
     document.getElementById('btnBreakthrough').disabled = !canBreakthrough;
 }
 
-// Медитация (эндпоинт появится в следующих этапах)
-async function meditate() {
-    try {
-        await apiFetch(`/player/${userId}/meditate`, { method: 'POST' });
-        await loadAll(false);
-        showToast('Медитация прошла успешно 🧘');
-    } catch (error) {
-        showToast('Медитация скоро появится в игре');
-    }
-}
-
 // Прорыв (эндпоинт появится в следующих этапах)
 async function breakthrough() {
     try {
@@ -473,7 +462,6 @@ function init() {
     document.getElementById('btnRefresh').addEventListener('click', () => loadAll(true));
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
-    document.getElementById('btnMeditate').addEventListener('click', meditate);
     document.getElementById('btnBreakthrough').addEventListener('click', breakthrough);
 
     // Закрытие модалки по клику на фон
