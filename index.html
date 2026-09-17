@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Сянься</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Верхняя панель -->
+    <header class="top-bar">
+        <div class="logo">🏯 <span>Сянься</span></div>
+        <button id="btnRefresh" class="icon-btn" type="button" aria-label="Обновить">🔄</button>
+    </header>
+
+    <main class="content">
+
+        <!-- Экран: Персонаж -->
+        <section id="screen-character" class="screen active">
+            <div class="panel">
+                <div class="char-head">
+                    <div id="charAvatar" class="char-avatar">🧙</div>
+                    <div class="char-meta">
+                        <div id="charName" class="char-name">—</div>
+                        <div id="charLevel" class="char-level">Уровень 1</div>
+                    </div>
+                    <div id="charCult" class="char-cult">—</div>
+                </div>
+
+                <div class="bar-wrap">
+                    <div class="bar-label">HP</div>
+                    <div class="bar bar-hp"><div id="hpFill" class="bar-fill"></div><span id="hpText" class="bar-text">0/0</span></div>
+                </div>
+                <div id="mpWrap" class="bar-wrap">
+                    <div class="bar-label">MP</div>
+                    <div class="bar bar-mp"><div id="mpFill" class="bar-fill"></div><span id="mpText" class="bar-text">0/0</span></div>
+                </div>
+                <div class="bar-wrap">
+                    <div class="bar-label">Опыт</div>
+                    <div class="bar bar-xp"><div id="xpFill" class="bar-fill"></div><span id="xpText" class="bar-text">0/0</span></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">Характеристики</h3>
+                <div id="statsGrid" class="stats-grid"></div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">Ресурсы</h3>
+                <div id="resources" class="resources"></div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">Локация</h3>
+                <div id="locationBlock" class="location"></div>
+            </div>
+        </section>
+
+        <!-- Экран: Инвентарь -->
+        <section id="screen-inventory" class="screen">
+            <div class="panel">
+                <h3 class="panel-title">Инвентарь <span id="invSlots" class="title-note"></span></h3>
+                <div id="invGrid" class="inv-grid"></div>
+                <div id="invEmpty" class="empty-state hidden">Рюкзак пуст 🎒</div>
+            </div>
+        </section>
+
+        <!-- Экран: Культивация -->
+        <section id="screen-cultivation" class="screen">
+            <div class="panel cult-panel">
+                <div class="cult-stage-row">
+                    <div id="cultName" class="cult-name">—</div>
+                    <div id="cultNum" class="cult-num">0/15</div>
+                </div>
+                <div id="cultSubstage" class="cult-substage">Стадия 1/9</div>
+                <div class="bar-wrap">
+                    <div class="bar-label">Опыт стадии</div>
+                    <div class="bar bar-xp"><div id="cultFill" class="bar-fill"></div><span id="cultExpText" class="bar-text">0/0</span></div>
+                </div>
+                <div id="cultInfo" class="cult-info"></div>
+                <div class="actions">
+                    <button id="btnMeditate" class="btn btn-gold" type="button">🧘 Медитировать</button>
+                    <button id="btnBreakthrough" class="btn btn-primary" type="button" disabled>⚡ Прорыв</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Экран: Техники -->
+        <section id="screen-techniques" class="screen">
+            <div class="panel">
+                <h3 class="panel-title">Техники <span id="techSlots" class="title-note"></span></h3>
+                <div id="techList" class="tech-list"></div>
+                <div id="techEmpty" class="empty-state hidden">Техники не изучены</div>
+            </div>
+        </section>
+
+        <!-- Загрузка (skeleton) -->
+        <div id="skeleton" class="hidden">
+            <div class="sk sk-avatar"></div>
+            <div class="sk sk-line w60"></div>
+            <div class="sk sk-line"></div>
+            <div class="sk sk-line w80"></div>
+            <div class="sk sk-grid">
+                <div class="sk-cell"></div>
+                <div class="sk-cell"></div>
+                <div class="sk-cell"></div>
+                <div class="sk-cell"></div>
+                <div class="sk-cell"></div>
+                <div class="sk-cell"></div>
+            </div>
+        </div>
+
+        <!-- Ошибка загрузки -->
+        <div id="errorBox" class="hidden">
+            <div class="error-icon">❌</div>
+            <div class="error-text">Не удалось загрузить. Попробуй ещё раз.</div>
+            <button id="btnRetry" class="btn btn-gold" type="button">Повторить</button>
+        </div>
+
+    </main>
+
+    <!-- Нижняя навигация -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-screen="screen-character" type="button">
+            <span class="nav-icon">👤</span><span class="nav-label">Персонаж</span>
+        </button>
+        <button class="nav-btn" data-screen="screen-inventory" type="button">
+            <span class="nav-icon">🎒</span><span class="nav-label">Инвентарь</span>
+        </button>
+        <button class="nav-btn" data-screen="screen-cultivation" type="button">
+            <span class="nav-icon">🧘</span><span class="nav-label">Культивация</span>
+        </button>
+        <button class="nav-btn" data-screen="screen-techniques" type="button">
+            <span class="nav-icon">⚔️</span><span class="nav-label">Техники</span>
+        </button>
+    </nav>
+
+    <!-- Модальное окно -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <button id="btnModalClose" class="icon-btn modal-close" type="button" aria-label="Закрыть">✕</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast-уведомление -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
