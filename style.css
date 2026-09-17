@@ -377,22 +377,6 @@ body {
     display: none;
 }
 
-/* Строка культивации в панели статов */
-.cultivation-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    color: var(--accent);
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.cultivation-line::before {
-    content: '🌀';
-    font-size: 16px;
-}
-
 /* ================= ХАРАКТЕРИСТИКИ ================= */
 
 .stats-grid {

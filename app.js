@@ -215,6 +215,12 @@ function renderHeader() {
     document.getElementById('levelLine').textContent = `Уровень ${player.level}`;
     document.getElementById('playerName').textContent = getDisplayName(player);
 
+    // Подзаголовок: ступень культивации (0.1 Закалённое Тело)
+    const cultivation = player.cultivation;
+    document.getElementById('cultivationSubtitle').textContent = cultivation
+        ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
+        : '—';
+
     // Аватар: приоритет у VK Bridge, затем у данных с API
     renderAvatar(userAvatar || player.avatar_url);
 
@@ -238,19 +244,13 @@ function renderCharacter() {
         player.experience_needed
     );
 
-    // Строка культивации в панели статов
-    const cultivation = player.cultivation;
-    document.getElementById('cultivationLine').textContent = cultivation
-        ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
-        : '—';
-
     // Характеристики с кнопкой-подсказкой
     document.getElementById('statsGrid').innerHTML = STATS.map((stat) => {
         const detail = STAT_DETAILS[stat.key];
         return `
         <div class="stat">
             <span class="stat-name">${detail.label}</span>
-            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">ℹ️</button>
+            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>
             <b class="stat-value">${esc(player[stat.key])}</b>
         </div>`;
     }).join('');
@@ -370,9 +370,17 @@ async function meditate() {
             playerData.qi_depletion = data.qi_depletion;
             if (playerData.cultivation) {
                 playerData.cultivation.stage_experience = data.stage_experience;
+                if (data.substage !== undefined) {
+                    playerData.cultivation.substage = data.substage;
+                }
             }
             renderCultivation();
-            showToast('+10 опыта стадии 🌀');
+            renderHeader();
+            if (data.stage_up) {
+                showToast('✨ Стадия повышена!');
+            } else {
+                showToast(`+${data.exp_gained ?? 10} опыта стадии 🌀`);
+            }
         }
     } catch (error) {
         showToast(error.message || 'Не удалось медитировать');
