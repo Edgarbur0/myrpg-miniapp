@@ -9,31 +9,45 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
-<!-- ШАПКА: игрок + вкладки -->
+<!-- ШАПКА: игрок + вкладки + шкала опыта -->
 <header class="header">
-    <div class="player-info">
-        <div class="avatar-wrap">
-            <img src="" alt="Аватар" id="headerAvatar" class="avatar hidden">
-            <div id="headerAvatarFallback" class="avatar avatar-fallback">🧙</div>
+    <div class="header-top">
+        <div class="player-info">
+            <div class="avatar-wrap">
+                <img src="" alt="Аватар" id="headerAvatar" class="avatar hidden">
+                <div id="headerAvatarFallback" class="avatar avatar-fallback">🧙</div>
+            </div>
+            <div class="player-name">
+                <div class="level-line" id="levelLine">Уровень 1</div>
+                <h1 id="playerName">—</h1>
+            </div>
         </div>
-        <div class="player-name">
-            <h1 id="playerName">—</h1>
-            <div id="cultivationLine" class="cultivation-line">—</div>
-        </div>
+
+        <nav class="tabs">
+            <button class="tab active" type="button" data-screen="screen-character">Персонаж</button>
+            <button class="tab" type="button" data-screen="screen-craft">Крафт</button>
+            <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
+            <button class="tab" type="button" data-screen="screen-guild">Гильдия</button>
+            <button class="tab" type="button" data-screen="screen-techniques">Техники</button>
+        </nav>
+
         <button id="btnRefresh" class="icon-btn" type="button" aria-label="Обновить">🔄</button>
     </div>
 
-    <nav class="tabs">
-        <button class="tab active" type="button" data-screen="screen-character">Персонаж</button>
-        <button class="tab" type="button" data-screen="screen-craft">Крафт</button>
-        <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
-        <button class="tab" type="button" data-screen="screen-guild">Гильдия</button>
-        <button class="tab" type="button" data-screen="screen-techniques">Техники</button>
-    </nav>
+    <!-- Шкала опыта на всю ширину под шапкой -->
+    <div class="header-xp">
+        <div class="experience-bar">
+            <span class="exp-label">Опыт</span>
+            <div class="bar exp-bar">
+                <div id="xpFill" class="bar-fill fill-xp"></div>
+            </div>
+            <span id="xpText" class="exp-value">0 / 0</span>
+        </div>
+    </div>
 </header>
 
 <!-- ОСНОВНОЙ КОНТЕНТ -->
@@ -58,50 +72,12 @@
                 <h2 class="panel-title">Статы</h2>
             </div>
 
+            <!-- Строка культивации (перенесена из шапки) -->
+            <div class="cultivation-line" id="cultivationLine">—</div>
+
             <!-- Скелетон загрузки -->
             <div id="skeleton" class="skeleton">
-                <div class="sk sk-bars"></div>
                 <div class="sk sk-stats"></div>
-            </div>
-
-            <!-- Бары ресурсов -->
-            <div class="bars-grid">
-                <div class="bar-block">
-                    <div class="bar-label">
-                        <span>Истощение Ци</span>
-                        <span id="qiDepText" class="bar-values">0 / 0</span>
-                    </div>
-                    <div class="bar">
-                        <div id="qiDepFill" class="bar-fill fill-qi-dep"></div>
-                    </div>
-                </div>
-                <div class="bar-block">
-                    <div class="bar-label">
-                        <span>Здоровье</span>
-                        <span id="hpText" class="bar-values">0 / 0</span>
-                    </div>
-                    <div class="bar">
-                        <div id="hpFill" class="bar-fill fill-hp"></div>
-                    </div>
-                </div>
-                <div class="bar-block">
-                    <div class="bar-label">
-                        <span>Опыт</span>
-                        <span id="xpText" class="bar-values">0 / 0</span>
-                    </div>
-                    <div class="bar">
-                        <div id="xpFill" class="bar-fill fill-xp"></div>
-                    </div>
-                </div>
-                <div class="bar-block">
-                    <div class="bar-label">
-                        <span>Ци</span>
-                        <span id="qiText" class="bar-values">0 / 0</span>
-                    </div>
-                    <div class="bar">
-                        <div id="qiFill" class="bar-fill fill-qi"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- Характеристики -->
@@ -204,6 +180,6 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

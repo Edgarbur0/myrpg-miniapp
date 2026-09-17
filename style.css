@@ -58,13 +58,22 @@ body {
     box-shadow: var(--shadow);
 }
 
+.header-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 12px 16px 8px;
+}
+
+/* Игрок: аватар + уровень + имя */
 .player-info {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px 6px;
-    max-width: 1000px;
-    margin: 0 auto;
+    flex-shrink: 0;
 }
 
 .avatar-wrap {
@@ -90,26 +99,61 @@ body {
 }
 
 .player-name {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
 }
 
-.player-name h1 {
-    font-size: 18px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-}
-
-.cultivation-line {
+.level-line {
+    font-size: 12px;
     color: var(--accent);
-    font-size: 13px;
     font-weight: 500;
     white-space: nowrap;
+}
+
+.player-name h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Вкладки */
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.tab:hover {
+    color: var(--text);
+    border-color: var(--accent);
+}
+
+.tab.active {
+    background: var(--accent);
+    color: #1a1a2e;
+    border-color: var(--accent);
+    font-weight: 700;
 }
 
 .icon-btn {
@@ -145,46 +189,59 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* ================= ВКЛАДКИ ================= */
-
-.tabs {
-    display: flex;
-    gap: 6px;
-    padding: 8px 16px 10px;
+/* Шкала опыта во всю ширину под шапкой */
+.header-xp {
     max-width: 1000px;
     margin: 0 auto;
-    overflow-x: auto;
-    scrollbar-width: none;
+    padding: 0 16px 12px;
 }
 
-.tabs::-webkit-scrollbar {
-    display: none;
+.experience-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
 }
 
-.tab {
-    flex-shrink: 0;
-    padding: 8px 14px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--muted);
+.exp-label {
+    color: var(--accent);
+    font-weight: 700;
     font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
+    min-width: 50px;
+}
+
+.exp-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--card);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.exp-value {
+    color: var(--text);
+    font-size: 13px;
+    min-width: 70px;
+    text-align: right;
     white-space: nowrap;
 }
 
-.tab:hover {
-    color: var(--text);
-    border-color: var(--accent);
+.bar {
+    height: 10px;
+    background: #0d0d1c;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-.tab.active {
-    background: var(--accent);
-    color: #1a1a2e;
-    border-color: var(--accent);
-    font-weight: 700;
+.bar-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 6px;
+    transition: width var(--transition);
+}
+
+.fill-xp {
+    background: var(--xp);
 }
 
 /* ================= ОСНОВНОЙ КОНТЕНТ ================= */
@@ -316,77 +373,20 @@ body {
     display: none;
 }
 
-/* ================= БАРЫ ================= */
-
-.bars-grid {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-@media (min-width: 480px) {
-    .bars-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-.bar-block {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 10px;
-}
-
-.bar-label {
+/* Строка культивации в панели статов */
+.cultivation-line {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 5px;
+    align-items: center;
     gap: 8px;
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
 }
 
-.bar-label span:first-child {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.bar-values {
-    color: var(--text);
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.bar {
-    height: 10px;
-    background: #0d0d1c;
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.bar-fill {
-    height: 100%;
-    width: 0%;
-    border-radius: 6px;
-    transition: width var(--transition);
-}
-
-.fill-hp {
-    background: var(--hp);
-}
-
-.fill-xp {
-    background: var(--xp);
-}
-
-.fill-qi {
-    background: var(--qi);
-}
-
-.fill-qi-dep {
-    background: var(--qi-dep);
+.cultivation-line::before {
+    content: '🌀';
+    font-size: 16px;
 }
 
 /* ================= ХАРАКТЕРИСТИКИ ================= */
@@ -847,7 +847,7 @@ body {
 
 .skeleton {
     position: relative;
-    min-height: 60px;
+    min-height: 40px;
     margin-bottom: 16px;
 }
 
@@ -858,10 +858,6 @@ body {
     border-radius: 8px;
     margin-bottom: 10px;
     height: 44px;
-}
-
-.sk-bars {
-    height: 88px;
 }
 
 .sk-stats {

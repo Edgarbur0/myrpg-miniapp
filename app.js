@@ -1,7 +1,8 @@
 // ================================================
 // СЯНЬСЯ MINI APP — логика
-// VK Bridge → получение user_id и аватара → загрузка
-// данных с API → отрисовка персонажа и техник.
+// VK Bridge → получение user_id, аватара и имени →
+// сохранение имени на сервере → загрузка данных
+// с API → отрисовка персонажа и техник.
 // ================================================
 
 'use strict';
@@ -27,7 +28,7 @@ const ELEMENT_ICONS = {
     none: '⚔️',
 };
 
-// Характеристики на экране персонажа (порядок из макета)
+// Характеристики на экране персонажа
 const STATS = [
     { key: 'strength', label: 'Сила' },
     { key: 'damage', label: 'Урон' },
@@ -49,6 +50,8 @@ const ITEM_TYPE_LABELS = {
 // ---------- Состояние ----------
 let userId = null;
 let userAvatar = null;
+let vkDisplayName = null;
+let nameSaved = false;
 let playerData = null;
 let inventoryData = null;
 let techniquesData = null;
@@ -61,7 +64,7 @@ async function ensureUserId() {
         return userId;
     }
 
-    // Пробуем получить ID и аватар через VK Bridge
+    // Пробуем получить ID, аватар и имя через VK Bridge
     if (window.vkBridge) {
         try {
             await vkBridge.send('VKWebAppInit');
@@ -75,6 +78,11 @@ async function ensureUserId() {
                 if (info.photo_200) {
                     userAvatar = info.photo_200;
                 }
+                // Имя из ВК: first_name + last_name
+                if (info.first_name) {
+                    vkDisplayName = (info.first_name + ' ' + (info.last_name || '')).trim();
+                    saveVkName(info.first_name, info.last_name || '');
+                }
                 return userId;
             }
         } catch (error) {
@@ -85,6 +93,23 @@ async function ensureUserId() {
     // Фолбэк для отладки вне VK
     userId = TEST_USER_ID;
     return userId;
+}
+
+// Отправка имени из ВК на сервер (один раз за сессию)
+async function saveVkName(firstName, lastName) {
+    if (nameSaved) {
+        return;
+    }
+    nameSaved = true;
+    try {
+        await apiFetch(`/player/${userId}/set_name`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ first_name: firstName, last_name: lastName }),
+        });
+    } catch (error) {
+        console.warn('set_name:', error);
+    }
 }
 
 // ---------- Работа с API ----------
@@ -164,24 +189,26 @@ function renderAvatar(src) {
     }
 }
 
+// Отображение имени: приоритет у ВК, затем у данных игрока
+function getDisplayName(player) {
+    return vkDisplayName || player.nickname || 'Странник';
+}
+
 function renderHeader() {
     const player = playerData;
     if (!player) {
         return;
     }
 
-    document.getElementById('playerName').textContent = player.nickname;
-
-    const cultivation = player.cultivation;
-    const cultivationLine = cultivation
-        ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
-        : '—';
-    document.getElementById('cultivationLine').textContent = cultivationLine;
+    // Уровень над именем, имя крупно под ним
+    document.getElementById('levelLine').textContent = `Уровень ${player.level}`;
+    document.getElementById('playerName').textContent = getDisplayName(player);
 
     // Аватар: приоритет у VK Bridge, затем у данных с API
     renderAvatar(userAvatar || player.avatar_url);
 
-    document.getElementById('artName').textContent = player.nickname;
+    // Арт персонажа (левая колонка)
+    document.getElementById('artName').textContent = getDisplayName(player);
     document.getElementById('artLevel').textContent = `Уровень ${player.level}`;
 }
 
@@ -192,24 +219,7 @@ function renderCharacter() {
         return;
     }
 
-    // Бары ресурсов
-    const depletionMax = player.qi_depletion_max || 0;
-    const qiLeft = Math.max(0, depletionMax - (player.qi_depletion || 0));
-
-    setBar(
-        document.getElementById('qiDepFill'),
-        document.getElementById('qiDepText'),
-        player.qi_depletion,
-        depletionMax
-    );
-
-    setBar(
-        document.getElementById('hpFill'),
-        document.getElementById('hpText'),
-        player.hp,
-        player.max_hp
-    );
-
+    // Шкала опыта — во всю ширину под шапкой
     setBar(
         document.getElementById('xpFill'),
         document.getElementById('xpText'),
@@ -217,12 +227,11 @@ function renderCharacter() {
         player.experience_needed
     );
 
-    setBar(
-        document.getElementById('qiFill'),
-        document.getElementById('qiText'),
-        qiLeft,
-        depletionMax
-    );
+    // Строка культивации в панели статов
+    const cultivation = player.cultivation;
+    document.getElementById('cultivationLine').textContent = cultivation
+        ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
+        : '—';
 
     // Характеристики
     document.getElementById('statsGrid').innerHTML = STATS.map(
