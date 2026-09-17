@@ -244,6 +244,10 @@ body {
     background: var(--xp);
 }
 
+.fill-cult {
+    background: var(--accent);
+}
+
 /* ================= ОСНОВНОЙ КОНТЕНТ ================= */
 
 .main {
@@ -399,26 +403,97 @@ body {
 }
 
 .stat {
+    position: relative;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 10px 12px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 6px;
     transition: var(--transition);
 }
 
-.stat span {
+.stat-name {
     color: var(--muted);
     font-size: 12px;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.stat b {
+.stat-info-btn {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.stat-info-btn:hover {
+    transform: scale(1.2);
+    filter: brightness(1.2);
+}
+
+.stat-value {
     color: var(--accent);
     font-size: 16px;
     font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ================= POPOVER СТАТА ================= */
+
+.stat-popover {
+    position: fixed;
+    z-index: 100;
+    min-width: 200px;
+    max-width: 260px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.popover-header {
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.popover-chance {
+    color: var(--xp);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.popover-source {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text);
+    padding: 2px 0;
+    font-size: 13px;
+    gap: 16px;
+}
+
+.popover-total {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 8px;
+    font-weight: 700;
+    color: var(--accent);
 }
 
 /* ================= ЭКИПИРОВКА И ИНВЕНТАРЬ ================= */
@@ -503,20 +578,26 @@ body {
     border: 1px solid var(--border);
     border-radius: 10px;
     font-size: 20px;
-    cursor: default;
-    transition: var(--transition);
-}
-
-.item.usable {
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.item.usable:hover {
+/* Подсветка при наведении — у всех предметов */
+.item:hover {
     border-color: var(--accent);
-    background: var(--card-hover);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    transform: translateY(-2px);
 }
 
-.item.usable:active {
+/* Активный/выбранный предмет */
+.item.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    background: var(--card-hover);
+    transform: translateY(-2px);
+}
+
+.item:active {
     transform: scale(0.96);
 }
 
@@ -539,6 +620,78 @@ body {
     border: 1px dashed var(--border);
     border-radius: 10px;
     aspect-ratio: 1;
+    cursor: default;
+}
+
+.tile-empty:hover {
+    border-color: var(--border);
+    box-shadow: none;
+    transform: none;
+}
+
+/* ================= КУЛЬТИВАЦИЯ ================= */
+
+.cult-stage-line {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+.cult-stage-sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.bar-block {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin-bottom: 12px;
+}
+
+.bar-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    gap: 8px;
+}
+
+.bar-values {
+    color: var(--text);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cult-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.cult-chip {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.cult-chip b {
+    color: var(--text);
+}
+
+.cult-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
 }
 
 /* ================= ЗАГЛУШКИ ================= */
@@ -813,6 +966,34 @@ body {
 
 .modal-body .muted {
     color: var(--muted);
+}
+
+.modal-icon {
+    font-size: 40px;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.modal-title {
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.modal-desc {
+    display: grid;
+    gap: 6px;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.modal-desc > div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
 }
 
 #modalUse {

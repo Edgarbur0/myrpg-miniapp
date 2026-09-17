@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -29,6 +29,7 @@
 
         <nav class="tabs">
             <button class="tab active" type="button" data-screen="screen-character">Персонаж</button>
+            <button class="tab" type="button" data-screen="screen-cultivation">Культивация</button>
             <button class="tab" type="button" data-screen="screen-craft">Крафт</button>
             <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
             <button class="tab" type="button" data-screen="screen-guild">Гильдия</button>
@@ -72,7 +73,7 @@
                 <h2 class="panel-title">Статы</h2>
             </div>
 
-            <!-- Строка культивации (перенесена из шапки) -->
+            <!-- Строка культивации -->
             <div class="cultivation-line" id="cultivationLine">—</div>
 
             <!-- Скелетон загрузки -->
@@ -104,6 +105,38 @@
                         <div class="item tile-empty"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ЭКРАН: КУЛЬТИВАЦИЯ -->
+    <section id="screen-cultivation" class="screen">
+        <div class="stats-panel">
+            <div class="panel-title-row">
+                <h2 class="panel-title">Культивация</h2>
+            </div>
+
+            <div class="cult-stage-line" id="cultStageLine">—</div>
+            <div class="cult-stage-sub" id="cultSubstage">—</div>
+
+            <!-- Опыт стадии -->
+            <div class="bar-block">
+                <div class="bar-label">
+                    <span>Опыт стадии</span>
+                    <span id="cultExpText" class="bar-values">0 / 100</span>
+                </div>
+                <div class="bar">
+                    <div id="cultFill" class="bar-fill fill-cult"></div>
+                </div>
+            </div>
+
+            <!-- Тип и качество ци -->
+            <div class="cult-info" id="cultInfo"></div>
+
+            <!-- Действия -->
+            <div class="cult-actions">
+                <button class="btn btn-outline hidden" id="btnBreakthrough" type="button">💥 Прорыв</button>
+                <button class="btn btn-primary" id="btnMeditate" type="button">🧘 Медитировать</button>
             </div>
         </div>
     </section>
@@ -176,10 +209,13 @@
     </div>
 </div>
 
+<!-- POPOVER СТАТА -->
+<div id="statPopover" class="stat-popover hidden"></div>
+
 <!-- ТОСТ -->
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

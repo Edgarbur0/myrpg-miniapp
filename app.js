@@ -2,7 +2,7 @@
 // СЯНЬСЯ MINI APP — логика
 // VK Bridge → получение user_id, аватара и имени →
 // сохранение имени на сервере → загрузка данных
-// с API → отрисовка персонажа и техник.
+// с API → отрисовка персонажа, культивации, техник.
 // ================================================
 
 'use strict';
@@ -37,6 +37,17 @@ const STATS = [
     { key: 'armor', label: 'Броня' },
     { key: 'endurance', label: 'Выносливость' },
 ];
+
+// Детали статов для popover.
+// chance: шанс улучшения в бою есть только у Силы, Ловкости и Выносливости
+const STAT_DETAILS = {
+    strength: { label: 'Сила', chance: true },
+    damage: { label: 'Урон', chance: false },
+    agility: { label: 'Ловкость', chance: true },
+    luck: { label: 'Удача', chance: false },
+    armor: { label: 'Броня', chance: false },
+    endurance: { label: 'Выносливость', chance: true },
+};
 
 // Подписи основных типов предметов
 const ITEM_TYPE_LABELS = {
@@ -233,16 +244,144 @@ function renderCharacter() {
         ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
         : '—';
 
-    // Характеристики
-    document.getElementById('statsGrid').innerHTML = STATS.map(
-        (stat) => `
+    // Характеристики с кнопкой-подсказкой
+    document.getElementById('statsGrid').innerHTML = STATS.map((stat) => {
+        const detail = STAT_DETAILS[stat.key];
+        return `
         <div class="stat">
-            <span>${stat.label}</span>
-            <b>${esc(player[stat.key])}</b>
-        </div>`
-    ).join('');
+            <span class="stat-name">${detail.label}</span>
+            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">ℹ️</button>
+            <b class="stat-value">${esc(player[stat.key])}</b>
+        </div>`;
+    }).join('');
+
+    // Клик по ℹ️ — popover с деталями стата
+    document.querySelectorAll('.stat-info-btn').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            showStatInfo(button.dataset.stat, button);
+        });
+    });
 
     renderInventoryPanel();
+}
+
+// ---------- Popover стата ----------
+function showStatInfo(statKey, anchor) {
+    const detail = STAT_DETAILS[statKey];
+    if (!detail) {
+        return;
+    }
+
+    const value = playerData ? playerData[statKey] : 0;
+    const chanceHtml = detail.chance
+        ? '<div class="popover-chance">Шанс улучшения в бою: 30%</div>'
+        : '';
+
+    const popover = document.getElementById('statPopover');
+    popover.innerHTML = `
+        <div class="popover-header">${detail.label}</div>
+        ${chanceHtml}
+        <div class="popover-source"><span>База</span><span>${esc(value)}</span></div>
+        <div class="popover-total">Итого: ${esc(value)}</div>
+    `;
+
+    popover.classList.remove('hidden');
+    positionStatPopover(popover, anchor);
+}
+
+function positionStatPopover(popover, anchor) {
+    // Скрываемые элементы списком ниже — координаты считаем после показа
+    const rect = anchor.getBoundingClientRect();
+    const size = popover.getBoundingClientRect();
+    const mobile = window.innerWidth < 900;
+
+    let left;
+    let top;
+
+    if (mobile) {
+        // На мобильном popover появляется снизу от стата
+        left = rect.left;
+        if (left + size.width > window.innerWidth) {
+            left = Math.max(8, window.innerWidth - size.width - 8);
+        }
+        top = rect.bottom + 6;
+    } else {
+        // На десктопе — справа от стата (если не влезает — слева)
+        left = rect.right + 8;
+        if (left + size.width > window.innerWidth) {
+            left = Math.max(8, rect.left - size.width - 8);
+        }
+        top = rect.top + (rect.height - size.height) / 2;
+    }
+
+    if (top + size.height > window.innerHeight) {
+        top = Math.max(8, window.innerHeight - size.height - 8);
+    }
+    if (top < 8) {
+        top = 8;
+    }
+
+    popover.style.left = left + 'px';
+    popover.style.top = top + 'px';
+}
+
+function hideAllPopovers() {
+    const popover = document.getElementById('statPopover');
+    if (popover) {
+        popover.classList.add('hidden');
+    }
+}
+
+// ---------- Экран: Культивация ----------
+function renderCultivation() {
+    const cultivation = playerData && playerData.cultivation;
+    if (!cultivation) {
+        return;
+    }
+
+    document.getElementById('cultStageLine').textContent =
+        `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`;
+    document.getElementById('cultSubstage').textContent = `Стадия ${cultivation.substage}/9`;
+
+    setBar(
+        document.getElementById('cultFill'),
+        document.getElementById('cultExpText'),
+        cultivation.stage_experience,
+        cultivation.stage_experience_needed
+    );
+
+    document.getElementById('cultInfo').innerHTML = `
+        <div class="cult-chip">🌀 Ци: <b>${esc(cultivation.qi_type || '—')}</b></div>
+        <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
+    `;
+
+    // Кнопка прорыва — только на 9-й стадии (искусство достигло пика)
+    const atPeak = cultivation.substage >= 9;
+    document.getElementById('btnBreakthrough').classList.toggle('hidden', !atPeak);
+}
+
+// Медитация (POST /api/player/<id>/meditate): ци → опыт стадии
+async function meditate() {
+    try {
+        const data = await apiFetch(`/player/${userId}/meditate`, { method: 'POST' });
+        if (data.success) {
+            // Обновляем данные на месте, без полной перезагрузки
+            playerData.qi_depletion = data.qi_depletion;
+            if (playerData.cultivation) {
+                playerData.cultivation.stage_experience = data.stage_experience;
+            }
+            renderCultivation();
+            showToast('+10 опыта стадии 🌀');
+        }
+    } catch (error) {
+        showToast(error.message || 'Не удалось медитировать');
+    }
+}
+
+// Прорыв (эндпоинт появится в следующих этапах)
+async function breakthrough() {
+    showToast('Прорыв недоступен — скоро!');
 }
 
 // ---------- Инвентарь (мини-панель на экране персонажа) ----------
@@ -457,6 +596,7 @@ async function loadAll(showLoadingIndicator = true) {
 function renderAll() {
     renderHeader();
     renderCharacter();
+    renderCultivation();
     renderTechniques();
 }
 
@@ -483,10 +623,21 @@ function init() {
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
     document.getElementById('modalUse').addEventListener('click', usePotion);
 
+    // Культивация
+    document.getElementById('btnMeditate').addEventListener('click', meditate);
+    document.getElementById('btnBreakthrough').addEventListener('click', breakthrough);
+
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
         if (event.target === document.getElementById('modal')) {
             closeModal();
+        }
+    });
+
+    // Закрытие popover при клике вне стата и самого popover
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.stat') && !event.target.closest('.stat-popover')) {
+            hideAllPopovers();
         }
     });
 
