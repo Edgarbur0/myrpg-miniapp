@@ -96,6 +96,12 @@ async function apiFetch(path, options) {
 
 // ---------- Утилиты ----------
 function setBar(fill, text, current, max) {
+    if (!fill || !text) {
+        // Элемент разметки не найден (например, обновился только app.js).
+        // Не роняем экран, а логируем для диагностики.
+        console.warn('[MiniApp] setBar: элемент разметки не найден', { fill, text, current, max });
+        return;
+    }
     const percent = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
     fill.style.width = percent + '%';
     text.textContent = `${current} / ${max}`;
