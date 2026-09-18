@@ -284,6 +284,26 @@ function showStatInfo(statKey, anchor) {
         ? '<div class="popover-chance">Шанс улучшения в бою: 30%</div>'
         : '';
 
+    // Загрузка разбивки стата с сервера (fallback — просто База)
+    let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(value)}</span></div>`;
+    if (playerData && playerData.user_id) {
+        try {
+            const resp = await fetch(`${API_URL}/player/${playerData.user_id}/stat_breakdown`);
+            if (resp.ok) {
+                const data = await resp.json();
+                const rows = (data.breakdown || {})[statKey] || [];
+                if (rows.length) {
+                    sourcesHtml = rows
+                        .filter((row) => row.source !== 'total')
+                        .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
+                        .join('');
+                }
+            }
+        } catch (err) {
+            // Оффлайн — оставляем fallback «База»
+        }
+    }
+
     const popover = document.getElementById('statPopover');
     popover.innerHTML = `
         <div class="popover-header">${detail.label}</div>
