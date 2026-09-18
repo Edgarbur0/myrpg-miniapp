@@ -489,6 +489,18 @@ function renderBreakthroughForecast(forecast) {
                 : ''}
         </div>` : '';
 
+    // Если доступных мест нет — не показываем пустую сетку
+    const locationsHtml = locations.length ? `
+        <div class="bt-locations-title">🌍 Выбери место прорыва:</div>
+        <div class="bt-locations">
+            ${locations.map((location) => `
+                <button class="bt-loc${location.code === selectedCode ? ' bt-loc-selected' : ''}"
+                        type="button" data-code="${esc(location.code)}">
+                    <span class="bt-loc-name">${esc(location.name)}</span>
+                    <span class="bt-loc-effect">${esc(location.effect || '')}</span>
+                </button>`).join('')}
+        </div>` : `<div class="bt-locations-empty">🌍 Нет доступных мест для прорыва. Прокачайся.</div>`;
+
     block.classList.remove('hidden');
     block.innerHTML = `
         <div class="breakthrough-title">🌀 Прорыв</div>
@@ -501,15 +513,7 @@ function renderBreakthroughForecast(forecast) {
             <div class="bt-row">Прогноз HP после кары: <b>${esc(forecast.survive_hp)}</b></div>
         </div>
         ${selectedInfoHtml}
-        <div class="bt-locations-title">🌍 Выбери место прорыва:</div>
-        <div class="bt-locations">
-            ${locations.map((location) => `
-                <button class="bt-loc${location.code === selectedCode ? ' bt-loc-selected' : ''}"
-                        type="button" data-code="${esc(location.code)}">
-                    <span class="bt-loc-name">${esc(location.name)}</span>
-                    <span class="bt-loc-effect">${esc(location.effect || '')}</span>
-                </button>`).join('')}
-        </div>
+        ${locationsHtml}
         <button class="btn btn-outline bt-cancel" type="button">
             ${selectedCode ? '❌ Отменить выбор' : '❌ Отмена'}
         </button>

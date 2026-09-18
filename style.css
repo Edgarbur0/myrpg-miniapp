@@ -767,6 +767,17 @@ body {
     border-color: var(--accent);
 }
 
+.bt-locations-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+
 /* Выбранная локация: золотая рамка, фон и свечение */
 .bt-loc-selected,
 .bt-loc-selected:hover {
