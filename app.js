@@ -128,7 +128,13 @@ async function apiFetch(path, options) {
     const response = await fetch(API_URL + path, options);
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = new Error(data.error || `HTTP ${response.status}`);
+        // Понятные сообщения на русском вместо «internal error»
+        const messages = {
+            400: 'Ты истощён',
+            404: 'Игрок не найден',
+            500: 'Ошибка на сервере',
+        };
+        const error = new Error(messages[response.status] || data.error || `HTTP ${response.status}`);
         error.code = data.error;
         throw error;
     }
@@ -250,8 +256,8 @@ function renderCharacter() {
         return `
         <div class="stat">
             <span class="stat-name">${detail.label}</span>
-            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>
             <b class="stat-value">${esc(player[stat.key])}</b>
+            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>
         </div>`;
     }).join('');
 

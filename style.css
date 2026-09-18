@@ -386,30 +386,40 @@ body {
     margin-bottom: 16px;
 }
 
+/* Строка стата: имя | число | кнопка-подсказка "!" справа */
 .stat {
     position: relative;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 10px 12px;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto; /* имя | число | ! */
     align-items: center;
-    gap: 6px;
     transition: var(--transition);
 }
 
 .stat-name {
     color: var(--muted);
     font-size: 12px;
-    flex: 1;
+    grid-column: 1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+.stat-value {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 700;
+    grid-column: 2;
+    justify-self: start;
+    margin-left: 8pxCheers;
+}
+
 .stat-info-btn {
-    flex-shrink: 0;
+    grid-column: 3;
     width: 20px;
     height: 20px;
     padding: 0;
@@ -423,6 +433,7 @@ body {
     justify-content: center;
     border-radius: 50%;
     transition: var(--transition);
+    color: var(--accent);
 }
 
 .stat-info-btn:hover {
@@ -430,11 +441,13 @@ body {
     filter: brightness(1.2);
 }
 
-.stat-value {
-    color: var(--accent);
-    font-size: 16px;
-    font-weight: 700;
-    flex-shrink: 0;
+/* Подзаголовок ступени культивации в шапке (мелкий, золотой) */
+.cultivation-subtitle {
+    font-size: 0.75em;
+    color: #d4af37;
+    opacity: 0.85;
+    margin-top: 1px;
+    font-weight: 400; /* не жирный */
 }
 
 /* ================= POPOVER СТАТА ================= */
