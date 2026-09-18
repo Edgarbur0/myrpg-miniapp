@@ -418,6 +418,15 @@ function renderCultivation() {
         cultivation.stage_experience_needed
     );
 
+    // Полоска Ци: 100% = полная (qi = max_qi - qi_depletion), 0% = пусто
+    const qi = Math.max(0, (playerData.qi_depletion_max || 0) - (playerData.qi_depletion || 0));
+    setBar(
+        document.getElementById('qiFill'),
+        document.getElementById('qiText'),
+        qi,
+        playerData.qi_depletion_max || 0
+    );
+
     document.getElementById('cultInfo').innerHTML = `
         <div class="cult-chip">🌀 Ци: <b>${esc(cultivation.qi_type || '—')}</b></div>
         <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
@@ -435,32 +444,6 @@ function renderCultivation() {
     }
     // Старая кнопка «💥 Прорыв» заменена блоком — прячем её
     document.getElementById('btnBreakthrough').classList.add('hidden');
-}
-
-// Медитация (POST /api/player/<id>/meditate): ци → опыт стадии
-async function meditate() {
-    try {
-        const data = await apiFetch(`/player/${userId}/meditate`, { method: 'POST' });
-        if (data.success) {
-            // Обновляем данные на месте, без полной перезагрузки
-            playerData.qi_depletion = data.qi_depletion;
-            if (playerData.cultivation) {
-                playerData.cultivation.stage_experience = data.stage_experience;
-                if (data.substage !== undefined) {
-                    playerData.cultivation.substage = data.substage;
-                }
-            }
-            renderCultivation();
-            renderHeader();
-            if (data.stage_up) {
-                showToast('✨ Стадия повышена!');
-            } else {
-                showToast(`+${data.exp_gained ?? 10} опыта стадии 🌀`);
-            }
-        }
-    } catch (error) {
-        showToast(error.message || 'Не удалось медитировать');
-    }
 }
 
 // Прорыв (эндпоинт появится в следующих этапах)
@@ -548,6 +531,10 @@ function renderBreakthroughForecast(forecast) {
 
     // 📦 Требования: 2 слота ядер стихий
     const coresRequired = requirements.cores_required || 2;
+    const requireFullQi = Boolean(requirements.require_full_qi);
+    const qiNow = requirements.qi ?? 0;
+    const qiMax = requirements.qi_max ?? 0;
+    const hasFullQi = !requireFullQi || qiNow >= qiMax;
     const coreSlotsHtml = [0, 1].map((slot) => {
         const info = btSelectedCores[slot] ? coreInfo(btSelectedCores[slot]) : null;
         return `
@@ -563,8 +550,8 @@ function renderBreakthroughForecast(forecast) {
             — станет ясна после начала.</div>`
         : '';
 
-    // Кнопка активна, только если выбраны локация и 2 ядра
-    const canStart = Boolean(selectedLocation) && btSelectedCores[0] && btSelectedCores[1];
+    // Кнопка активна, только если выбраны локация и 2 ядра (и Ци полна)
+    const canStart = Boolean(selectedLocation) && btSelectedCores[0] && btSelectedCores[1] && hasFullQi;
     const startHtml = `
         <button class="btn bt-start${canStart ? '' : ' btn-disabled'}" type="button"
                 ${canStart ? '' : 'disabled'}>🚀 Начать прорыв</button>`;
@@ -584,6 +571,9 @@ function renderBreakthroughForecast(forecast) {
         ${locationsHtml}
         <div class="bt-requirements-title">📦 Требования</div>
         <div class="bt-requirements-sub">Требуется: ${esc(coresRequired)} ядра стихий</div>
+        ${requireFullQi
+            ? `<div class="bt-requirements-sub">🌀 Требуется полная Ци (${esc(qiNow)}/${esc(qiMax)})${hasFullQi ? ' ✅' : ' ❌'}</div>`
+            : ''}
         <div class="bt-core-slots">${coreSlotsHtml}</div>
         ${affinityHint}
         ${startHtml}
@@ -956,7 +946,6 @@ function init() {
     document.getElementById('modalUse').addEventListener('click', usePotion);
 
     // Культивация
-    document.getElementById('btnMeditate').addEventListener('click', meditate);
     document.getElementById('btnBreakthrough').addEventListener('click', breakthrough);
 
     // Закрытие модалки по клику на фон

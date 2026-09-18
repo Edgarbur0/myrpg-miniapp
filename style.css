@@ -14,6 +14,7 @@
     --border: #2a2a4a;
     --hp: #e74c3c;
     --xp: #2ecc71;
+    --qi: #4fc3f7;
     --qi: #3498db;
     --qi-dep: #95a5a6;
     --radius: 12px;
@@ -246,6 +247,10 @@ body {
 
 .fill-cult {
     background: var(--accent);
+}
+
+.fill-qi {
+    background: var(--qi);
 }
 
 /* ================= ОСНОВНОЙ КОНТЕНТ ================= */
