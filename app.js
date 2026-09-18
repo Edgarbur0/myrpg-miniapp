@@ -28,6 +28,9 @@ const ELEMENT_ICONS = {
     none: '⚔️',
 };
 
+// Порядок показа локаций прорыва (Горы → Река → Пещера → Вулкан)
+const BT_LOCATION_ORDER = { mountains: 0, river: 1, cave: 2, volcano: 3 };
+
 // Характеристики на экране персонажа
 const STATS = [
     { key: 'strength', label: 'Сила' },
@@ -68,6 +71,7 @@ let inventoryData = null;
 let techniquesData = null;
 let toastTimer = null;
 let activeItemCode = null;
+let breakthroughForecast = null;
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -385,9 +389,18 @@ function renderCultivation() {
         <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
     `;
 
-    // Кнопка прорыва — только на 9-й стадии (искусство достигло пика)
+    // Блок «🌀 Прорыв» — только на 9-й стадии (искусство достигло пика)
     const atPeak = cultivation.substage >= 9;
-    document.getElementById('btnBreakthrough').classList.toggle('hidden', !atPeak);
+    getBreakthroughBlock().classList.toggle('hidden', !atPeak);
+    if (atPeak) {
+        if (breakthroughForecast) {
+            renderBreakthroughForecast(breakthroughForecast);
+        } else {
+            loadBreakthroughForecast();
+        }
+    }
+    // Старая кнопка «💥 Прорыв» заменена блоком — прячем её
+    document.getElementById('btnBreakthrough').classList.add('hidden');
 }
 
 // Медитация (POST /api/player/<id>/meditate): ци → опыт стадии
@@ -419,6 +432,98 @@ async function meditate() {
 // Прорыв (эндпоинт появится в следующих этапах)
 async function breakthrough() {
     showToast('Прорыв недоступен — скоро!');
+}
+
+// ---------- Прорыв: прогноз и подготовка ----------
+// Создаёт (один раз) и возвращает блок «🌀 Прорыв»
+function getBreakthroughBlock() {
+    let block = document.getElementById('breakthroughBlock');
+    if (!block) {
+        block = document.createElement('div');
+        block.id = 'breakthroughBlock';
+        block.className = 'breakthrough-block hidden';
+        document.getElementById('screen-cultivation')
+            .querySelector('.stats-panel')
+            .appendChild(block);
+    }
+    return block;
+}
+
+// Загрузка прогноза прорыва (GET /api/player/<id>/breakthrough/forecast)
+async function loadBreakthroughForecast() {
+    try {
+        const data = await apiFetch(`/player/${userId}/breakthrough/forecast`);
+        breakthroughForecast = data;
+        renderBreakthroughForecast(data);
+    } catch (error) {
+        showToast(error.message || 'Не удалось загрузить прогноз прорыва');
+    }
+}
+
+// Отрисовка прогноза кары и кнопок выбора локации
+function renderBreakthroughForecast(forecast) {
+    const block = getBreakthroughBlock();
+    if (!forecast.available) {
+        block.classList.add('hidden');
+        return;
+    }
+
+    // Урон по волнам из массива: 28 / 33 / 38
+    const waveDamage = Array.isArray(forecast.damage)
+        ? forecast.damage.join(' / ')
+        : forecast.damage;
+    const surviveText = forecast.will_survive ? 'выживешь' : 'не выживешь';
+
+    // Локации из API в фиксированном порядке: Горы, Река, Пещера, Вулкан
+    const locations = (forecast.locations || [])
+        .slice()
+        .sort((a, b) => (BT_LOCATION_ORDER[a.code] ?? 9) - (BT_LOCATION_ORDER[b.code] ?? 9));
+
+    block.classList.remove('hidden');
+    block.innerHTML = `
+        <div class="breakthrough-title">🌀 Прорыв</div>
+        <div class="breakthrough-info">
+            <div class="bt-row">Мощь: <b>${esc(forecast.power)}</b></div>
+            <div class="bt-row">Волн: <b>${esc(forecast.waves)}</b></div>
+            <div class="bt-row">Урон по волнам: <b>${esc(waveDamage)}</b></div>
+            <div class="bt-row">Итого: <b>${esc(forecast.total_damage)}</b></div>
+            <div class="bt-row">❤️ Ты <b>${surviveText}</b></div>
+            <div class="bt-row">Прогноз HP после кары: <b>${esc(forecast.survive_hp)}</b></div>
+        </div>
+        <div class="bt-locations">
+            ${locations.map((location) => `
+                <button class="btn btn-outline bt-loc" type="button"
+                        data-code="${esc(location.code)}" title="${esc(location.effect || '')}">
+                    ${location.name}
+                </button>`).join('')}
+        </div>
+        <button class="btn btn-outline bt-cancel" type="button">❌ Отмена</button>
+    `;
+
+    // Клик по локации — подготовка прорыва
+    block.querySelectorAll('.bt-loc').forEach((button) => {
+        button.addEventListener('click', () => prepareBreakthrough(button.dataset.code));
+    });
+
+    // Отмена — прячем блок до следующего рендера
+    block.querySelector('.bt-cancel').addEventListener('click', () => {
+        block.classList.add('hidden');
+    });
+}
+
+// Сохранение выбора локации (POST /api/player/<id>/breakthrough/prepare)
+async function prepareBreakthrough(locationCode) {
+    try {
+        const data = await apiFetch(`/player/${userId}/breakthrough/prepare`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location_code: locationCode }),
+        });
+        showToast(data.message || 'Выбор локации сохранён');
+        getBreakthroughBlock().classList.add('hidden');
+    } catch (error) {
+        showToast(error.message || 'Не удалось сохранить выбор локации');
+    }
 }
 
 // ---------- Инвентарь (мини-панель на экране персонажа) ----------
