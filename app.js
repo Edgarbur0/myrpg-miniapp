@@ -45,15 +45,19 @@ function coreElement(code) {
     return String(code || '').replace('_core', '');
 }
 
-// Полная информация о ядре для UI (слоты, модалка выбора)
+// Полная информация о ядре для UI (слоты, модалка выбора).
+// Название и иконку берём из API (cores_available), иначе fallback на справочники.
 function coreInfo(code) {
     if (!code) {
         return null;
     }
+    const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
+    const available = requirements.cores_available || [];
+    const core = available.find((item) => item.code === code);
     return {
         code,
-        name: CORE_NAMES[code] || code,
-        icon: ELEMENT_ICONS[coreElement(code)] || '🔥',
+        name: (core && core.name) || CORE_NAMES[code] || code,
+        icon: (core && core.icon) || ELEMENT_ICONS[coreElement(code)] || '🔥',
     };
 }
 
@@ -168,7 +172,7 @@ async function apiFetch(path, options) {
             404: 'Игрок не найден',
             500: 'Ошибка на сервере',
         };
-        const error = new Error(messages[response.status] || data.error || `HTTP ${response.status}`);
+        const error = new Error(data.message || messages[response.status] || data.error || `HTTP ${response.status}`);
         error.code = data.error;
         throw error;
     }
@@ -650,10 +654,23 @@ function openCorePicker(slot) {
     }
 }
 
-// Выбор ядра: кладём в слот, закрываем модалку, перерисовываем блок
+// Выбор ядра: кладём в слот, закрываем модалку, перерисовываем блок.
+// Не даём положить одно и то же ядро в оба слота, если его меньше 2.
 function chooseCore(code) {
     if (coreSlotEditing === null) {
         return;
+    }
+    if (code !== null) {
+        const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
+        const available = requirements.cores_available || [];
+        const core = available.find((item) => item.code === code);
+        const count = core ? core.count : 0;
+        const alreadyUsed = btSelectedCores.some((selected) => selected === code);
+        if (alreadyUsed && count < 2) {
+            const name = (core && core.name) || CORE_NAMES[code] || code;
+            showToast(`Только 1 ${name}. Выбери другое ядро.`);
+            return;
+        }
     }
     btSelectedCores[coreSlotEditing] = code;
     coreSlotEditing = null;
