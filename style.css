@@ -691,6 +691,118 @@ body {
     gap: 8px;
 }
 
+/* ================= ПРОРЫВ ================= */
+
+.breakthrough-block {
+    margin-top: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.breakthrough-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 10px;
+}
+
+.breakthrough-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.bt-row {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.bt-row b {
+    color: var(--text);
+}
+
+.bt-locations-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.bt-locations {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.bt-loc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    transition: var(--transition);
+}
+
+.bt-loc-name {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.bt-loc-effect {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.bt-loc:hover {
+    border-color: var(--accent);
+}
+
+/* Выбранная локация: золотая рамка, фон и свечение */
+.bt-loc-selected,
+.bt-loc-selected:hover {
+    border-color: var(--accent);
+    background: rgba(212, 175, 55, 0.15);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
+}
+
+.bt-loc-selected .bt-loc-name {
+    color: var(--accent);
+}
+
+/* Блок «✨ Выбрано» */
+.bt-selected-info {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.bt-selected-name {
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+.bt-selected-effect {
+    font-size: 12px;
+    color: var(--text);
+}
+
+.bt-cancel {
+    width: 100%;
+}
+
 /* ================= ЗАГЛУШКИ ================= */
 
 .stub {
