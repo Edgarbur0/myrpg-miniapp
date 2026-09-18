@@ -814,6 +814,129 @@ body {
     width: 100%;
 }
 
+/* 📦 Требования: ядра стихий */
+.bt-requirements-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.bt-requirements-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.bt-core-slots {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.bt-core-slot {
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--muted);
+    transition: var(--transition);
+}
+
+.bt-core-slot:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.bt-core-slot.filled {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.bt-affinity-hint {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--card);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+}
+
+/* Кнопка «🚀 Начать прорыв» */
+.bt-start {
+    width: 100%;
+    margin-bottom: 8px;
+    background: var(--accent);
+    color: #1a1a2e;
+}
+
+.bt-start:hover {
+    filter: brightness(1.08);
+}
+
+.btn-disabled,
+.btn-disabled:hover {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+}
+
+/* Модалка выбора ядра */
+.core-picker-list {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.core-picker-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    transition: var(--transition);
+}
+
+.core-picker-option:hover {
+    border-color: var(--accent);
+}
+
+.core-picker-name {
+    font-weight: 700;
+}
+
+.core-picker-clear {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--muted);
+    transition: var(--transition);
+}
+
+.core-picker-clear:hover {
+    color: var(--text);
+    border-color: var(--border);
+}
+
 /* ================= ЗАГЛУШКИ ================= */
 
 .stub {

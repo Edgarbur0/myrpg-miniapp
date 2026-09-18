@@ -28,8 +28,34 @@ const ELEMENT_ICONS = {
     none: '⚔️',
 };
 
+// Названия ядер стихий (код → имя)
+const CORE_NAMES = {
+    fire_core: 'Огненное ядро',
+    water_core: 'Водное ядро',
+    wood_core: 'Древесное ядро',
+    metal_core: 'Металлическое ядро',
+    earth_core: 'Земляное ядро',
+};
+
 // Порядок показа локаций прорыва (Горы → Река → Пещера → Вулкан)
 const BT_LOCATION_ORDER = { mountains: 0, river: 1, cave: 2, volcano: 3 };
+
+// Стихия по коду ядра: 'fire_core' → 'fire'
+function coreElement(code) {
+    return String(code || '').replace('_core', '');
+}
+
+// Полная информация о ядре для UI (слоты, модалка выбора)
+function coreInfo(code) {
+    if (!code) {
+        return null;
+    }
+    return {
+        code,
+        name: CORE_NAMES[code] || code,
+        icon: ELEMENT_ICONS[coreElement(code)] || '🔥',
+    };
+}
 
 // Характеристики на экране персонажа
 const STATS = [
@@ -72,6 +98,10 @@ let techniquesData = null;
 let toastTimer = null;
 let activeItemCode = null;
 let breakthroughForecast = null;
+// Выбор прорыва в Mini App: локация и 2 ядра (переживают перерисовку)
+let btSelectedLocation = null;
+let btSelectedCores = null;
+let coreSlotEditing = null;          // какой слот редактируем (0 или 1)
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -468,6 +498,18 @@ function renderBreakthroughForecast(forecast) {
         return;
     }
 
+    // Локальный прогресс выбора (локация + ядра) — переживает перерисовку
+    if (btSelectedLocation === null) {
+        btSelectedLocation = forecast.selected_location || null;
+    }
+    const requirements = forecast.requirements || {};
+    if (btSelectedCores === null) {
+        btSelectedCores = (requirements.cores_selected || []).slice();
+    }
+    while (btSelectedCores.length < 2) {
+        btSelectedCores.push(undefined);
+    }
+
     // Урон по волнам из массива: 28 / 33 / 38
     const waveDamage = Array.isArray(forecast.damage)
         ? forecast.damage.join(' / ')
@@ -479,8 +521,7 @@ function renderBreakthroughForecast(forecast) {
         .slice()
         .sort((a, b) => (BT_LOCATION_ORDER[a.code] ?? 9) - (BT_LOCATION_ORDER[b.code] ?? 9));
 
-    const selectedCode = forecast.selected_location || null;
-    const selectedLocation = locations.find((item) => item.code === selectedCode) || null;
+    const selectedLocation = locations.find((item) => item.code === btSelectedLocation) || null;
     const selectedInfoHtml = selectedLocation ? `
         <div class="bt-selected-info">
             <div class="bt-selected-name">✨ Выбрано: ${esc(selectedLocation.name)}</div>
@@ -494,12 +535,35 @@ function renderBreakthroughForecast(forecast) {
         <div class="bt-locations-title">🌍 Выбери место прорыва:</div>
         <div class="bt-locations">
             ${locations.map((location) => `
-                <button class="bt-loc${location.code === selectedCode ? ' bt-loc-selected' : ''}"
+                <button class="bt-loc${location.code === btSelectedLocation ? ' bt-loc-selected' : ''}"
                         type="button" data-code="${esc(location.code)}">
                     <span class="bt-loc-name">${esc(location.name)}</span>
                     <span class="bt-loc-effect">${esc(location.effect || '')}</span>
                 </button>`).join('')}
         </div>` : `<div class="bt-locations-empty">🌍 Нет доступных мест для прорыва. Прокачайся.</div>`;
+
+    // 📦 Требования: 2 слота ядер стихий
+    const coresRequired = requirements.cores_required || 2;
+    const coreSlotsHtml = [0, 1].map((slot) => {
+        const info = btSelectedCores[slot] ? coreInfo(btSelectedCores[slot]) : null;
+        return `
+            <button class="bt-core-slot${info ? ' filled' : ''}" data-slot="${slot}" type="button">
+                ${info ? `${info.icon} ${esc(info.name)}` : `Слот ${slot + 1}: Пусто`}
+            </button>`;
+    }).join('');
+
+    // Подсказка о будущей стихии прорыва (случайная из двух ядер)
+    const affinityHint = btSelectedCores[0] && btSelectedCores[1]
+        ? `<div class="bt-affinity-hint">💫 Стихия прорыва: ${
+            btSelectedCores.map((code) => `${coreInfo(code).icon} ${coreInfo(code).name}`).join(' / ')}
+            — станет ясна после начала.</div>`
+        : '';
+
+    // Кнопка активна, только если выбраны локация и 2 ядра
+    const canStart = Boolean(selectedLocation) && btSelectedCores[0] && btSelectedCores[1];
+    const startHtml = `
+        <button class="btn bt-start${canStart ? '' : ' btn-disabled'}" type="button"
+                ${canStart ? '' : 'disabled'}>🚀 Начать прорыв</button>`;
 
     block.classList.remove('hidden');
     block.innerHTML = `
@@ -514,52 +578,122 @@ function renderBreakthroughForecast(forecast) {
         </div>
         ${selectedInfoHtml}
         ${locationsHtml}
-        <button class="btn btn-outline bt-cancel" type="button">
-            ${selectedCode ? '❌ Отменить выбор' : '❌ Отмена'}
-        </button>
+        <div class="bt-requirements-title">📦 Требования</div>
+        <div class="bt-requirements-sub">Требуется: ${esc(coresRequired)} ядра стихий</div>
+        <div class="bt-core-slots">${coreSlotsHtml}</div>
+        ${affinityHint}
+        ${startHtml}
+        <button class="btn btn-outline bt-cancel" type="button">❌ Отмена</button>
     `;
 
-    // Клик по локации — подготовка прорыва (или смена выбора)
+    // Клик по локации — локальный выбор (POST будет при «Начать прорыв»)
     block.querySelectorAll('.bt-loc').forEach((button) => {
-        button.addEventListener('click', () => prepareBreakthrough(button.dataset.code));
+        button.addEventListener('click', () => selectBreakthroughLocation(button.dataset.code));
     });
 
-    // При выборе — сброс выбора, иначе — скрытие блока
-    const cancel = block.querySelector('.bt-cancel');
-    if (selectedCode) {
-        cancel.addEventListener('click', cancelBreakthrough);
-    } else {
-        cancel.addEventListener('click', () => block.classList.add('hidden'));
+    // Клик по слоту ядра — модалка выбора
+    block.querySelectorAll('.bt-core-slot').forEach((button) => {
+        button.addEventListener('click', () => openCorePicker(Number(button.dataset.slot)));
+    });
+
+    const startButton = block.querySelector('.bt-start');
+    if (startButton) {
+        startButton.addEventListener('click', startBreakthrough);
+    }
+
+    block.querySelector('.bt-cancel').addEventListener('click', cancelBreakthrough);
+}
+
+// Выбор локации в Mini App (сохраняется на сервере только при старте)
+function selectBreakthroughLocation(code) {
+    btSelectedLocation = code;
+    renderBreakthroughForecast(breakthroughForecast);
+}
+
+// Модалка выбора ядра для слота (использует существующую модалку)
+function openCorePicker(slot) {
+    coreSlotEditing = slot;
+    const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
+    const options = requirements.cores_available || [];
+    if (!options.length) {
+        showToast('Нет ядер стихий. Собери их с монстров!');
+        return;
+    }
+
+    document.getElementById('modalTitle').textContent = `Ядро — слот ${slot + 1}`;
+    document.getElementById('modalBody').innerHTML = `
+        <div class="modal-icon">💎</div>
+        <div class="modal-title">Выбери ядро стихии</div>
+        <div class="core-picker-list">
+            ${options.map((core) => {
+                const info = coreInfo(core.code);
+                return `
+                <button class="core-picker-option" data-core="${esc(core.code)}" type="button">
+                    <span class="core-picker-name">${info.icon} ${esc(info.name)}</span>
+                    <span class="muted">×${esc(core.count)}</span>
+                </button>`;
+            }).join('')}
+            ${btSelectedCores[slot]
+                ? '<button class="core-picker-clear" type="button" data-clear="1">❌ Очистить</button>'
+                : ''}
+        </div>
+    `;
+    document.getElementById('modalUse').classList.add('hidden');
+    openModal();
+
+    document.querySelectorAll('.core-picker-option').forEach((button) => {
+        button.addEventListener('click', () => chooseCore(button.dataset.core));
+    });
+    const clearButton = document.querySelector('.core-picker-clear');
+    if (clearButton) {
+        clearButton.addEventListener('click', () => chooseCore(null));
     }
 }
 
-// Сохранение выбора локации (POST /api/player/<id>/breakthrough/prepare)
-async function prepareBreakthrough(locationCode) {
+// Выбор ядра: кладём в слот, закрываем модалку, перерисовываем блок
+function chooseCore(code) {
+    if (coreSlotEditing === null) {
+        return;
+    }
+    btSelectedCores[coreSlotEditing] = code;
+    coreSlotEditing = null;
+    closeModal();
+    renderBreakthroughForecast(breakthroughForecast);
+}
+
+// Начало прорыва: POST с локацией и 2 ядрами (сервер сохраняет + выбирает стихию)
+async function startBreakthrough() {
+    if (!btSelectedLocation || !btSelectedCores[0] || !btSelectedCores[1]) {
+        return;
+    }
     try {
         const data = await apiFetch(`/player/${userId}/breakthrough/prepare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ location_code: locationCode }),
+            body: JSON.stringify({
+                location_code: btSelectedLocation,
+                core_codes: btSelectedCores,
+            }),
         });
-        showToast(data.message || 'Выбор локации сохранён');
-        // Блок не скрываем — подсвечиваем выбранную локацию и перерисовываем
-        breakthroughForecast = breakthroughForecast || {};
-        breakthroughForecast.selected_location = locationCode;
-        renderBreakthroughForecast(breakthroughForecast);
+        if (data.success) {
+            breakthroughForecast = Object.assign({}, breakthroughForecast, {
+                selected_location: btSelectedLocation,
+            });
+            showToast(`✅ Готово! Стихия: ${data.affinity_name || ''}`.trim());
+        }
     } catch (error) {
-        showToast(error.message || 'Не удалось сохранить выбор локации');
+        showToast(error.message || 'Не удалось начать прорыв');
     }
 }
 
-// Сброс выбора места прорыва (POST /api/player/<id>/breakthrough/cancel)
+// Сброс выбора (POST /breakthrough/cancel очищает локацию и ядра на сервере)
 async function cancelBreakthrough() {
     try {
-        const data = await apiFetch(`/player/${userId}/breakthrough/cancel`, {
-            method: 'POST',
-        });
-        breakthroughForecast.selected_location = null;
+        await apiFetch(`/player/${userId}/breakthrough/cancel`, { method: 'POST' });
+        btSelectedLocation = null;
+        btSelectedCores = [undefined, undefined];
         renderBreakthroughForecast(breakthroughForecast);
-        showToast(data.message || 'Выбор локации сброшен');
+        showToast('Выбор прорыва сброшен');
     } catch (error) {
         showToast(error.message || 'Не удалось сбросить выбор');
     }
