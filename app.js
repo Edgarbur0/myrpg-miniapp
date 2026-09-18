@@ -286,6 +286,7 @@ async function showStatInfo(statKey, anchor) {
 
     // Загрузка разбивки стата с сервера (fallback — просто База)
     let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(value)}</span></div>`;
+    let total = value;
     if (playerData && playerData.user_id) {
         try {
             const resp = await fetch(`${API_URL}/player/${playerData.user_id}/stat_breakdown`);
@@ -293,6 +294,8 @@ async function showStatInfo(statKey, anchor) {
                 const data = await resp.json();
                 const rows = (data.breakdown || {})[statKey] || [];
                 if (rows.length) {
+                    const totalRow = rows.find((row) => row.source === 'total');
+                    if (totalRow) total = totalRow.value;
                     sourcesHtml = rows
                         .filter((row) => row.source !== 'total')
                         .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
@@ -308,8 +311,8 @@ async function showStatInfo(statKey, anchor) {
     popover.innerHTML = `
         <div class="popover-header">${detail.label}</div>
         ${chanceHtml}
-        <div class="popover-source"><span>База</span><span>${esc(value)}</span></div>
-        <div class="popover-total">Итого: ${esc(value)}</div>
+        ${sourcesHtml}
+        <div class="popover-total">Итого: ${esc(total)}</div>
     `;
 
     popover.classList.remove('hidden');
