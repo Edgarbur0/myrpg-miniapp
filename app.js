@@ -273,7 +273,7 @@ function renderCharacter() {
 }
 
 // ---------- Popover стата ----------
-function showStatInfo(statKey, anchor) {
+async function showStatInfo(statKey, anchor) {
     const detail = STAT_DETAILS[statKey];
     if (!detail) {
         return;
