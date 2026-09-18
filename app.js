@@ -479,6 +479,16 @@ function renderBreakthroughForecast(forecast) {
         .slice()
         .sort((a, b) => (BT_LOCATION_ORDER[a.code] ?? 9) - (BT_LOCATION_ORDER[b.code] ?? 9));
 
+    const selectedCode = forecast.selected_location || null;
+    const selectedLocation = locations.find((item) => item.code === selectedCode) || null;
+    const selectedInfoHtml = selectedLocation ? `
+        <div class="bt-selected-info">
+            <div class="bt-selected-name">✨ Выбрано: ${esc(selectedLocation.name)}</div>
+            ${selectedLocation.effect
+                ? `<div class="bt-selected-effect">${esc(selectedLocation.effect)}</div>`
+                : ''}
+        </div>` : '';
+
     block.classList.remove('hidden');
     block.innerHTML = `
         <div class="breakthrough-title">🌀 Прорыв</div>
@@ -490,25 +500,33 @@ function renderBreakthroughForecast(forecast) {
             <div class="bt-row">❤️ Ты <b>${surviveText}</b></div>
             <div class="bt-row">Прогноз HP после кары: <b>${esc(forecast.survive_hp)}</b></div>
         </div>
+        ${selectedInfoHtml}
+        <div class="bt-locations-title">🌍 Выбери место прорыва:</div>
         <div class="bt-locations">
             ${locations.map((location) => `
-                <button class="btn btn-outline bt-loc" type="button"
-                        data-code="${esc(location.code)}" title="${esc(location.effect || '')}">
-                    ${location.name}
+                <button class="bt-loc${location.code === selectedCode ? ' bt-loc-selected' : ''}"
+                        type="button" data-code="${esc(location.code)}">
+                    <span class="bt-loc-name">${esc(location.name)}</span>
+                    <span class="bt-loc-effect">${esc(location.effect || '')}</span>
                 </button>`).join('')}
         </div>
-        <button class="btn btn-outline bt-cancel" type="button">❌ Отмена</button>
+        <button class="btn btn-outline bt-cancel" type="button">
+            ${selectedCode ? '❌ Отменить выбор' : '❌ Отмена'}
+        </button>
     `;
 
-    // Клик по локации — подготовка прорыва
+    // Клик по локации — подготовка прорыва (или смена выбора)
     block.querySelectorAll('.bt-loc').forEach((button) => {
         button.addEventListener('click', () => prepareBreakthrough(button.dataset.code));
     });
 
-    // Отмена — прячем блок до следующего рендера
-    block.querySelector('.bt-cancel').addEventListener('click', () => {
-        block.classList.add('hidden');
-    });
+    // При выборе — сброс выбора, иначе — скрытие блока
+    const cancel = block.querySelector('.bt-cancel');
+    if (selectedCode) {
+        cancel.addEventListener('click', cancelBreakthrough);
+    } else {
+        cancel.addEventListener('click', () => block.classList.add('hidden'));
+    }
 }
 
 // Сохранение выбора локации (POST /api/player/<id>/breakthrough/prepare)
@@ -520,9 +538,26 @@ async function prepareBreakthrough(locationCode) {
             body: JSON.stringify({ location_code: locationCode }),
         });
         showToast(data.message || 'Выбор локации сохранён');
-        getBreakthroughBlock().classList.add('hidden');
+        // Блок не скрываем — подсвечиваем выбранную локацию и перерисовываем
+        breakthroughForecast = breakthroughForecast || {};
+        breakthroughForecast.selected_location = locationCode;
+        renderBreakthroughForecast(breakthroughForecast);
     } catch (error) {
         showToast(error.message || 'Не удалось сохранить выбор локации');
+    }
+}
+
+// Сброс выбора места прорыва (POST /api/player/<id>/breakthrough/cancel)
+async function cancelBreakthrough() {
+    try {
+        const data = await apiFetch(`/player/${userId}/breakthrough/cancel`, {
+            method: 'POST',
+        });
+        breakthroughForecast.selected_location = null;
+        renderBreakthroughForecast(breakthroughForecast);
+        showToast(data.message || 'Выбор локации сброшен');
+    } catch (error) {
+        showToast(error.message || 'Не удалось сбросить выбор');
     }
 }
 
