@@ -448,13 +448,6 @@ function renderCultivation() {
             loadBreakthroughForecast();
         }
     }
-    // Старая кнопка «💥 Прорыв» заменена блоком — прячем её
-    document.getElementById('btnBreakthrough').classList.add('hidden');
-}
-
-// Прорыв (эндпоинт появится в следующих этапах)
-async function breakthrough() {
-    showToast('Прорыв недоступен — скоро!');
 }
 
 // ---------- Прорыв: прогноз и подготовка ----------
@@ -688,11 +681,23 @@ async function startBreakthrough() {
                 core_codes: btSelectedCores,
             }),
         });
-        if (data.success) {
-            breakthroughForecast = Object.assign({}, breakthroughForecast, {
-                selected_location: btSelectedLocation,
-            });
-            showToast(`✅ Готово! Стихия: ${data.affinity_name || ''}`.trim());
+        if (!data.success) {
+            showToast(data.message || 'Не удалось подготовить прорыв');
+            return;
+        }
+        // Уведомляем чат: API отправит сообщение с кнопкой «🌀 Совершить прорыв»
+        const start = await apiFetch(`/player/${userId}/breakthrough/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location_code: btSelectedLocation }),
+        });
+        breakthroughForecast = Object.assign({}, breakthroughForecast, {
+            selected_location: btSelectedLocation,
+        });
+        if (start && start.message_sent === false) {
+            showToast('⚠️ Выбор сохранён, но не удалось отправить сообщение в чат. Напиши боту !старт и проверь.');
+        } else {
+            showToast('📩 Сообщение отправлено в чат — жми «🌀 Совершить прорыв»');
         }
     } catch (error) {
         showToast(error.message || 'Не удалось начать прорыв');
@@ -950,9 +955,6 @@ function init() {
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
     document.getElementById('modalUse').addEventListener('click', usePotion);
-
-    // Культивация
-    document.getElementById('btnBreakthrough').addEventListener('click', breakthrough);
 
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
