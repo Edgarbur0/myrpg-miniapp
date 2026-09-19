@@ -318,13 +318,12 @@ async function showStatInfo(statKey, anchor) {
     }
 
     const value = playerData ? playerData[statKey] : 0;
-    const chanceHtml = detail.chance
-        ? '<div class="popover-chance">Шанс улучшения в бою: 30%</div>'
-        : '';
 
     // Загрузка разбивки стата с сервера (fallback — просто База)
     let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(value)}</span></div>`;
     let total = value;
+    // Реальный шанс улучшения в бою приходит в data.chances (30 * 0.98^upgrades)
+    let chancePct = null;
     if (playerData && playerData.user_id) {
         try {
             const resp = await fetch(`${API_URL}/player/${playerData.user_id}/stat_breakdown`);
@@ -339,11 +338,18 @@ async function showStatInfo(statKey, anchor) {
                         .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
                         .join('');
                 }
+                if (data.chances && typeof data.chances[statKey] === 'number') {
+                    chancePct = data.chances[statKey];
+                }
             }
         } catch (err) {
             // Оффлайн — оставляем fallback «База»
         }
     }
+
+    const chanceHtml = detail.chance && chancePct !== null
+        ? `<div class="popover-chance">Шанс улучшения в бою: ${chancePct.toFixed(1)}%</div>`
+        : '';
 
     const popover = document.getElementById('statPopover');
     popover.innerHTML = `
