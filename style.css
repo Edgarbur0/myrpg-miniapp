@@ -955,6 +955,210 @@ body {
     border-color: var(--border);
 }
 
+/* ================= ПОДГОТОВКА К ПРОРЫВУ ================= */
+
+/* Надпись «Нужна 9-я стадия» — приглушённая */
+.prep-not-ready {
+    color: var(--muted);
+    font-size: 13px;
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+/* Контейнер формы подготовки */
+.prep-form {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+/* Прогноз HP после кары */
+.prep-forecast {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.prep-forecast b {
+    color: #ff6b6b;
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+/* Секция формы: заголовок + контейнер */
+.prep-section {
+    margin-bottom: 12px;
+}
+
+.prep-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    margin-bottom: 8px;
+}
+
+/* Сетки карточек локаций и ядер — mobile-first: 2 → 3 колонки */
+.prep-locations,
+.prep-cores {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+@media (min-width: 640px) {
+    .prep-locations,
+    .prep-cores {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* Карточка локации: название + эффект */
+.prep-loc {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    transition: var(--transition);
+}
+
+.prep-loc:hover {
+    border-color: var(--accent);
+}
+
+.prep-loc-name {
+    font-weight: 700;
+    display: block;
+}
+
+.prep-loc-effect {
+    font-size: 11px;
+    color: var(--muted);
+    display: block;
+}
+
+/* Карточка ядра: иконка + название + count */
+.prep-core {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    transition: var(--transition);
+}
+
+.prep-core:hover {
+    border-color: var(--accent);
+}
+
+.prep-core-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.prep-core-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prep-core-count {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+/* Выбранная карточка: золотая рамка со свечением */
+.prep-loc.prep-selected,
+.prep-core.prep-selected {
+    border-color: var(--accent);
+    background: rgba(212, 175, 55, 0.15);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
+}
+
+.prep-loc.prep-selected .prep-loc-name,
+.prep-core.prep-selected .prep-core-name {
+    color: var(--accent);
+}
+
+/* Пустое сообщение в секции */
+.prep-empty {
+    grid-column: 1 / -1;
+    padding: 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+}
+
+/* Надпись «Подготовка окончена» — зелёная, крупная */
+.prep-done {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--xp);
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.4);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.prep-done b {
+    color: #4ade80;
+}
+
+/* Кнопка отмены — вторичная (её класса ещё не было) */
+.btn-secondary {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+}
+
+.btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
 /* ================= ЗАГЛУШКИ ================= */
 
 .stub {
