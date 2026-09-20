@@ -37,6 +37,14 @@ const CORE_NAMES = {
     earth_core: 'Земляное ядро',
 };
 
+// Fallback-подписи действий кары (API обычно шлёт name)
+const TRIB_ACTION_LABELS = {
+    endure: '⏳ Терпеть',
+    absorb: '⚡ Поглотить',
+    potion: '💊 Пилюля',
+    skill: '✨ Навык',
+};
+
 // Порядок показа локаций прорыва (Горы → Река → Пещера → Вулкан)
 const BT_LOCATION_ORDER = { mountains: 0, river: 1, cave: 2, volcano: 3 };
 
@@ -106,6 +114,8 @@ let breakthroughForecast = null;
 let btSelectedLocation = null;
 let btSelectedCores = null;
 let coreSlotEditing = null;          // какой слот редактируем (0 или 1)
+// Небесная кара
+let tribulationEvents = [];          // накопленный лог событий кары
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -526,6 +536,21 @@ async function loadBreakthroughForecast() {
     }
 }
 
+// Игрок физически в выбранном месте кары?
+function playerInBreakthroughLocation() {
+    const loc = playerData && playerData.location;
+    if (!loc || !btSelectedLocation) {
+        return false;
+    }
+    // code появится у location после апдейта api.py (serialize_location)
+    if (loc.code) {
+        return loc.code === btSelectedLocation;
+    }
+    // fallback: сравнение по имени локации
+    const info = (breakthroughForecast.locations || []).find((item) => item.code === btSelectedLocation);
+    return info ? info.name === loc.name : false;
+}
+
 // Отрисовка прогноза кары и кнопок выбора локации
 function renderBreakthroughForecast(forecast) {
     const block = getBreakthroughBlock();
@@ -601,9 +626,18 @@ function renderBreakthroughForecast(forecast) {
 
     // Кнопка активна, только если выбраны локация и 2 ядра (и Ци полна)
     const canStart = Boolean(selectedLocation) && btSelectedCores[0] && btSelectedCores[1] && hasFullQi;
-    const startHtml = `
-        <button class="btn bt-start${canStart ? '' : ' btn-disabled'}" type="button"
-                ${canStart ? '' : 'disabled'}>🚀 Начать прорыв</button>`;
+    // Статус прибытия: в выбранной локации — «Начать кару», иначе — «Иди в ...»
+    let startHtml = '';
+    if (selectedLocation) {
+        if (playerInBreakthroughLocation()) {
+            startHtml = `
+                <button class="btn bt-start${canStart ? '' : ' btn-disabled'}" type="button"
+                        ${canStart ? '' : 'disabled'}>🌀 Начать кару</button>`;
+        } else {
+            startHtml = `
+                <div class="bt-goto">📍 Иди в ${esc(selectedLocation.name)} (кнопка «${esc(selectedLocation.name)}» в чате)</div>`;
+        }
+    }
 
     block.classList.remove('hidden');
     block.innerHTML = `
@@ -641,7 +675,7 @@ function renderBreakthroughForecast(forecast) {
 
     const startButton = block.querySelector('.bt-start');
     if (startButton) {
-        startButton.addEventListener('click', startBreakthrough);
+        startButton.addEventListener('click', startTribulation);
     }
 
     block.querySelector('.bt-cancel').addEventListener('click', cancelBreakthrough);
@@ -717,13 +751,111 @@ function chooseCore(code) {
     renderBreakthroughForecast(breakthroughForecast);
 }
 
-// Начало прорыва: POST с локацией и 2 ядрами (сервер сохраняет + выбирает стихию)
-async function startBreakthrough() {
-    if (!btSelectedLocation || !btSelectedCores[0] || !btSelectedCores[1]) {
-        return;
+// ---------- Небесная кара (Mini App) ----------
+function openTribulation() {
+    document.getElementById('modal-tribulation').classList.remove('hidden');
+}
+
+function closeTribulation() {
+    document.getElementById('modal-tribulation').classList.add('hidden');
+    document.getElementById('btrLoading').classList.add('hidden');
+}
+
+function tribulationLoading(on) {
+    document.getElementById('btrLoading').classList.toggle('hidden', !on);
+}
+
+// Заполняет модалку кары данными из /start_cultivation или /action
+function openTribulationModal(data) {
+    const wave = data.wave;
+    const total = data.waves_total;
+    const hp = data.hp;
+    const maxHp = data.max_hp;
+
+    document.getElementById('btrWave').textContent = `Волна ${wave}/${total}`;
+    document.getElementById('btrHpText').textContent = `${hp}/${maxHp}`;
+    const pct = maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0;
+    document.getElementById('btrHpFill').style.width = `${pct}%`;
+    // у /action поле wave_damage, у /start_cultivation — damage
+    const damage = data.wave_damage != null ? data.wave_damage : (data.damage != null ? data.damage : '-');
+    document.getElementById('btrDmg').textContent = damage;
+
+    if (data.log) {
+        tribulationEvents = tribulationEvents.concat(data.log);
+    }
+    const log = document.getElementById('btrLog');
+    log.innerHTML = tribulationEvents.map((line) => `<div>${esc(line)}</div>`).join('');
+    log.scrollTop = log.scrollHeight;
+
+    const actionsWrap = document.getElementById('btrActions');
+    actionsWrap.innerHTML = (data.actions || []).map((action) => `
+        <button class="btn trib-action-btn" type="button"
+                data-code="${esc(action.code)}" data-skill="${esc(action.skill_code || '')}">
+            ${esc(action.name || TRIB_ACTION_LABELS[action.code] || action.code)}
+        </button>`).join('');
+    actionsWrap.querySelectorAll('button').forEach((button) => {
+        button.addEventListener('click', () => {
+            handleTribulationAction(button.dataset.code, button.dataset.skill || null);
+        });
+    });
+
+    openTribulation();
+}
+
+// Действие игрока в каре (POST /breakthrough/action)
+async function handleTribulationAction(action, skillCode = null) {
+    tribulationLoading(true);
+    const body = { action };
+    if (action === 'skill' && skillCode) {
+        body.skill_code = skillCode;
     }
     try {
-        const data = await apiFetch(`/player/${userId}/breakthrough/prepare`, {
+        const data = await apiFetch(`/player/${userId}/breakthrough/action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        tribulationLoading(false);
+        if (data.finished) {
+            renderTribulationResult(data);
+        } else {
+            openTribulationModal(data);
+        }
+    } catch (error) {
+        tribulationLoading(false);
+        showToast(error.message || 'Ошибка во время кары');
+    }
+}
+
+// Итог кары: результат + авто-закрытие через 3 сек и обновление профиля
+function renderTribulationResult(data) {
+    const succeeded = data.result === 'success';
+    const info = succeeded
+        ? `Ступень ${data.stage}.${data.substage}${data.max_hp_gain ? `, ❤️ +${data.max_hp_gain} HP` : ''}${data.element ? ', стихия закреплена' : ''}`
+        : `Стадия сброшена до ${data.substage}. ❤️ HP: ${data.hp}`;
+    document.getElementById('btrWave').textContent = 'Кара завершена';
+    document.getElementById('btrLog').innerHTML = `
+        <div class="trib-result ${succeeded ? 'success' : 'fail'}">${succeeded ? '🎉 Прорыв удался!' : '💥 Кара сокрушила тебя!'}</div>
+        <div class="muted">${esc(data.message || '')}</div>
+        <div class="muted">${esc(info)}</div>`;
+    document.getElementById('btrDmg').textContent = '-';
+    document.getElementById('btrActions').innerHTML = '';
+    setTimeout(() => {
+        closeTribulation();
+        tribulationEvents = [];
+        loadAll(false);
+    }, 3000);
+}
+
+// Запуск кары: подготовка (prepare) + старт (start_cultivation)
+async function startTribulation() {
+    if (!btSelectedLocation || !btSelectedCores || !btSelectedCores[0] || !btSelectedCores[1]) {
+        showToast('Сначала выбери локацию и ядра');
+        return;
+    }
+    tribulationLoading(true);
+    try {
+        const prepared = await apiFetch(`/player/${userId}/breakthrough/prepare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -731,26 +863,30 @@ async function startBreakthrough() {
                 core_codes: btSelectedCores,
             }),
         });
-        if (!data.success) {
-            showToast(data.message || 'Не удалось подготовить прорыв');
+        if (!prepared.success) {
+            tribulationLoading(false);
+            showToast(prepared.message || 'Не удалось подготовить прорыв');
             return;
         }
-        // Уведомляем чат: API отправит сообщение с кнопкой «🌀 Совершить прорыв»
-        const start = await apiFetch(`/player/${userId}/breakthrough/start`, {
+        const data = await apiFetch(`/player/${userId}/breakthrough/start_cultivation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ location_code: btSelectedLocation }),
         });
-        breakthroughForecast = Object.assign({}, breakthroughForecast, {
-            selected_location: btSelectedLocation,
-        });
-        if (start && start.message_sent === false) {
-            showToast('⚠️ Выбор сохранён, но не удалось отправить сообщение в чат. Напиши боту !старт и проверь.');
-        } else {
-            showToast('📩 Сообщение отправлено в чат — жми «🌀 Совершить прорыв»');
+        tribulationLoading(false);
+        if (data.success) {
+            tribulationEvents = [];
+            openTribulationModal(data);
         }
     } catch (error) {
-        showToast(error.message || 'Не удалось начать прорыв');
+        tribulationLoading(false);
+        const messages = {
+            not_in_location: 'Ты не в месте кары. Иди в выбранную локацию!',
+            not_ready: 'Условия прорыва не выполнены',
+            need_cores: 'Ядра не выбраны в Mini App',
+            not_enough_cores: 'Недостаточно ядер стихий',
+            need_full_qi: 'Нужна полная Ци (восстановись)',
+        };
+        showToast(messages[error.code] || error.message || 'Не удалось начать кару');
     }
 }
 
@@ -1005,6 +1141,14 @@ function init() {
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
     document.getElementById('modalUse').addEventListener('click', usePotion);
+
+    // Небесная кара: закрытие по кнопке и фону (кара на сервере продолжается)
+    document.getElementById('btnBtrClose').addEventListener('click', closeTribulation);
+    document.getElementById('modal-tribulation').addEventListener('click', (event) => {
+        if (event.target === document.getElementById('modal-tribulation')) {
+            closeTribulation();
+        }
+    });
 
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
