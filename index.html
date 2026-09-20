@@ -141,6 +141,36 @@
 
             <!-- Тип и качество ци -->
             <div class="cult-info" id="cultInfo"></div>
+
+            <!-- Кнопка "Начать подготовку" (видна при can_prepare=true и ready=false) -->
+            <button id="btnStartPrep" class="btn btn-primary hidden">🌀 Начать подготовку</button>
+
+            <!-- Если стадия != 9: показать причину -->
+            <div id="prepNotReady" class="prep-not-ready hidden">Нужна 9-я стадия для прорыва</div>
+
+            <!-- Форма подготовки (видна при открытой форме) -->
+            <div id="prepForm" class="prep-form hidden">
+                <div class="prep-forecast">Прогноз HP после кары: <b id="prepHp">0</b></div>
+
+                <div class="prep-section">
+                    <h3>Выбери место прорыва:</h3>
+                    <div id="prepLocations" class="prep-locations"></div>
+                </div>
+
+                <div class="prep-section">
+                    <h3>Выбери ядро стихии:</h3>
+                    <div id="prepCores" class="prep-cores"></div>
+                </div>
+
+                <button id="btnFinishPrep" class="btn btn-primary">✅ Закончить подготовку</button>
+                <button id="btnCancelPrep" class="btn btn-secondary">Отмена</button>
+            </div>
+
+            <!-- Надпись "Подготовка окончена" (видна при ready=true) -->
+            <div id="prepDone" class="prep-done hidden">
+                ✅ Подготовка окончена.<br>
+                Отправляйся в <b id="prepLocationName">—</b> для прорыва.
+            </div>
         </div>
     </section>
 
