@@ -874,7 +874,20 @@ body {
     margin-bottom: 12px;
 }
 
-/* Кнопка «🚀 Начать прорыв» */
+.bt-goto {
+    display: block;
+    text-align: center;
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--muted);
+}
+
+/* Кнопка «🌀 Начать кару» */
 .bt-start {
     width: 100%;
     margin-bottom: 8px;
@@ -1246,6 +1259,171 @@ body {
 
 #modalUse {
     width: 100%;
+}
+
+/* ================= НЕБЕСНАЯ КАРА ================= */
+
+.trib-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 16px;
+    backdrop-filter: blur(3px);
+}
+
+@media (min-width: 480px) {
+    .trib-modal {
+        align-items: center;
+    }
+}
+
+.trib-modal-content {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+}
+
+.trib-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.trib-modal-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--accent);
+}
+
+.trib-wave-line {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.trib-hp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.trib-hp-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.trib-hp-bar {
+    flex: 1;
+    height: 10px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.trib-hp-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #ff6b6b, var(--accent));
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.trib-hp-text {
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    min-width: 56px;
+    text-align: right;
+}
+
+.trib-dmg-line {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.trib-dmg-line b {
+    color: #ff6b6b;
+}
+
+.trib-log {
+    max-height: 150px;
+    overflow-y: auto;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.trib-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+.trib-log::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+
+.trib-result {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.trib-result.success {
+    color: #4ade80;
+}
+
+.trib-result.fail {
+    color: #ff6b6b;
+}
+
+.trib-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.trib-action-btn {
+    padding: 10px 8px;
+    font-size: 13px;
+}
+
+.trib-loading {
+    text-align: center;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 0;
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 /* ================= ТОСТ ================= */
