@@ -28,47 +28,6 @@ const ELEMENT_ICONS = {
     none: '⚔️',
 };
 
-// Названия ядер стихий (код → имя)
-const CORE_NAMES = {
-    fire_core: 'Огненное ядро',
-    water_core: 'Водное ядро',
-    wood_core: 'Древесное ядро',
-    metal_core: 'Металлическое ядро',
-    earth_core: 'Земляное ядро',
-};
-
-// Fallback-подписи действий кары (API обычно шлёт name)
-const TRIB_ACTION_LABELS = {
-    endure: '⏳ Терпеть',
-    absorb: '⚡ Поглотить',
-    potion: '💊 Пилюля',
-    skill: '✨ Навык',
-};
-
-// Порядок показа локаций прорыва (Горы → Река → Пещера → Вулкан)
-const BT_LOCATION_ORDER = { mountains: 0, river: 1, cave: 2, volcano: 3 };
-
-// Стихия по коду ядра: 'fire_core' → 'fire'
-function coreElement(code) {
-    return String(code || '').replace('_core', '');
-}
-
-// Полная информация о ядре для UI (слоты, модалка выбора).
-// Название и иконку берём из API (cores_available), иначе fallback на справочники.
-function coreInfo(code) {
-    if (!code) {
-        return null;
-    }
-    const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
-    const available = requirements.cores_available || [];
-    const core = available.find((item) => item.code === code);
-    return {
-        code,
-        name: (core && core.name) || CORE_NAMES[code] || code,
-        icon: (core && core.icon) || ELEMENT_ICONS[coreElement(code)] || '🔥',
-    };
-}
-
 // Характеристики на экране персонажа
 const STATS = [
     { key: 'strength', label: 'Сила' },
@@ -109,13 +68,13 @@ let inventoryData = null;
 let techniquesData = null;
 let toastTimer = null;
 let activeItemCode = null;
-let breakthroughForecast = null;
-// Выбор прорыва в Mini App: локация и 2 ядра (переживают перерисовку)
-let btSelectedLocation = null;
-let btSelectedCores = null;
-let coreSlotEditing = null;          // какой слот редактируем (0 или 1)
-// Небесная кара
-let tribulationEvents = [];          // накопленный лог событий кары
+let breakthroughForecast = null;     // прогноз прорыва (GET /breakthrough/forecast)
+// Подготовка к прорыву: списки и выбранные значения (переживают перерисовку)
+let prepLocations = [];
+let prepCores = [];
+let prepSelectedLocation = '';
+let prepSelectedCore = '';
+let prepFormOpen = false;            // открыта ли форма подготовки
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -498,409 +457,195 @@ function renderCultivation() {
         <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
     `;
 
-    // Блок «🌀 Прорыв» — только на 9-й стадии (искусство достигло пика)
-    const atPeak = cultivation.substage >= 9;
-    getBreakthroughBlock().classList.toggle('hidden', !atPeak);
-    if (atPeak) {
-        if (breakthroughForecast) {
-            renderBreakthroughForecast(breakthroughForecast);
-        } else {
-            loadBreakthroughForecast();
-        }
+    // Подготовка к прорыву: рисуем состояние или грузим прогноз
+    if (breakthroughForecast) {
+        renderCultivationPrep(breakthroughForecast);
+    } else {
+        loadBreakthroughForecast();
     }
 }
 
-// ---------- Прорыв: прогноз и подготовка ----------
-// Создаёт (один раз) и возвращает блок «🌀 Прорыв»
-function getBreakthroughBlock() {
-    let block = document.getElementById('breakthroughBlock');
-    if (!block) {
-        block = document.createElement('div');
-        block.id = 'breakthroughBlock';
-        block.className = 'breakthrough-block hidden';
-        document.getElementById('screen-cultivation')
-            .querySelector('.stats-panel')
-            .appendChild(block);
-    }
-    return block;
-}
+// ---------- Прорыв: подготовка к каре (Mini App) ----------
+// Понятные сообщения об ошибках подготовки (код API → текст для игрока)
+const PREP_ERRORS = {
+    empty_core: 'Сначала выбери ядро стихии',
+    empty_location: 'Сначала выбери место прорыва',
+    invalid_location: 'Это место недоступно для прорыва',
+    invalid_core: 'Недопустимое ядро стихии',
+    not_enough_cores: 'У тебя нет этого ядра стихии',
+    need_substage_9: 'Нужна 9-я стадия для прорыва',
+    no_preparation: 'Сначала выбери место и ядро',
+    resting: 'Сейчас ты восстанавливаешься',
+    'player not found': 'Игрок не найден',
+};
 
 // Загрузка прогноза прорыва (GET /api/player/<id>/breakthrough/forecast)
 async function loadBreakthroughForecast() {
     try {
         const data = await apiFetch(`/player/${userId}/breakthrough/forecast`);
         breakthroughForecast = data;
-        renderBreakthroughForecast(data);
+        syncPrepState(data);
+        renderCultivationPrep(data);
     } catch (error) {
         showToast(error.message || 'Не удалось загрузить прогноз прорыва');
     }
 }
 
-// Игрок физически в выбранном месте кары?
-function playerInBreakthroughLocation() {
-    const loc = playerData && playerData.location;
-    if (!loc || !btSelectedLocation) {
-        return false;
-    }
-    // code появится у location после апдейта api.py (serialize_location)
-    if (loc.code) {
-        return loc.code === btSelectedLocation;
-    }
-    // fallback: сравнение по имени локации
-    const info = (breakthroughForecast.locations || []).find((item) => item.code === btSelectedLocation);
-    return info ? info.name === loc.name : false;
+// Синхронизация локального состояния выбора с данными сервера
+function syncPrepState(forecast) {
+    prepLocations = (forecast.locations || []).slice();
+    prepCores = (forecast.cores || []).slice();
+    prepSelectedLocation = forecast.selected_location || '';
+    prepSelectedCore = forecast.selected_core || '';
 }
 
-// Отрисовка прогноза кары и кнопок выбора локации
-function renderBreakthroughForecast(forecast) {
-    const block = getBreakthroughBlock();
-    if (!forecast.available) {
-        block.classList.add('hidden');
+// Управление видимостью блоков подготовки (вкладка «Культивация»)
+function renderCultivationPrep(forecast) {
+    const btnStart = document.getElementById('btnStartPrep');
+    const notReady = document.getElementById('prepNotReady');
+    const form = document.getElementById('prepForm');
+    const done = document.getElementById('prepDone');
+    if (!btnStart || !notReady || !form || !done) {
+        // Старая разметка без формы подготовки — пропускаем
         return;
     }
 
-    // Локальный прогресс выбора (локация + ядра) — переживает перерисовку
-    if (btSelectedLocation === null) {
-        btSelectedLocation = forecast.selected_location || null;
-    }
-    const requirements = forecast.requirements || {};
-    if (btSelectedCores === null) {
-        btSelectedCores = (requirements.cores_selected || []).slice();
-    }
-    while (btSelectedCores.length < 2) {
-        btSelectedCores.push(undefined);
-    }
+    const ready = Boolean(forecast.ready);
+    const canPrepare = Boolean(forecast.can_prepare);
 
-    // Урон по волнам из массива: 28 / 33 / 38
-    const waveDamage = Array.isArray(forecast.damage)
-        ? forecast.damage.join(' / ')
-        : forecast.damage;
-    const surviveText = forecast.will_survive ? 'выживешь' : 'не выживешь';
-
-    // Локации из API в фиксированном порядке: Горы, Река, Пещера, Вулкан
-    const locations = (forecast.locations || [])
-        .slice()
-        .sort((a, b) => (BT_LOCATION_ORDER[a.code] ?? 9) - (BT_LOCATION_ORDER[b.code] ?? 9));
-
-    const selectedLocation = locations.find((item) => item.code === btSelectedLocation) || null;
-    const selectedInfoHtml = selectedLocation ? `
-        <div class="bt-selected-info">
-            <div class="bt-selected-name">✨ Выбрано: ${esc(selectedLocation.name)}</div>
-            ${selectedLocation.effect
-                ? `<div class="bt-selected-effect">${esc(selectedLocation.effect)}</div>`
-                : ''}
-        </div>` : '';
-
-    // Если доступных мест нет — не показываем пустую сетку
-    const locationsHtml = locations.length ? `
-        <div class="bt-locations-title">🌍 Выбери место прорыва:</div>
-        <div class="bt-locations">
-            ${locations.map((location) => `
-                <button class="bt-loc${location.code === btSelectedLocation ? ' bt-loc-selected' : ''}"
-                        type="button" data-code="${esc(location.code)}">
-                    <span class="bt-loc-name">${esc(location.name)}</span>
-                    <span class="bt-loc-effect">${esc(location.effect || '')}</span>
-                </button>`).join('')}
-        </div>` : `<div class="bt-locations-empty">🌍 Нет доступных мест для прорыва. Прокачайся.</div>`;
-
-    // 📦 Требования: 2 слота ядер стихий
-    const coresRequired = requirements.cores_required || 2;
-    const requireFullQi = Boolean(requirements.require_full_qi);
-    const qiNow = requirements.qi ?? 0;
-    const qiMax = requirements.qi_max ?? 0;
-    const hasFullQi = !requireFullQi || qiNow >= qiMax;
-    const coreSlotsHtml = [0, 1].map((slot) => {
-        const info = btSelectedCores[slot] ? coreInfo(btSelectedCores[slot]) : null;
-        return `
-            <button class="bt-core-slot${info ? ' filled' : ''}" data-slot="${slot}" type="button">
-                ${info ? `${info.icon} ${esc(info.name)}` : `Слот ${slot + 1}: Пусто`}
-            </button>`;
-    }).join('');
-
-    // Подсказка о будущей стихии прорыва (случайная из двух ядер)
-    const affinityHint = btSelectedCores[0] && btSelectedCores[1]
-        ? `<div class="bt-affinity-hint">💫 Стихия прорыва: ${
-            btSelectedCores.map((code) => `${coreInfo(code).icon} ${coreInfo(code).name}`).join(' / ')}
-            — станет ясна после начала.</div>`
-        : '';
-
-    // Кнопка активна, только если выбраны локация и 2 ядра (и Ци полна)
-    const canStart = Boolean(selectedLocation) && btSelectedCores[0] && btSelectedCores[1] && hasFullQi;
-    // Статус прибытия: в выбранной локации — «Начать кару», иначе — «Иди в ...»
-    let startHtml = '';
-    if (selectedLocation) {
-        if (playerInBreakthroughLocation()) {
-            startHtml = `
-                <button class="btn bt-start${canStart ? '' : ' btn-disabled'}" type="button"
-                        ${canStart ? '' : 'disabled'}>🌀 Начать кару</button>`;
-        } else {
-            startHtml = `
-                <div class="bt-goto">📍 Иди в ${esc(selectedLocation.name)} (кнопка «${esc(selectedLocation.name)}» в чате)</div>`;
-        }
-    }
-
-    block.classList.remove('hidden');
-    block.innerHTML = `
-        <div class="breakthrough-title">🌀 Прорыв</div>
-        <div class="breakthrough-info">
-            <div class="bt-row">Мощь: <b>${esc(forecast.power)}</b></div>
-            <div class="bt-row">Волн: <b>${esc(forecast.waves)}</b></div>
-            <div class="bt-row">Урон по волнам: <b>${esc(waveDamage)}</b></div>
-            <div class="bt-row">Итого: <b>${esc(forecast.total_damage)}</b></div>
-            <div class="bt-row">❤️ Ты <b>${surviveText}</b></div>
-            <div class="bt-row">Прогноз HP после кары: <b>${esc(forecast.survive_hp)}</b></div>
-        </div>
-        ${selectedInfoHtml}
-        ${locationsHtml}
-        <div class="bt-requirements-title">📦 Требования</div>
-        <div class="bt-requirements-sub">Требуется: ${esc(coresRequired)} ядра стихий</div>
-        ${requireFullQi
-            ? `<div class="bt-requirements-sub">🌀 Требуется полная Ци (${esc(qiNow)}/${esc(qiMax)})${hasFullQi ? ' ✅' : ' ❌'}</div>`
-            : ''}
-        <div class="bt-core-slots">${coreSlotsHtml}</div>
-        ${affinityHint}
-        ${startHtml}
-        <button class="btn btn-outline bt-cancel" type="button">❌ Отмена</button>
-    `;
-
-    // Клик по локации — локальный выбор (POST будет при «Начать прорыв»)
-    block.querySelectorAll('.bt-loc').forEach((button) => {
-        button.addEventListener('click', () => selectBreakthroughLocation(button.dataset.code));
-    });
-
-    // Клик по слоту ядра — модалка выбора
-    block.querySelectorAll('.bt-core-slot').forEach((button) => {
-        button.addEventListener('click', () => openCorePicker(Number(button.dataset.slot)));
-    });
-
-    const startButton = block.querySelector('.bt-start');
-    if (startButton) {
-        startButton.addEventListener('click', startTribulation);
-    }
-
-    block.querySelector('.bt-cancel').addEventListener('click', cancelBreakthrough);
-}
-
-// Выбор локации в Mini App (сохраняется на сервере только при старте)
-function selectBreakthroughLocation(code) {
-    btSelectedLocation = code;
-    renderBreakthroughForecast(breakthroughForecast);
-}
-
-// Модалка выбора ядра для слота (использует существующую модалку)
-function openCorePicker(slot) {
-    coreSlotEditing = slot;
-    const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
-    const options = requirements.cores_available || [];
-    if (!options.length) {
-        showToast('Нет ядер стихий. Собери их с монстров!');
+    // Подготовка окончена: показываем итог, остальное прячем
+    if (ready) {
+        done.classList.remove('hidden');
+        btnStart.classList.add('hidden');
+        notReady.classList.add('hidden');
+        form.classList.add('hidden');
+        const location = prepLocations.find((item) => item.code === prepSelectedLocation);
+        document.getElementById('prepLocationName').textContent = location
+            ? location.name
+            : (prepSelectedLocation || '—');
         return;
     }
 
-    document.getElementById('modalTitle').textContent = `Ядро — слот ${slot + 1}`;
-    document.getElementById('modalBody').innerHTML = `
-        <div class="modal-icon">💎</div>
-        <div class="modal-title">Выбери ядро стихии</div>
-        <div class="core-picker-list">
-            ${options.map((core) => {
-                const info = coreInfo(core.code);
-                return `
-                <button class="core-picker-option" data-core="${esc(core.code)}" type="button">
-                    <span class="core-picker-name">${info.icon} ${esc(info.name)}</span>
-                    <span class="muted">×${esc(core.count)}</span>
-                </button>`;
-            }).join('')}
-            ${btSelectedCores[slot]
-                ? '<button class="core-picker-clear" type="button" data-clear="1">❌ Очистить</button>'
-                : ''}
-        </div>
-    `;
-    document.getElementById('modalUse').classList.add('hidden');
-    openModal();
-
-    document.querySelectorAll('.core-picker-option').forEach((button) => {
-        button.addEventListener('click', () => chooseCore(button.dataset.core));
-    });
-    const clearButton = document.querySelector('.core-picker-clear');
-    if (clearButton) {
-        clearButton.addEventListener('click', () => chooseCore(null));
-    }
-}
-
-// Выбор ядра: кладём в слот, закрываем модалку, перерисовываем блок.
-// Не даём положить одно и то же ядро в оба слота, если его меньше 2.
-function chooseCore(code) {
-    if (coreSlotEditing === null) {
+    // Форма открыта: прячем всё, кроме самой формы
+    if (prepFormOpen) {
+        btnStart.classList.add('hidden');
+        notReady.classList.add('hidden');
+        form.classList.remove('hidden');
+        done.classList.add('hidden');
+        renderPrepForm();
         return;
     }
-    if (code !== null) {
-        const requirements = (breakthroughForecast && breakthroughForecast.requirements) || {};
-        const available = requirements.cores_available || [];
-        const core = available.find((item) => item.code === code);
-        const count = core ? core.count : 0;
-        const alreadyUsed = btSelectedCores.some((selected) => selected === code);
-        if (alreadyUsed && count < 2) {
-            const name = (core && core.name) || CORE_NAMES[code] || code;
-            showToast(`Только 1 ${name}. Выбери другое ядро.`);
-            return;
-        }
+
+    // Форма закрыта: кнопка старта (если можно готовиться) или причина
+    btnStart.classList.toggle('hidden', !canPrepare);
+    notReady.classList.toggle('hidden', canPrepare);
+    form.classList.add('hidden');
+    done.classList.add('hidden');
+}
+
+// Начало подготовки: открыть форму и заполнить списки локаций и ядер
+function startPreparation() {
+    if (!prepLocations.length) {
+        showToast('Нет доступных мест для прорыва');
+        return;
     }
-    btSelectedCores[coreSlotEditing] = code;
-    coreSlotEditing = null;
-    closeModal();
-    renderBreakthroughForecast(breakthroughForecast);
+    prepFormOpen = true;
+    renderPrepForm();
+    renderCultivationPrep(breakthroughForecast);
 }
 
-// ---------- Небесная кара (Mini App) ----------
-function openTribulation() {
-    document.getElementById('modal-tribulation').classList.remove('hidden');
-}
+// Заполнение формы подготовки: прогноз HP, локации, ядра и подсветка выбора
+function renderPrepForm() {
+    const hp = breakthroughForecast ? (breakthroughForecast.hp_forecast || 0) : 0;
+    document.getElementById('prepHp').textContent = hp;
 
-function closeTribulation() {
-    document.getElementById('modal-tribulation').classList.add('hidden');
-    document.getElementById('btrLoading').classList.add('hidden');
-}
-
-function tribulationLoading(on) {
-    document.getElementById('btrLoading').classList.toggle('hidden', !on);
-}
-
-// Заполняет модалку кары данными из /start_cultivation или /action
-function openTribulationModal(data) {
-    const wave = data.wave;
-    const total = data.waves_total;
-    const hp = data.hp;
-    const maxHp = data.max_hp;
-
-    document.getElementById('btrWave').textContent = `Волна ${wave}/${total}`;
-    document.getElementById('btrHpText').textContent = `${hp}/${maxHp}`;
-    const pct = maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0;
-    document.getElementById('btrHpFill').style.width = `${pct}%`;
-    // у /action поле wave_damage, у /start_cultivation — damage
-    const damage = data.wave_damage != null ? data.wave_damage : (data.damage != null ? data.damage : '-');
-    document.getElementById('btrDmg').textContent = damage;
-
-    if (data.log) {
-        tribulationEvents = tribulationEvents.concat(data.log);
-    }
-    const log = document.getElementById('btrLog');
-    log.innerHTML = tribulationEvents.map((line) => `<div>${esc(line)}</div>`).join('');
-    log.scrollTop = log.scrollHeight;
-
-    const actionsWrap = document.getElementById('btrActions');
-    actionsWrap.innerHTML = (data.actions || []).map((action) => `
-        <button class="btn trib-action-btn" type="button"
-                data-code="${esc(action.code)}" data-skill="${esc(action.skill_code || '')}">
-            ${esc(action.name || TRIB_ACTION_LABELS[action.code] || action.code)}
-        </button>`).join('');
-    actionsWrap.querySelectorAll('button').forEach((button) => {
-        button.addEventListener('click', () => {
-            handleTribulationAction(button.dataset.code, button.dataset.skill || null);
+    const locationsBox = document.getElementById('prepLocations');
+    if (prepLocations.length) {
+        locationsBox.innerHTML = prepLocations.map((location) => `
+            <button class="prep-loc${location.code === prepSelectedLocation ? ' prep-selected' : ''}"
+                    type="button" data-code="${esc(location.code)}">
+                <span class="prep-loc-name">${esc(location.name)}</span>
+                ${location.effect
+                    ? `<span class="prep-loc-effect">${esc(location.effect)}</span>`
+                    : ''}
+            </button>`).join('');
+        locationsBox.querySelectorAll('.prep-loc').forEach((button) => {
+            button.addEventListener('click', () => selectLocation(button.dataset.code));
         });
-    });
+    } else {
+        locationsBox.innerHTML = '<div class="prep-empty">Нет доступных мест для прорыва</div>';
+    }
 
-    openTribulation();
+    const coresBox = document.getElementById('prepCores');
+    if (prepCores.length) {
+        coresBox.innerHTML = prepCores.map((core) => `
+            <button class="prep-core${core.code === prepSelectedCore ? ' prep-selected' : ''}"
+                    type="button" data-code="${esc(core.code)}">
+                <span class="prep-core-icon">${ELEMENT_ICONS[core.element] || '🔥'}</span>
+                <span class="prep-core-name">${esc(core.name)}</span>
+                <span class="prep-core-count">×${esc(core.count)}</span>
+            </button>`).join('');
+        coresBox.querySelectorAll('.prep-core').forEach((button) => {
+            button.addEventListener('click', () => selectCore(button.dataset.code));
+        });
+    } else {
+        coresBox.innerHTML = '<div class="prep-empty">Нет ядер стихий. Собери их с монстров!</div>';
+    }
 }
 
-// Действие игрока в каре (POST /breakthrough/action)
-async function handleTribulationAction(action, skillCode = null) {
-    tribulationLoading(true);
-    const body = { action };
-    if (action === 'skill' && skillCode) {
-        body.skill_code = skillCode;
+// Выбор места прорыва — только локально (сохранится при «Закончить подготовку»)
+function selectLocation(code) {
+    prepSelectedLocation = code;
+    renderPrepForm();
+}
+
+// Выбор ядра стихии — только локально (сохранится при «Закончить подготовку»)
+function selectCore(code) {
+    prepSelectedCore = code;
+    renderPrepForm();
+}
+
+// Завершение подготовки: /prepare (сохранить выбор) → /finish (ready = 1)
+async function finishPreparation() {
+    if (!prepSelectedLocation || !prepSelectedCore) {
+        showToast('Выбери место прорыва и ядро стихии');
+        return;
     }
     try {
-        const data = await apiFetch(`/player/${userId}/breakthrough/action`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        tribulationLoading(false);
-        if (data.finished) {
-            renderTribulationResult(data);
-        } else {
-            openTribulationModal(data);
-        }
-    } catch (error) {
-        tribulationLoading(false);
-        showToast(error.message || 'Ошибка во время кары');
-    }
-}
-
-// Итог кары: результат + авто-закрытие через 3 сек и обновление профиля
-function renderTribulationResult(data) {
-    const succeeded = data.result === 'success';
-    const info = succeeded
-        ? `Ступень ${data.stage}.${data.substage}${data.max_hp_gain ? `, ❤️ +${data.max_hp_gain} HP` : ''}${data.element ? ', стихия закреплена' : ''}`
-        : `Стадия сброшена до ${data.substage}. ❤️ HP: ${data.hp}`;
-    document.getElementById('btrWave').textContent = 'Кара завершена';
-    document.getElementById('btrLog').innerHTML = `
-        <div class="trib-result ${succeeded ? 'success' : 'fail'}">${succeeded ? '🎉 Прорыв удался!' : '💥 Кара сокрушила тебя!'}</div>
-        <div class="muted">${esc(data.message || '')}</div>
-        <div class="muted">${esc(info)}</div>`;
-    document.getElementById('btrDmg').textContent = '-';
-    document.getElementById('btrActions').innerHTML = '';
-    setTimeout(() => {
-        closeTribulation();
-        tribulationEvents = [];
-        loadAll(false);
-    }, 3000);
-}
-
-// Запуск кары: подготовка (prepare) + старт (start_cultivation)
-async function startTribulation() {
-    if (!btSelectedLocation || !btSelectedCores || !btSelectedCores[0] || !btSelectedCores[1]) {
-        showToast('Сначала выбери локацию и ядра');
-        return;
-    }
-    tribulationLoading(true);
-    try {
-        const prepared = await apiFetch(`/player/${userId}/breakthrough/prepare`, {
+        await apiFetch(`/player/${userId}/breakthrough/prepare`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                location_code: btSelectedLocation,
-                core_codes: btSelectedCores,
+                location_code: prepSelectedLocation,
+                core_code: prepSelectedCore,
             }),
         });
-        if (!prepared.success) {
-            tribulationLoading(false);
-            showToast(prepared.message || 'Не удалось подготовить прорыв');
-            return;
-        }
-        const data = await apiFetch(`/player/${userId}/breakthrough/start_cultivation`, {
+        const data = await apiFetch(`/player/${userId}/breakthrough/finish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
         });
-        tribulationLoading(false);
         if (data.success) {
-            tribulationEvents = [];
-            openTribulationModal(data);
+            prepFormOpen = false;
+            breakthroughForecast.ready = true;
+            breakthroughForecast.selected_location = data.location_code;
+            breakthroughForecast.selected_core = data.core_code;
+            syncPrepState(breakthroughForecast);
+            renderCultivationPrep(breakthroughForecast);
+            showToast('Подготовка завершена!');
         }
     } catch (error) {
-        tribulationLoading(false);
-        const messages = {
-            not_in_location: 'Ты не в месте кары. Иди в выбранную локацию!',
-            not_ready: 'Условия прорыва не выполнены',
-            need_cores: 'Ядра не выбраны в Mini App',
-            not_enough_cores: 'Недостаточно ядер стихий',
-            need_full_qi: 'Нужна полная Ци (восстановись)',
-        };
-        showToast(messages[error.code] || error.message || 'Не удалось начать кару');
+        // Форма остаётся открытой — игрок может исправить выбор
+        showToast(PREP_ERRORS[error.code] || error.message || 'Не удалось завершить подготовку');
     }
 }
 
-// Сброс выбора (POST /breakthrough/cancel очищает локацию и ядра на сервере)
-async function cancelBreakthrough() {
-    try {
-        await apiFetch(`/player/${userId}/breakthrough/cancel`, { method: 'POST' });
-        btSelectedLocation = null;
-        btSelectedCores = [undefined, undefined];
-        renderBreakthroughForecast(breakthroughForecast);
-        showToast('Выбор прорыва сброшен');
-    } catch (error) {
-        showToast(error.message || 'Не удалось сбросить выбор');
-    }
+// Отмена подготовки: скрыть форму и сбросить локальный выбор
+function cancelPreparation() {
+    prepFormOpen = false;
+    prepSelectedLocation = '';
+    prepSelectedCore = '';
+    renderCultivationPrep(breakthroughForecast);
+    showToast('Подготовка отменена');
 }
 
 // ---------- Инвентарь (мини-панель на экране персонажа) ----------
@@ -1129,6 +874,11 @@ function initTabs() {
             button.classList.add('active');
             document.getElementById(button.dataset.screen).classList.add('active');
             window.scrollTo({ top: 0 });
+
+            // Свежий прогноз при открытии вкладки «Культивация»
+            if (button.dataset.screen === 'screen-cultivation') {
+                loadBreakthroughForecast();
+            }
         });
     });
 }
@@ -1142,13 +892,10 @@ function init() {
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
     document.getElementById('modalUse').addEventListener('click', usePotion);
 
-    // Небесная кара: закрытие по кнопке и фону (кара на сервере продолжается)
-    document.getElementById('btnBtrClose').addEventListener('click', closeTribulation);
-    document.getElementById('modal-tribulation').addEventListener('click', (event) => {
-        if (event.target === document.getElementById('modal-tribulation')) {
-            closeTribulation();
-        }
-    });
+    // Подготовка к прорыву: кнопки формы
+    document.getElementById('btnStartPrep').addEventListener('click', startPreparation);
+    document.getElementById('btnFinishPrep').addEventListener('click', finishPreparation);
+    document.getElementById('btnCancelPrep').addEventListener('click', cancelPreparation);
 
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
