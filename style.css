@@ -1089,6 +1089,22 @@ body {
     color: var(--accent);
 }
 
+/* Текст «Кара начнётся здесь» (в форме подготовки) */
+.prep-start-here {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.prep-start-here b {
+    color: var(--accent);
+}
+
 /* Секция формы: заголовок + контейнер */
 .prep-section {
     margin-bottom: 12px;

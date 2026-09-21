@@ -555,6 +555,13 @@ function syncPrepState(forecast) {
     prepCores = (forecast.cores || []).slice();
     prepSelectedLocation = forecast.selected_location || '';
     prepSelectedCore = forecast.selected_core || '';
+
+    // Сервер ещё не сохранил выбор (нет selected_location) —
+    // по умолчанию подсвечиваем текущую локацию игрока.
+    if (!prepSelectedLocation && forecast.preselected_location &&
+        prepLocations.some((item) => item.code === forecast.preselected_location)) {
+        prepSelectedLocation = forecast.preselected_location;
+    }
 }
 
 // Управление видимостью блоков подготовки (вкладка «Культивация»)
@@ -647,6 +654,15 @@ function renderPrepForm() {
     document.getElementById('prepHp').textContent = hp;
 
     renderPrepLocationBonus();
+
+    // Текст «Кара начнётся здесь» — с названием выбранной локации
+    const startBox = document.getElementById('prepStartHere');
+    if (startBox) {
+        const selected = prepLocations.find((item) => item.code === prepSelectedLocation);
+        startBox.innerHTML = selected
+            ? `📍 Кара начнётся здесь: <b>${esc(selected.name)}</b>`
+            : '📍 Кара начнётся здесь: <b>—</b>';
+    }
 
     const locationsBox = document.getElementById('prepLocations');
     if (prepLocations.length) {
