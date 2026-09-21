@@ -70,9 +70,7 @@ let toastTimer = null;
 let activeItemCode = null;
 let breakthroughForecast = null;     // прогноз прорыва (GET /breakthrough/forecast)
 // Подготовка к прорыву: списки и выбранные значения (переживают перерисовку)
-let prepLocations = [];
 let prepCores = [];
-let prepSelectedLocation = '';
 let prepSelectedCore = '';
 let prepFormOpen = false;            // открыта ли форма подготовки
 
@@ -542,17 +540,8 @@ async function loadBreakthroughForecast() {
 
 // Синхронизация локального состояния выбора с данными сервера
 function syncPrepState(forecast) {
-    prepLocations = (forecast.locations || []).slice();
     prepCores = (forecast.cores || []).slice();
-    prepSelectedLocation = forecast.selected_location || '';
     prepSelectedCore = forecast.selected_core || '';
-
-    // Сервер ещё не сохранил выбор (нет selected_location) —
-    // по умолчанию подсвечиваем текущую локацию игрока.
-    if (!prepSelectedLocation && forecast.preselected_location &&
-        prepLocations.some((item) => item.code === forecast.preselected_location)) {
-        prepSelectedLocation = forecast.preselected_location;
-    }
 }
 
 // Управление видимостью блоков подготовки (вкладка «Культивация»)
@@ -575,10 +564,11 @@ function renderCultivationPrep(forecast) {
         btnStart.classList.add('hidden');
         notReady.classList.add('hidden');
         form.classList.add('hidden');
-        const location = prepLocations.find((item) => item.code === prepSelectedLocation);
+        // Прорыв начнётся в текущей локации игрока
+        const location = (playerData && playerData.location) || null;
         document.getElementById('prepLocationName').textContent = location
             ? location.name
-            : (prepSelectedLocation || '—');
+            : '—';
         return;
     }
 
@@ -630,10 +620,6 @@ function renderCultivationPrep(forecast) {
 
 // Начало подготовки: открыть форму и заполнить списки локаций и ядер
 function startPreparation() {
-    if (!prepLocations.length) {
-        showToast('Нет доступных мест для прорыва');
-        return;
-    }
     prepFormOpen = true;
     renderPrepForm();
     renderCultivationPrep(breakthroughForecast);
@@ -646,30 +632,13 @@ function renderPrepForm() {
 
     renderPrepLocationBonus();
 
-    // Текст «Кара начнётся здесь» — с названием выбранной локации
+    // Текст «Кара начнётся здесь» — текущая локация игрока (место кары авто)
     const startBox = document.getElementById('prepStartHere');
     if (startBox) {
-        const selected = prepLocations.find((item) => item.code === prepSelectedLocation);
-        startBox.innerHTML = selected
-            ? `📍 Кара начнётся здесь: <b>${esc(selected.name)}</b>`
+        const location = (playerData && playerData.location) || null;
+        startBox.innerHTML = location
+            ? `📍 Кара начнётся здесь: <b>${esc(location.name)}</b>`
             : '📍 Кара начнётся здесь: <b>—</b>';
-    }
-
-    const locationsBox = document.getElementById('prepLocations');
-    if (prepLocations.length) {
-        locationsBox.innerHTML = prepLocations.map((location) => `
-            <button class="prep-loc${location.code === prepSelectedLocation ? ' prep-selected' : ''}"
-                    type="button" data-code="${esc(location.code)}">
-                <span class="prep-loc-name">${esc(location.name)}</span>
-                ${location.effect
-                    ? `<span class="prep-loc-effect">${esc(location.effect)}</span>`
-                    : ''}
-            </button>`).join('');
-        locationsBox.querySelectorAll('.prep-loc').forEach((button) => {
-            button.addEventListener('click', () => selectLocation(button.dataset.code));
-        });
-    } else {
-        locationsBox.innerHTML = '<div class="prep-empty">Нет доступных мест для прорыва</div>';
     }
 
     const coresBox = document.getElementById('prepCores');
@@ -719,12 +688,6 @@ function renderPrepLocationBonus() {
     box.innerHTML = `<div>${locationLine}</div>${bonusLine}`;
 }
 
-// Выбор места прорыва — только локально (сохранится при «Закончить подготовку»)
-function selectLocation(code) {
-    prepSelectedLocation = code;
-    renderPrepForm();
-}
-
 // Выбор ядра стихии — только локально (сохранится при «Закончить подготовку»)
 function selectCore(code) {
     prepSelectedCore = code;
@@ -733,8 +696,8 @@ function selectCore(code) {
 
 // Завершение подготовки: /prepare (сохранить выбор) → /finish (ready = 1)
 async function finishPreparation() {
-    if (!prepSelectedLocation || !prepSelectedCore) {
-        showToast('Выбери место прорыва и ядро стихии');
+    if (!prepSelectedCore) {
+        showToast('Выбери ядро стихии');
         return;
     }
     try {
@@ -742,7 +705,6 @@ async function finishPreparation() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                location_code: prepSelectedLocation,
                 core_code: prepSelectedCore,
             }),
         });
@@ -768,7 +730,6 @@ async function finishPreparation() {
 // Отмена подготовки: скрыть форму и сбросить локальный выбор
 function cancelPreparation() {
     prepFormOpen = false;
-    prepSelectedLocation = '';
     prepSelectedCore = '';
     renderCultivationPrep(breakthroughForecast);
     showToast('Подготовка отменена');

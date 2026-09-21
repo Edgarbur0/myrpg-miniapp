@@ -1119,8 +1119,7 @@ body {
     margin-bottom: 8px;
 }
 
-/* Сетки карточек локаций и ядер — mobile-first: 2 → 3 колонки */
-.prep-locations,
+/* Сетка карточек ядер — mobile-first: 2 → 3 колонки */
 .prep-cores {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1129,42 +1128,9 @@ body {
 }
 
 @media (min-width: 640px) {
-    .prep-locations,
     .prep-cores {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-}
-
-/* Карточка локации: название + эффект */
-.prep-loc {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
-    text-align: center;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 13px;
-    color: var(--text);
-    transition: var(--transition);
-}
-
-.prep-loc:hover {
-    border-color: var(--accent);
-}
-
-.prep-loc-name {
-    font-weight: 700;
-    display: block;
-}
-
-.prep-loc-effect {
-    font-size: 11px;
-    color: var(--muted);
-    display: block;
 }
 
 /* Карточка ядра: иконка + название + count */
@@ -1208,14 +1174,12 @@ body {
 }
 
 /* Выбранная карточка: золотая рамка со свечением */
-.prep-loc.prep-selected,
 .prep-core.prep-selected {
     border-color: var(--accent);
     background: rgba(212, 175, 55, 0.15);
     box-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
 }
 
-.prep-loc.prep-selected .prep-loc-name,
 .prep-core.prep-selected .prep-core-name {
     color: var(--accent);
 }
