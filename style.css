@@ -969,6 +969,40 @@ body {
     margin-bottom: 12px;
 }
 
+/* Чек-лист требований внутри «Для прорыва…» */
+.prep-not-ready ul {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0;
+    text-align: left;
+}
+
+.prep-not-ready li {
+    padding: 4px 0;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.req-ok {
+    color: var(--xp);
+}
+
+.req-fail {
+    color: var(--hp);
+}
+
+.prep-hint {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--muted);
+    text-align: left;
+}
+
 /* Контейнер формы подготовки */
 .prep-form {
     background: var(--card);
