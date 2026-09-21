@@ -468,7 +468,7 @@ function renderCultivation() {
     }
 }
 
-// Блок «Текущая локация» (название, описание, прибавки, шанс события)
+// Блок «Текущая локация» (название, описание, бонусы локации)
 function renderCurrentLocation() {
     const location = (playerData && playerData.location) || null;
     const box = document.getElementById('cultLocation');
@@ -481,37 +481,25 @@ function renderCurrentLocation() {
     }
     box.classList.remove('hidden');
 
-    const chips = [];
-    if (location.region) {
-        chips.push(`<span class="cult-chip">🏞 ${esc(location.region)}</span>`);
-    }
-    if (location.biome) {
-        chips.push(`<span class="cult-chip">🌲 ${esc(location.biome)}</span>`);
-    }
-    if (location.location_type) {
-        chips.push(`<span class="cult-chip">🗺 ${esc(location.location_type)}</span>`);
-    }
-    if (location.event_chance) {
-        chips.push(`<span class="cult-chip">⚠️ События: ${esc(location.event_chance)}%</span>`);
-    }
-
-    // Модификаторы (баффы/дебаффы), место кары — отдельным чипом
+    // Только бонусы из location.modifiers (регион/биом/тип/шанс событий не показываем)
     const mods = location.modifiers || {};
-    const modChips = [];
+    const bonusItems = [];
     Object.keys(mods).forEach((key) => {
         if (key === 'tribulation_spot') {
-            modChips.push('<span class="cult-chip">🌀 Место небесной кары</span>');
+            // Бонус только при не-нейтральных условиях кары
+            const spot = mods[key] || {};
+            if (spot.bonus && spot.bonus !== 'neutral') {
+                bonusItems.push('🌀 Место небесной кары');
+            }
             return;
         }
         const m = mods[key];
         if (typeof m === 'string') {
-            modChips.push(`<span class="cult-chip">✨ ${esc(m)}</span>`);
+            bonusItems.push(`✨ ${m}`);
         } else if (m && typeof m === 'object') {
             const label = m.name || m.effect || key;
             const bonus = m.bonus || m.value || '';
-            modChips.push(
-                `<span class="cult-chip">✨ ${esc(label)}${bonus ? ` (${esc(bonus)})` : ''}</span>`
-            );
+            bonusItems.push(`✨ ${label}${bonus ? ` (${bonus})` : ''}`);
         }
     });
 
@@ -519,8 +507,11 @@ function renderCurrentLocation() {
         `<div class="cult-location-title">📍 Текущая локация</div>` +
         `<div class="cult-location-name">${esc(location.name)}</div>` +
         `<div class="cult-location-desc">${esc(location.description || '—')}</div>` +
-        (chips.length ? `<div class="cult-location-chips">${chips.join('')}</div>` : '') +
-        (modChips.length ? `<div class="cult-location-chips">${modChips.join('')}</div>` : '');
+        (bonusItems.length
+            ? `<div class="cult-location-chips"><span class="cult-chip"><b>Бонусы:</b></span>` +
+              bonusItems.map((b) => `<span class="cult-chip">• ${esc(b)}</span>`).join('') +
+              `</div>`
+            : `<div class="cult-location-chips"><span class="cult-chip">Бонусов нет</span></div>`);
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
