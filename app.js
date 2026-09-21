@@ -727,11 +727,16 @@ async function finishPreparation() {
     }
 }
 
-// Отмена подготовки: скрыть форму и сбросить локальный выбор
-function cancelPreparation() {
+// Отмена подготовки: полный сброс на сервере (локация, ядра, ready) и обновление UI
+async function cancelPreparation() {
     prepFormOpen = false;
     prepSelectedCore = '';
-    renderCultivationPrep(breakthroughForecast);
+    try {
+        await apiFetch(`/player/${userId}/breakthrough/cancel`, { method: 'POST' });
+    } catch (error) {
+        showToast(error.message || 'Не удалось отменить подготовку');
+    }
+    await loadBreakthroughForecast();
     showToast('Подготовка отменена');
 }
 
@@ -983,6 +988,7 @@ function init() {
     document.getElementById('btnStartPrep').addEventListener('click', startPreparation);
     document.getElementById('btnFinishPrep').addEventListener('click', finishPreparation);
     document.getElementById('btnCancelPrep').addEventListener('click', cancelPreparation);
+    document.getElementById('btnCancelDone').addEventListener('click', cancelPreparation);
 
     // Закрытие модалки по клику на фон
     document.getElementById('modal').addEventListener('click', (event) => {
