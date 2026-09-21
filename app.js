@@ -538,9 +538,38 @@ function renderCultivationPrep(forecast) {
 
     // Форма закрыта: кнопка старта (если можно готовиться) или причина
     btnStart.classList.toggle('hidden', !canPrepare);
-    notReady.classList.toggle('hidden', canPrepare);
     form.classList.add('hidden');
     done.classList.add('hidden');
+
+    if (canPrepare) {
+        notReady.classList.add('hidden');
+        return;
+    }
+
+    // Причина недоступности: заголовок + чек-лист требований
+    notReady.classList.remove('hidden');
+
+    const reason = forecast.reason || '';
+    if (reason === 'max_rank') {
+        notReady.innerHTML = '🏔 Ты достиг предела культивации';
+        return;
+    }
+
+    const nextStage = forecast.next_stage || {};
+    const reqs = (forecast.requirements || []).map((req) => {
+        const ok = Boolean(req.met);
+        return `<li class="${ok ? 'req-ok' : 'req-fail'}">${esc(req.text)} ${ok ? '✓' : '✗'}</li>`;
+    }).join('');
+
+    const hints = (forecast.requirements || [])
+        .filter((req) => !req.met && req.hint)
+        .map((req) => `<div class="prep-hint">💡 ${esc(req.hint)}</div>`)
+        .join('');
+
+    notReady.innerHTML =
+        `Для прорыва на ступень «${esc(nextStage.name || '…')}» необходимо:` +
+        `<ul>${reqs}</ul>` +
+        hints;
 }
 
 // Начало подготовки: открыть форму и заполнить списки локаций и ядер
