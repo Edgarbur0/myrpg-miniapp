@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
 
@@ -142,6 +142,9 @@
             <!-- Тип и качество ци -->
             <div class="cult-info" id="cultInfo"></div>
 
+            <!-- Текущая локация + прибавки (заполняется renderCurrentLocation) -->
+            <div id="cultLocation" class="cult-location hidden"></div>
+
             <!-- Кнопка "Начать подготовку" (видна при can_prepare=true и ready=false) -->
             <button id="btnStartPrep" class="btn btn-primary hidden">🌀 Начать подготовку</button>
 
@@ -151,6 +154,9 @@
             <!-- Форма подготовки (видна при открытой форме) -->
             <div id="prepForm" class="prep-form hidden">
                 <div class="prep-forecast">Прогноз HP после кары: <b id="prepHp">0</b></div>
+
+                <!-- Текущая локация + бонусы следующей ступени (заполняется renderPrepLocationBonus) -->
+                <div id="prepLocationBonus" class="prep-location-bonus"></div>
 
                 <div class="prep-section">
                     <h3>Выбери место прорыва:</h3>
@@ -271,5 +277,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=26"></script></body>
+    <script src="app.js?v=27"></script></body>
 </html>

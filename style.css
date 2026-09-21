@@ -690,6 +690,44 @@ body {
     color: var(--text);
 }
 
+/* Текущая локация на вкладке «Культивация» */
+.cult-location {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+
+.cult-location-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-bottom: 6px;
+}
+
+.cult-location-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.cult-location-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.cult-location-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
 .cult-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1031,6 +1069,24 @@ body {
     color: #ff6b6b;
     font-size: 16px;
     white-space: nowrap;
+}
+
+/* Локация + бонусы после прорыва (в форме подготовки) */
+.prep-location-bonus {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.prep-location-bonus b {
+    color: var(--accent);
 }
 
 /* Секция формы: заголовок + контейнер */

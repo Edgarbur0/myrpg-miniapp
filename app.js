@@ -457,12 +457,70 @@ function renderCultivation() {
         <div class="cult-chip">💠 Качество: <b>${esc(cultivation.qi_quality || '—')}</b></div>
     `;
 
+    // Текущая локация + прибавки
+    renderCurrentLocation();
+
     // Подготовка к прорыву: рисуем состояние или грузим прогноз
     if (breakthroughForecast) {
         renderCultivationPrep(breakthroughForecast);
     } else {
         loadBreakthroughForecast();
     }
+}
+
+// Блок «Текущая локация» (название, описание, прибавки, шанс события)
+function renderCurrentLocation() {
+    const location = (playerData && playerData.location) || null;
+    const box = document.getElementById('cultLocation');
+    if (!box) {
+        return;
+    }
+    if (!location || !location.name) {
+        box.classList.add('hidden');
+        return;
+    }
+    box.classList.remove('hidden');
+
+    const chips = [];
+    if (location.region) {
+        chips.push(`<span class="cult-chip">🏞 ${esc(location.region)}</span>`);
+    }
+    if (location.biome) {
+        chips.push(`<span class="cult-chip">🌲 ${esc(location.biome)}</span>`);
+    }
+    if (location.location_type) {
+        chips.push(`<span class="cult-chip">🗺 ${esc(location.location_type)}</span>`);
+    }
+    if (location.event_chance) {
+        chips.push(`<span class="cult-chip">⚠️ События: ${esc(location.event_chance)}%</span>`);
+    }
+
+    // Модификаторы (баффы/дебаффы), место кары — отдельным чипом
+    const mods = location.modifiers || {};
+    const modChips = [];
+    Object.keys(mods).forEach((key) => {
+        if (key === 'tribulation_spot') {
+            modChips.push('<span class="cult-chip">🌀 Место небесной кары</span>');
+            return;
+        }
+        const m = mods[key];
+        if (typeof m === 'string') {
+            modChips.push(`<span class="cult-chip">✨ ${esc(m)}</span>`);
+        } else if (m && typeof m === 'object') {
+            const label = m.name || m.effect || key;
+            const bonus = m.bonus || m.value || '';
+            modChips.push(
+                `<span class="cult-chip">✨ ${esc(label)}${bonus ? ` (${esc(bonus)})` : ''}</span>`
+            );
+        }
+    });
+
+    box.innerHTML =
+        `<div class="cult-location-title">📍 Текущая локация</div>` +
+        `<div class="cult-location-name">${esc(location.name)}</div>` +
+        `<div class="cult-location-desc">${esc(location.description || '—')}</div>` +
+        (chips.length ? `<div class="cult-location-chips">${chips.join('')}</div>` : '') +
+        (modChips.length ? `<div class="cult-location-chips">${modChips.join('')}</div>` : '');
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
@@ -588,6 +646,8 @@ function renderPrepForm() {
     const hp = breakthroughForecast ? (breakthroughForecast.hp_forecast || 0) : 0;
     document.getElementById('prepHp').textContent = hp;
 
+    renderPrepLocationBonus();
+
     const locationsBox = document.getElementById('prepLocations');
     if (prepLocations.length) {
         locationsBox.innerHTML = prepLocations.map((location) => `
@@ -620,6 +680,36 @@ function renderPrepForm() {
     } else {
         coresBox.innerHTML = '<div class="prep-empty">Нет ядер стихий. Собери их с монстров!</div>';
     }
+}
+
+// Текущая локация и бонусы следующей ступени (в форме подготовки)
+function renderPrepLocationBonus() {
+    const box = document.getElementById('prepLocationBonus');
+    if (!box) {
+        return;
+    }
+    const location = (playerData && playerData.location) || null;
+    const nextStage = (breakthroughForecast && breakthroughForecast.next_stage) || {};
+    const bonuses = [];
+    if (nextStage.hp_bonus) {
+        bonuses.push(`+${esc(nextStage.hp_bonus)} HP`);
+    }
+    if (nextStage.attack_bonus) {
+        bonuses.push(`+${esc(nextStage.attack_bonus)} Атака`);
+    }
+    if (nextStage.defense_bonus) {
+        bonuses.push(`+${esc(nextStage.defense_bonus)} Защита`);
+    }
+    if (nextStage.hp_regen) {
+        bonuses.push(`+${esc(nextStage.hp_regen)} Реген`);
+    }
+    const locationLine = location && location.name
+        ? `📍 Текущая локация: <b>${esc(location.name)}</b>`
+        : '📍 Текущая локация: <b>—</b>';
+    const bonusLine = bonuses.length
+        ? `<div>После прорыва: <b>${bonuses.join(', ')}</b></div>`
+        : '';
+    box.innerHTML = `<div>${locationLine}</div>${bonusLine}`;
 }
 
 // Выбор места прорыва — только локально (сохранится при «Закончить подготовку»)
