@@ -611,19 +611,45 @@ body {
     flex: 1;
     height: 64px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 26px;
+    gap: 2px;
+    font-size: 22px;
     background: var(--panel);
     border: 1px dashed var(--border);
     border-radius: var(--radius);
     transition: var(--transition);
+    overflow: hidden;
 }
 
 .equip-slot.empty {
     color: var(--muted);
     filter: grayscale(1);
     opacity: 0.6;
+    cursor: default;
+}
+
+.equip-slot.filled {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    cursor: pointer;
+}
+
+.equip-slot.filled:active {
+    transform: scale(0.96);
+}
+
+.equip-slot .equip-name {
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--text);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
 }
 
 .inventory-grid {
