@@ -301,7 +301,7 @@ async function showStatInfo(statKey, anchor) {
     // Загрузка разбивки стата с сервера (fallback — просто База)
     let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(value)}</span></div>`;
     let total = value;
-    // Реальный шанс улучшения в бою приходит в data.chances (30 * 0.98^upgrades)
+    // Реальный шанс прокачки за ход приходит в data.chances.per_turn (11 * 0.98^avg)
     let chancePct = null;
     if (playerData && playerData.user_id) {
         try {
@@ -317,8 +317,8 @@ async function showStatInfo(statKey, anchor) {
                         .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
                         .join('');
                 }
-                if (data.chances && typeof data.chances[statKey] === 'number') {
-                    chancePct = data.chances[statKey];
+                if (data.chances && typeof data.chances.per_turn === 'number') {
+                    chancePct = data.chances.per_turn;
                 }
             }
         } catch (err) {
@@ -327,7 +327,7 @@ async function showStatInfo(statKey, anchor) {
     }
 
     const chanceHtml = detail.chance && chancePct !== null
-        ? `<div class="popover-chance">Шанс улучшения в бою: ${chancePct.toFixed(1)}%</div>`
+        ? `<div class="popover-chance">Шанс прокачки за ход: ${chancePct.toFixed(1)}%</div>`
         : '';
 
     const popover = document.getElementById('statPopover');
