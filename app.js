@@ -54,6 +54,33 @@ const CRAFT_STAT_LABELS = {
     damage: 'Атака',
     armor: 'Броня',
     hp: 'HP',
+    endurance: 'Выносливость',
+    agility: 'Ловкость',
+    intelligence: 'Интеллект',
+    luck: 'Удача',
+    spirit: 'Дух',
+    qi: 'Ци',
+};
+
+// Подписи категорий материалов (ключи из craft slot categories)
+const CRAFT_CATEGORY_LABELS = {
+    wood: 'Дерево',
+    metal: 'Металл',
+    stone: 'Камень',
+    herb: 'Трава',
+    crystal: 'Кристалл',
+    bone: 'Кость',
+    leather: 'Шкура',
+};
+
+// Подписи стихий
+const CRAFT_ELEMENT_LABELS = {
+    fire: 'Огонь',
+    water: 'Вода',
+    wood: 'Дерево',
+    metal: 'Металл',
+    earth: 'Земля',
+    spirit: 'Дух',
 };
 
 // Подписи основных типов предметов
@@ -82,10 +109,12 @@ let breakthroughForecast = null;     // прогноз прорыва (GET /brea
 let prepCores = [];
 let prepSelectedCore = '';
 let prepFormOpen = false;            // открыта ли форма подготовки
-let craftRecipes = [];              // рецепты крафта (GET /crafts)
-let activeCraftCode = null;         // раскрытый рецепт
-let craftDetail = null;             // детали рецепта (GET /craft/<code>)
-let craftSelections = {};           // слот -> выбранный материал
+let craftRecipes = [];              // рецепты крафта (GET /api/crafts)
+let activeCraftCode = null;         // выбранный рецепт (детали справа)
+let craftDetail = null;             // детали рецепта (GET /api/crafts/<code>)
+let craftSelections = {};           // 'slot_1' | 'slot_2' -> код материала
+let craftSelectedMats = {};         // 'slot_1' | 'slot_2' -> объект материала (иконка/имя/статы)
+let craftMaterialModal = null;      // {'slot', 'categories', 'materials'} для модалки
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -1095,129 +1124,295 @@ function closeModal() {
 
 // ---------- Экран: Крафт ----------
 
-// Загрузка доступных рецептов (при открытии вкладки)
+// Загрузка рецептов (при открытии вкладки)
 async function loadCrafts() {
     try {
-        const data = await apiFetch(`/player/${userId}/crafts`);
+        const data = await apiFetch(`/crafts`);
         craftRecipes = data.crafts || [];
     } catch (error) {
         craftRecipes = [];
     }
+    // Перезагружаем детали выбранного рецепта, если он открыт
+    if (activeCraftCode) {
+        await loadCraftDetail(activeCraftCode);
+    }
     renderCrafts();
 }
 
-// Список рецептов + раскрытая форма активного
+// Список рецептов (левая колонка 50%)
 function renderCrafts() {
-    const box = document.getElementById('craftList');
+    const box = document.getElementById('craftRecipes');
     const empty = document.getElementById('craftEmpty');
     empty.classList.toggle('hidden', craftRecipes.length > 0);
 
-    box.innerHTML = craftRecipes.map((craft) => {
-        const opened = craft.code === activeCraftCode;
-        const formBody = opened
-            ? (craftDetail && craftDetail.craft
-                ? renderCraftForm(craft)
-                : '<div class="craft-form craft-loading">Загрузка рецепта…</div>')
-            : '';
-        return `
-            <div class="craft-card">
-                <button class="craft-card-head" type="button" data-code="${esc(craft.code)}">
-                    <span class="craft-card-icon">🔨</span>
-                    <span class="craft-card-info">
-                        <span class="craft-card-name">${esc(craft.name)}</span>
-                        <span class="craft-card-desc">${esc(craft.description)}</span>
-                    </span>
-                    <span class="craft-card-action">${opened ? '▾ Свернуть' : 'Крафтить'}</span>
-                </button>
-                ${formBody}
-            </div>`;
-    }).join('');
+    box.innerHTML = craftRecipes.map((craft) => `
+        <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
+                type="button" data-code="${esc(craft.code)}">
+            <span class="craft-recipe-icon">🔨</span>
+            <span class="craft-recipe-info">
+                <span class="craft-recipe-name">${esc(craft.name)}</span>
+                <span class="craft-recipe-desc">${esc(craft.description)}</span>
+            </span>
+        </button>`).join('');
 
-    box.querySelectorAll('.craft-card-head').forEach((button) => {
+    box.querySelectorAll('.craft-recipe').forEach((button) => {
         button.addEventListener('click', () => openCraft(button.dataset.code));
     });
-    box.querySelectorAll('.craft-material').forEach((button) => {
-        button.addEventListener('click', () => {
-            craftSelections[button.dataset.slot] = button.dataset.code;
-            renderCrafts();
-        });
-    });
-    box.querySelectorAll('[data-close-craft]').forEach((button) => {
-        button.addEventListener('click', closeCraftForm);
-    });
-    const btnDoCraft = document.getElementById('btnDoCraft');
-    if (btnDoCraft) {
-        btnDoCraft.addEventListener('click', doCraft);
-    }
 }
 
-// Форма выбора материалов для раскрытого рецепта
-function renderCraftForm(craft) {
-    const detail = craftDetail.craft;
-    const requirements = detail.requirements || [];
+// Детали рецепта (правая колонка)
+function renderCraftDetail() {
+    const detailBox = document.getElementById('craftDetail');
+    const hint = document.getElementById('craftDetailHint');
+    const recipe = craftDetail && craftDetail.craft;
 
-    const slotsHtml = requirements.map((req) => {
-        const selectedCode = craftSelections[req.slot] || null;
-        const options = (req.items || []).map((item) => `
-            <button class="craft-material${item.code === selectedCode ? ' craft-selected' : ''}"
-                    type="button" data-slot="${esc(req.slot)}" data-code="${esc(item.code)}"
-                    ${item.count >= req.count ? '' : 'disabled'}>
-                <span class="craft-material-icon">${item.icon}</span>
-                <span class="craft-material-name">${esc(item.name)}</span>
-                <span class="craft-material-count">×${esc(item.count)}</span>
-            </button>`);
-        return `
-            <div class="craft-slot">
-                <div class="craft-slot-label">${esc(req.slot)} · нужно ×${esc(req.count)}</div>
-                <div class="craft-materials">${options.join('') || '<div class="craft-empty-inline">Нет материалов</div>'}</div>
-            </div>`;
-    }).join('');
-
-    const ready = requirements.length > 0
-        && requirements.every((req) => craftSelections[req.slot]);
-    return `
-        <div class="craft-form">
-            ${slotsHtml}
-            <div class="craft-result">Готовый предмет: <b>${esc(detail.name || craft.name)}</b></div>
-            <button class="btn btn-primary" id="btnDoCraft" type="button" ${ready ? '' : 'disabled'}>⚒️ Создать</button>
-            <button class="btn btn-secondary" type="button" data-close-craft>Закрыть</button>
-        </div>`;
-}
-
-// Раскрыть / свернуть рецепт (загружает детали)
-async function openCraft(code) {
-    if (activeCraftCode === code) {
-        closeCraftForm();
-        renderCrafts();
+    if (!recipe) {
+        detailBox.innerHTML = '';
+        if (hint) {
+            hint.classList.remove('hidden');
+        }
         return;
     }
+    if (hint) {
+        hint.classList.add('hidden');
+    }
+
+    const resultItem = craftDetail.result_item || {};
+    const baseStats = recipe.result_stats || {};
+    const slot1 = recipe.slot_1_categories || [];
+    const slot2 = recipe.slot_2_categories || [];
+    const sel1 = craftSelectedMats['slot_1'] || null;
+    const sel2 = craftSelectedMats['slot_2'] || null;
+
+    // Бонусы: базовые статы + суммарные статы выбранных ингредиентов
+    const bonuses = computeCraftBonuses(recipe, sel1, sel2);
+
+    const required1 = recipe.slot_1_required ? ' *' : '';
+    const required2 = recipe.slot_2_required ? ' *' : '';
+    const ready = (recipe.slot_1_required ? !!sel1 : true)
+        && (recipe.slot_2_required ? !!sel2 : true);
+
+    const bonusHtml = Object.keys(bonuses.stats || {}).length
+        ? Object.entries(bonuses.stats).map(([key, value]) => {
+            const baseValue = baseStats[key] || 0;
+            const inherited = value - baseValue;
+            const inheritedText = inherited > 0
+                ? ` <span class="craft-bonus-inherit">(+${inherited} из материалов)</span>`
+                : '';
+            return `
+                <div class="craft-bonus">
+                    <span class="craft-bonus-label">${CRAFT_STAT_LABELS[key] || key}</span>
+                    <span class="craft-bonus-value">+${value}${inheritedText}</span>
+                </div>`;
+        }).join('')
+        : '<div class="craft-empty-inline">Минимальные характеристики</div>';
+
+    const elementText = bonuses.element && bonuses.element !== 'none'
+        ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[bonuses.element] || bonuses.element}</b></div>`
+        : '';
+
+    detailBox.innerHTML = `
+        <div class="craft-detail-header">
+            <span class="craft-detail-icon">${recipe.result_icon || '🔨'}</span>
+            <div class="craft-detail-title">
+                <div class="craft-detail-name">${esc(recipe.result_name || recipe.name)}</div>
+                <div class="craft-detail-desc">${esc(recipe.description || '')}</div>
+            </div>
+        </div>
+        <div class="craft-detail-slots">
+            <div class="craft-slot">
+                <div class="craft-slot-label">Слот 1${required1} · ${esc(craftCategoriesLabel(slot1))}</div>
+                <button class="craft-slot-btn${sel1 ? ' craft-slot-filled' : ''}"
+                        type="button" data-slot="slot_1" data-categories="${esc((slot1 || []).join(','))}">
+                    ${sel1
+                        ? `${renderMaterialCell(sel1)}`
+                        : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
+                </button>
+            </div>
+            <div class="craft-slot">
+                <div class="craft-slot-label">Слот 2${required2} · ${esc(craftCategoriesLabel(slot2))}</div>
+                <button class="craft-slot-btn${sel2 ? ' craft-slot-filled' : ''}"
+                        type="button" data-slot="slot_2" data-categories="${esc((slot2 || []).join(','))}">
+                    ${sel2
+                        ? `${renderMaterialCell(sel2)}`
+                        : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
+                </button>
+            </div>
+        </div>
+        <div class="craft-detail-bonuses">
+            <div class="craft-detail-title-small">Характеристики предмета</div>
+            ${bonusHtml}
+            ${elementText}
+        </div>
+        <button class="btn btn-primary" id="btnDoCraft2" type="button" ${ready ? '' : 'disabled'}>
+            ⚒️ Создать
+        </button>`;
+
+    detailBox.querySelectorAll('.craft-slot-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            const slot = button.dataset.slot;
+            const categories = (button.dataset.categories || '').split(',').filter(Boolean);
+            openCraftMaterialModal(slot, categories);
+        });
+    });
+    const btnDoCraft2El = document.getElementById('btnDoCraft2');
+    if (btnDoCraft2El) {
+        btnDoCraft2El.addEventListener('click', doCraft2);
+    }
+}
+
+function renderMaterialCell(material) {
+    return `
+        <span class="craft-material-icon">${material.icon || '📦'}</span>
+        <span class="craft-material-name">${esc(material.name)}</span>
+        <span class="craft-material-count">×${esc(material.count)}</span>`;
+}
+
+// Категории через запятую с понятными подписями
+function craftCategoriesLabel(categories) {
+    if (!Array.isArray(categories) || categories.length === 0) {
+        return 'любые';
+    }
+    return categories
+        .map((category) => CRAFT_CATEGORY_LABELS[category] || category)
+        .join(', ');
+}
+
+// Поиск выбранного материала в открытой модалке (по коду)
+function findCraftMaterial(code) {
+    if (!craftMaterialModal || !Array.isArray(craftMaterialModal.materials)) {
+        return null;
+    }
+    return craftMaterialModal.materials.find((material) => material.code === code) || null;
+}
+
+// Суммарные бонусы: базовые статы предмета + статы ингредиентов
+function computeCraftBonuses(recipe, sel1Info, sel2Info) {
+    const stats = { ...(recipe.result_stats || {}) };
+    const addStats = (material) => {
+        if (!material) {
+            return;
+        }
+        Object.entries(material.stats || {}).forEach(([key, value]) => {
+            stats[key] = (stats[key] || 0) + value;
+        });
+    };
+    addStats(sel1Info);
+    addStats(sel2Info);
+
+    let element = recipe.result_element || 'none';
+    [sel1Info, sel2Info].forEach((material) => {
+        if (material && material.element && material.element !== 'none') {
+            element = material.element;
+        }
+    });
+    return { stats, element };
+}
+
+// Открыть рецепт (загружает детали справа)
+async function openCraft(code) {
     activeCraftCode = code;
     craftSelections = {};
+    craftSelectedMats = {};
     craftDetail = null;
     renderCrafts();
+    renderCraftDetail();
+    await loadCraftDetail(code);
+}
 
+async function loadCraftDetail(code) {
     try {
-        const data = await apiFetch(`/player/${userId}/craft/${code}`);
+        const data = await apiFetch(`/crafts/${code}`);
         craftDetail = data;
-        renderCrafts();
+        renderCraftDetail();
     } catch (error) {
         showToast('Не удалось загрузить рецепт');
     }
 }
 
-function closeCraftForm() {
-    activeCraftCode = null;
-    craftDetail = null;
-    craftSelections = {};
+// Открыть модалку выбора материала для слота
+async function openCraftMaterialModal(slot, categories) {
+    renderCrafts();
+    try {
+        const query = encodeURIComponent((categories || []).join(','));
+        const data = await apiFetch(`/player/${userId}/craft_materials?categories=${query}`);
+        craftMaterialModal = {
+            slot,
+            categories,
+            materials: data.materials || [],
+        };
+        renderCraftMaterialModal();
+    } catch (error) {
+        showToast('Не удалось загрузить материалы');
+    }
 }
 
-// Выполнение крафта (POST /craft/<code>)
-async function doCraft() {
+function renderCraftMaterialModal() {
+    const modal = document.getElementById('craftMaterialModal');
+    const bonus = document.getElementById('craftMaterialBonus');
+    const list = document.getElementById('craftMaterialList');
+    const slot = craftMaterialModal.slot;
+    const selected = craftSelections[slot] || null;
+
+    list.innerHTML = craftMaterialModal.materials.length
+        ? craftMaterialModal.materials.map((material) => `
+            <button class="craft-material${material.code === selected ? ' craft-selected' : ''}"
+                    type="button" data-code="${esc(material.code)}">
+                <span class="craft-material-icon">${material.icon || '📦'}</span>
+                <span class="craft-material-name">${esc(material.name)}</span>
+                <span class="craft-material-count">×${esc(material.count)}</span>
+            </button>`).join('')
+        : '<div class="craft-empty-inline">Подходящих материалов нет</div>';
+
+    list.querySelectorAll('.craft-material').forEach((button) => {
+        button.addEventListener('click', () => {
+            const code = button.dataset.code;
+            const chosen = craftMaterialModal.materials.find((material) => material.code === code);
+            craftSelections[slot] = code;
+            craftSelectedMats[slot] = chosen || null;
+            closeCraftMaterialModal();
+            renderCraftDetail();
+        });
+    });
+
+    // Спойлер бонуса слота: статы выбранных материалов обоих слотов
+    bonus.textContent = craftColumnBonusText();
+
+    modal.classList.remove('hidden');
+}
+
+// Текст бонуса: статы текущих выбранных материалов
+function craftColumnBonusText() {
+    const blocks = [];
+    ['slot_1', 'slot_2'].forEach((slot) => {
+        const material = craftSelectedMats[slot];
+        if (!material) {
+            return;
+        }
+        const statsText = Object.entries(material.stats || {})
+            .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
+            .join(', ');
+        blocks.push(`${material.name}${statsText ? ' (' + statsText + ')' : ''}`);
+    });
+    return blocks.length ? `Выбрано: ${blocks.join(' · ')}` : 'Бонус за слот: —';
+}
+
+function closeCraftMaterialModal() {
+    document.getElementById('craftMaterialModal').classList.add('hidden');
+    craftMaterialModal = null;
+}
+
+// Выполнение крафта (POST /api/player/<id>/craft)
+async function doCraft2() {
     try {
-        const data = await apiFetch(`/player/${userId}/craft/${activeCraftCode}`, {
+        const data = await apiFetch(`/player/${userId}/craft`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ selected_items: craftSelections }),
+            body: JSON.stringify({
+                recipe_code: activeCraftCode,
+                slot_1_code: craftSelections['slot_1'] || '',
+                slot_2_code: craftSelections['slot_2'] || '',
+            }),
         });
 
         // Обновляем инвентарь из ответа сервера
@@ -1231,8 +1426,9 @@ async function doCraft() {
             .join(', ');
         showToast(`🔨 Создано: ${data.item.name}${statsText ? ' (' + statsText + ')' : ''}`);
 
-        closeCraftForm();
-        await loadCrafts();
+        craftSelections = {};
+        craftSelectedMats = {};
+        await loadCraftDetail(activeCraftCode);
     } catch (error) {
         showToast(error.code || 'Не удалось создать предмет');
     }
@@ -1316,6 +1512,14 @@ function init() {
     document.getElementById('modal').addEventListener('click', (event) => {
         if (event.target === document.getElementById('modal')) {
             closeModal();
+        }
+    });
+
+    // Модалка выбора материала для крафта
+    document.getElementById('btnCraftMaterialClose').addEventListener('click', closeCraftMaterialModal);
+    document.getElementById('craftMaterialModal').addEventListener('click', (event) => {
+        if (event.target === document.getElementById('craftMaterialModal')) {
+            closeCraftMaterialModal();
         }
     });
 

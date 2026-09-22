@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=37">
+    <link rel="stylesheet" href="style.css?v=38">
 </head>
 <body>
 
@@ -187,11 +187,26 @@
             <div class="panel-title-row">
                 <h2 class="panel-title">Крафт</h2>
             </div>
-            <div id="craftEmpty" class="craft-empty hidden">
-                <div class="stub-icon">🔨</div>
-                <div class="stub-text">Доступных рецептов пока нет.</div>
+            <div class="craft-layout">
+                <!-- Левая колонка: список рецептов (50%) -->
+                <div class="craft-column craft-column-left">
+                    <div class="craft-column-title">Рецепты</div>
+                    <div id="craftEmpty" class="craft-empty hidden">
+                        <div class="stub-icon">🔨</div>
+                        <div class="stub-text">Доступных рецептов пока нет.</div>
+                    </div>
+                    <div id="craftRecipes" class="craft-list"></div>
+                </div>
+                <!-- Правая колонка: детали рецепта (50%) -->
+                <div class="craft-column craft-column-right">
+                    <div class="craft-column-title">Описание</div>
+                    <div id="craftDetailHint" class="craft-detail-hint">
+                        <div class="stub-icon">🔍</div>
+                        <div class="stub-text">Выбери рецепт слева.</div>
+                    </div>
+                    <div id="craftDetail" class="craft-detail"></div>
+                </div>
             </div>
-            <div id="craftList" class="craft-list"></div>
         </div>
     </section>
 
@@ -276,6 +291,20 @@
     </div>
 </div>
 
+<!-- МОДАЛКА ВЫБОРА МАТЕРИАЛА ДЛЯ КРАФТА -->
+<div id="craftMaterialModal" class="craft-material-modal hidden">
+    <div class="craft-material-modal-content">
+        <div class="craft-material-modal-header">
+            <span id="craftMaterialTitle">Выбери материал</span>
+            <button class="icon-btn" id="btnCraftMaterialClose" type="button" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="craft-material-modal-bonus">
+            <span id="craftMaterialBonus">Бонус за слот: —</span>
+        </div>
+        <div id="craftMaterialList" class="craft-material-list"></div>
+    </div>
+</div>
+
 <!-- POPOVER СТАТА -->
 <div id="statPopover" class="stat-popover hidden"></div>
 
@@ -283,5 +312,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=37"></script></body>
+    <script src="app.js?v=38"></script></body>
 </html>
