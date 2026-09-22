@@ -232,6 +232,9 @@ function renderHeader() {
         ? `${cultivation.stage}.${cultivation.substage} ${cultivation.stage_name}`
         : '—';
 
+    // HP в шапке: компактно, всегда видно
+    document.getElementById('hpChip').textContent = `❤️ ${esc(player.hp)}/${esc(player.max_hp)}`;
+
     // Аватар: приоритет у VK Bridge, затем у данных с API
     renderAvatar(userAvatar || player.avatar_url);
 
@@ -255,16 +258,8 @@ function renderCharacter() {
         player.experience_needed
     );
 
-    // Карточка здоровья: HP/макс + «!» → popover с разбивкой
-    const hpCard = `
-        <div class="stat stat-hp">
-            <span class="stat-name">Здоровье</span>
-            <b class="stat-value">${esc(player.hp)}/${esc(player.max_hp)}</b>
-            <button class="stat-info-btn" data-hp="1" type="button" aria-label="Здоровье">!</button>
-        </div>`;
-
     // Характеристики с кнопкой-подсказкой
-    document.getElementById('statsGrid').innerHTML = hpCard + STATS.map((stat) => {
+    document.getElementById('statsGrid').innerHTML = STATS.map((stat) => {
         const detail = STAT_DETAILS[stat.key];
         return `
         <div class="stat">
@@ -278,11 +273,7 @@ function renderCharacter() {
     document.querySelectorAll('.stat-info-btn').forEach((button) => {
         button.addEventListener('click', (event) => {
             event.stopPropagation();
-            if (button.dataset.hp) {
-                showHpInfo(button);
-            } else {
-                showStatInfo(button.dataset.stat, button);
-            }
+            showStatInfo(button.dataset.stat, button);
         });
     });
 
@@ -334,44 +325,6 @@ async function showStatInfo(statKey, anchor) {
     popover.innerHTML = `
         <div class="popover-header">${detail.label}</div>
         ${chanceHtml}
-        ${sourcesHtml}
-        <div class="popover-total">Итого: ${esc(total)}</div>
-    `;
-
-    popover.classList.remove('hidden');
-    positionStatPopover(popover, anchor);
-}
-
-// ---------- Popover HP ----------
-async function showHpInfo(anchor) {
-    const current = playerData ? playerData.hp : 0;
-
-    // Загрузка разбивки HP с сервера (fallback — просто База)
-    let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(current)}</span></div>`;
-    let total = playerData ? playerData.max_hp : current;
-    if (playerData && playerData.user_id) {
-        try {
-            const resp = await fetch(`${API_URL}/player/${playerData.user_id}/hp_breakdown`);
-            if (resp.ok) {
-                const data = await resp.json();
-                const rows = data.breakdown || [];
-                if (rows.length) {
-                    const totalRow = rows.find((row) => row.source === 'total');
-                    if (totalRow) total = totalRow.value;
-                    sourcesHtml = rows
-                        .filter((row) => row.source !== 'total')
-                        .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
-                        .join('');
-                }
-            }
-        } catch (err) {
-            // Оффлайн — оставляем fallback «База»
-        }
-    }
-
-    const popover = document.getElementById('statPopover');
-    popover.innerHTML = `
-        <div class="popover-header">Здоровье</div>
         ${sourcesHtml}
         <div class="popover-total">Итого: ${esc(total)}</div>
     `;

@@ -455,6 +455,16 @@ body {
     font-weight: 400; /* не жирный */
 }
 
+/* HP в шапке профиля: компактно, красный как в каре */
+.hp-chip {
+    font-size: 0.75em;
+    color: var(--hp);
+    font-weight: 600;
+    margin-top: 1px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
 /* ================= POPOVER СТАТА ================= */
 
 .stat-popover {
