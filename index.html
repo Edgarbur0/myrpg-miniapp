@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 
@@ -185,10 +185,15 @@
 
     <!-- ЭКРАН: КРАФТ -->
     <section id="screen-craft" class="screen">
-        <div class="stub">
-            <div class="stub-icon">🔨</div>
-            <div class="stub-title">Крафт</div>
-            <div class="stub-text">Раздел появится позже. Следите за обновлениями!</div>
+        <div class="stats-panel">
+            <div class="panel-title-row">
+                <h2 class="panel-title">Крафт</h2>
+            </div>
+            <div id="craftEmpty" class="craft-empty hidden">
+                <div class="stub-icon">🔨</div>
+                <div class="stub-text">Доступных рецептов пока нет.</div>
+            </div>
+            <div id="craftList" class="craft-list"></div>
         </div>
     </section>
 
@@ -280,5 +285,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=32"></script></body>
+    <script src="app.js?v=33"></script></body>
 </html>

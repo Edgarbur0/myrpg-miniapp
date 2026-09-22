@@ -49,6 +49,13 @@ const STAT_DETAILS = {
     endurance: { label: 'Выносливость', chance: true },
 };
 
+// Подписи статов готового предмета (ключи из craft stats)
+const CRAFT_STAT_LABELS = {
+    attack: 'Атака',
+    armor: 'Броня',
+    hp: 'HP',
+};
+
 // Подписи основных типов предметов
 const ITEM_TYPE_LABELS = {
     consumable: 'Расходник',
@@ -73,6 +80,10 @@ let breakthroughForecast = null;     // прогноз прорыва (GET /brea
 let prepCores = [];
 let prepSelectedCore = '';
 let prepFormOpen = false;            // открыта ли форма подготовки
+let craftRecipes = [];              // рецепты крафта (GET /crafts)
+let activeCraftCode = null;         // раскрытый рецепт
+let craftDetail = null;             // детали рецепта (GET /craft/<code>)
+let craftSelections = {};           // слот -> выбранный материал
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -876,6 +887,151 @@ function closeModal() {
     activeItemCode = null;
 }
 
+// ---------- Экран: Крафт ----------
+
+// Загрузка доступных рецептов (при открытии вкладки)
+async function loadCrafts() {
+    try {
+        const data = await apiFetch(`/player/${userId}/crafts`);
+        craftRecipes = data.crafts || [];
+    } catch (error) {
+        craftRecipes = [];
+    }
+    renderCrafts();
+}
+
+// Список рецептов + раскрытая форма активного
+function renderCrafts() {
+    const box = document.getElementById('craftList');
+    const empty = document.getElementById('craftEmpty');
+    empty.classList.toggle('hidden', craftRecipes.length > 0);
+
+    box.innerHTML = craftRecipes.map((craft) => {
+        const opened = craft.code === activeCraftCode;
+        const formBody = opened
+            ? (craftDetail && craftDetail.craft
+                ? renderCraftForm(craft)
+                : '<div class="craft-form craft-loading">Загрузка рецепта…</div>')
+            : '';
+        return `
+            <div class="craft-card">
+                <button class="craft-card-head" type="button" data-code="${esc(craft.code)}">
+                    <span class="craft-card-icon">🔨</span>
+                    <span class="craft-card-info">
+                        <span class="craft-card-name">${esc(craft.name)}</span>
+                        <span class="craft-card-desc">${esc(craft.description)}</span>
+                    </span>
+                    <span class="craft-card-action">${opened ? '▾ Свернуть' : 'Крафтить'}</span>
+                </button>
+                ${formBody}
+            </div>`;
+    }).join('');
+
+    box.querySelectorAll('.craft-card-head').forEach((button) => {
+        button.addEventListener('click', () => openCraft(button.dataset.code));
+    });
+    box.querySelectorAll('.craft-material').forEach((button) => {
+        button.addEventListener('click', () => {
+            craftSelections[button.dataset.slot] = button.dataset.code;
+            renderCrafts();
+        });
+    });
+    box.querySelectorAll('[data-close-craft]').forEach((button) => {
+        button.addEventListener('click', closeCraftForm);
+    });
+    const btnDoCraft = document.getElementById('btnDoCraft');
+    if (btnDoCraft) {
+        btnDoCraft.addEventListener('click', doCraft);
+    }
+}
+
+// Форма выбора материалов для раскрытого рецепта
+function renderCraftForm(craft) {
+    const detail = craftDetail.craft;
+    const requirements = detail.requirements || [];
+
+    const slotsHtml = requirements.map((req) => {
+        const selectedCode = craftSelections[req.slot] || null;
+        const options = (req.items || []).map((item) => `
+            <button class="craft-material${item.code === selectedCode ? ' craft-selected' : ''}"
+                    type="button" data-slot="${esc(req.slot)}" data-code="${esc(item.code)}"
+                    ${item.count >= req.count ? '' : 'disabled'}>
+                <span class="craft-material-icon">${item.icon}</span>
+                <span class="craft-material-name">${esc(item.name)}</span>
+                <span class="craft-material-count">×${esc(item.count)}</span>
+            </button>`);
+        return `
+            <div class="craft-slot">
+                <div class="craft-slot-label">${esc(req.slot)} · нужно ×${esc(req.count)}</div>
+                <div class="craft-materials">${options.join('') || '<div class="craft-empty-inline">Нет материалов</div>'}</div>
+            </div>`;
+    }).join('');
+
+    const ready = requirements.length > 0
+        && requirements.every((req) => craftSelections[req.slot]);
+    return `
+        <div class="craft-form">
+            ${slotsHtml}
+            <div class="craft-result">Готовый предмет: <b>${esc(detail.name || craft.name)}</b></div>
+            <button class="btn btn-primary" id="btnDoCraft" type="button" ${ready ? '' : 'disabled'}>⚒️ Создать</button>
+            <button class="btn btn-secondary" type="button" data-close-craft>Закрыть</button>
+        </div>`;
+}
+
+// Раскрыть / свернуть рецепт (загружает детали)
+async function openCraft(code) {
+    if (activeCraftCode === code) {
+        closeCraftForm();
+        renderCrafts();
+        return;
+    }
+    activeCraftCode = code;
+    craftSelections = {};
+    craftDetail = null;
+    renderCrafts();
+
+    try {
+        const data = await apiFetch(`/player/${userId}/craft/${code}`);
+        craftDetail = data;
+        renderCrafts();
+    } catch (error) {
+        showToast('Не удалось загрузить рецепт');
+    }
+}
+
+function closeCraftForm() {
+    activeCraftCode = null;
+    craftDetail = null;
+    craftSelections = {};
+}
+
+// Выполнение крафта (POST /craft/<code>)
+async function doCraft() {
+    try {
+        const data = await apiFetch(`/player/${userId}/craft/${activeCraftCode}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selected_items: craftSelections }),
+        });
+
+        // Обновляем инвентарь из ответа сервера
+        if (data.inventory) {
+            inventoryData = data.inventory;
+            renderInventoryPanel();
+        }
+
+        const statsText = Object.entries(data.stats || {})
+            .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
+            .join(', ');
+        showToast(`🔨 Создано: ${data.item.name}${statsText ? ' (' + statsText + ')' : ''}`);
+
+        closeCraftForm();
+        await loadCrafts();
+    } catch (error) {
+        showToast(error.code || 'Не удалось создать предмет');
+    }
+}
+
 // ---------- Загрузка данных ----------
 async function loadAll(showLoadingIndicator = true) {
     if (showLoadingIndicator) {
@@ -923,6 +1079,11 @@ function initTabs() {
             // Свежий прогноз при открытии вкладки «Культивация»
             if (button.dataset.screen === 'screen-cultivation') {
                 loadBreakthroughForecast();
+            }
+
+            // Свежий список рецептов при открытии вкладки «Крафт»
+            if (button.dataset.screen === 'screen-craft') {
+                loadCrafts();
             }
         });
     });

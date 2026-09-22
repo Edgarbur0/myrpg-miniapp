@@ -1758,3 +1758,141 @@ body {
 @keyframes skShift {
     to { background-position: -200% 0; }
 }
+
+/* ================= КРАФТ ================= */
+
+.craft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.craft-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.craft-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.craft-card-icon {
+    font-size: 24px;
+}
+
+.craft-card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.craft-card-name {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.craft-card-desc {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.craft-card-action {
+    color: var(--accent);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.craft-form {
+    border-top: 1px solid var(--border);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.craft-loading {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.craft-slot-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.craft-materials {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.craft-material {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.craft-material.craft-selected {
+    border-color: var(--accent);
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.craft-material:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.craft-material-icon {
+    font-size: 20px;
+}
+
+.craft-material-name {
+    font-size: 13px;
+    text-align: center;
+}
+
+.craft-material-count {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.craft-result {
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.craft-result b {
+    color: var(--text);
+}
+
+.craft-empty {
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted);
+}
+
+.craft-form .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
