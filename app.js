@@ -51,7 +51,7 @@ const STAT_DETAILS = {
 
 // Подписи статов готового предмета (ключи из craft stats)
 const CRAFT_STAT_LABELS = {
-    attack: 'Атака',
+    damage: 'Атака',
     armor: 'Броня',
     hp: 'HP',
 };
@@ -748,6 +748,14 @@ function openItemModal(inventory, code) {
     activeItemCode = code;
     const usable = item.type === 'consumable';
 
+    // Бонусы крафченых экземпляров (первый экземпляр для компактности)
+    const bonuses = Object.entries((item.instances || [])[0]?.stats || {})
+        .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
+        .join(', ');
+    const bonusRow = bonuses
+        ? `<div><span class="muted">Бонус</span><span>${esc(bonuses)}</span></div>`
+        : '';
+
     document.getElementById('modalTitle').textContent = item.name;
     document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${item.icon}</div>
@@ -755,6 +763,7 @@ function openItemModal(inventory, code) {
         <div class="modal-desc">
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
             <div><span class="muted">Количество</span><span>×${esc(item.count)}</span></div>
+            ${bonusRow}
         </div>
     `;
 
