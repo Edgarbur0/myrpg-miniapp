@@ -303,7 +303,7 @@ async function showStatInfo(statKey, anchor) {
     // Загрузка разбивки стата с сервера (fallback — просто База)
     let sourcesHtml = `<div class="popover-source"><span>База</span><span>${esc(value)}</span></div>`;
     let total = value;
-    // Реальный шанс прокачки за ход приходит в data.chances.per_turn (11 * 0.98^avg)
+    // Реальный шанс прокачки этого стата приходит в data.chances[statKey]
     let chancePct = null;
     if (playerData && playerData.user_id) {
         try {
@@ -319,8 +319,8 @@ async function showStatInfo(statKey, anchor) {
                         .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
                         .join('');
                 }
-                if (data.chances && typeof data.chances.per_turn === 'number') {
-                    chancePct = data.chances.per_turn;
+                if (data.chances && typeof data.chances[statKey] === 'number') {
+                    chancePct = data.chances[statKey];
                 }
             }
         } catch (err) {
