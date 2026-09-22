@@ -446,6 +446,60 @@ body {
     filter: brightness(1.2);
 }
 
+/* Счётчик БП у заголовка «Статы» */
+.bp-counter {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+}
+
+/* Контейнер кнопок стата: "+" (БП) и "!" (подсказка) */
+.stat-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    grid-column: 3;
+    justify-self: end;
+    margin-left: 8px;
+}
+
+.stat-actions .stat-info-btn {
+    grid-column: auto;
+}
+
+/* Кнопка вложения БП "+" */
+.stat-bp-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.stat-bp-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--card);
+}
+
+.stat-bp-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: var(--muted);
+}
+
 /* Подзаголовок ступени культивации в шапке (мелкий, золотой) */
 .cultivation-subtitle {
     font-size: 0.75em;

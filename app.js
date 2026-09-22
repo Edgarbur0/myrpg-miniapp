@@ -269,16 +269,44 @@ function renderCharacter() {
         player.experience_needed
     );
 
-    // Характеристики с кнопкой-подсказкой
-    document.getElementById('statsGrid').innerHTML = STATS.map((stat) => {
+    // Характеристики с кнопками.
+    // Первая строка — прокачиваемые (Сила/Ловкость/Выносливость) с кнопкой «+»
+    // (трата 1 БП); остальные (Урон/Удача/Броня) — ниже, только «!».
+    const bp = player.battle_points || 0;
+    const hasBp = bp >= 1;
+    const trainable = ['strength', 'agility', 'endurance'];
+    const others = ['damage', 'luck', 'armor'];
+
+    // Счётчик БП у заголовка «Статы»
+    const bpEl = document.getElementById('bpCounter');
+    if (bpEl) bpEl.textContent = `💠 ${bp}`;
+
+    const statRow = (stats) => stats.map((stat) => {
         const detail = STAT_DETAILS[stat.key];
+        const canUpgrade = trainable.includes(stat.key);
+        const bpBtn = canUpgrade
+            ? `<button class="stat-bp-btn" data-stat="${stat.key}" type="button" aria-label="Рост ${detail.label} (1 БП)" ${hasBp ? '' : 'disabled'}>+</button>`
+            : '';
+        const infoBtn = `<button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>`;
         return `
         <div class="stat">
             <span class="stat-name">${detail.label}</span>
             <b class="stat-value">${esc(player[stat.key])}</b>
-            <button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>
+            <span class="stat-actions">${bpBtn}${infoBtn}</span>
         </div>`;
     }).join('');
+
+    document.getElementById('statsGrid').innerHTML =
+        statRow(STATS.filter((s) => trainable.includes(s.key))) +
+        statRow(STATS.filter((s) => others.includes(s.key)));
+
+    // Клик по «+» — трата 1 БП на стат
+    document.querySelectorAll('.stat-bp-btn').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            spendBattlePoint(button.dataset.stat, button);
+        });
+    });
 
     // Клик по ℹ️ — popover с деталями стата или HP
     document.querySelectorAll('.stat-info-btn').forEach((button) => {
@@ -289,6 +317,32 @@ function renderCharacter() {
     });
 
     renderInventoryPanel();
+}
+
+// ---------- Трата БП на стат ----------
+async function spendBattlePoint(statKey, button) {
+    if (!playerData || !playerData.user_id) return;
+    button.disabled = true;
+    try {
+        const resp = await fetch(`${API_URL}/player/${playerData.user_id}/stat/spend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stat: statKey }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            console.warn('spend BP:', data.error);
+            button.disabled = false;
+            return;
+        }
+        // Обновляем локальные данные и перерисовываем экран персонажа
+        playerData[statKey] = data.new_value;
+        playerData.battle_points = data.battle_points;
+        renderCharacter();
+    } catch (err) {
+        console.warn('spend BP failed:', err);
+        button.disabled = false;
+    }
 }
 
 // ---------- Popover стата ----------
@@ -319,8 +373,8 @@ async function showStatInfo(statKey, anchor) {
                         .map((row) => `<div class="popover-source"><span>${esc(row.label)}</span><span>${esc(row.value)}</span></div>`)
                         .join('');
                 }
-                if (data.chances && typeof data.chances[statKey] === 'number') {
-                    chancePct = data.chances[statKey];
+                if (data.chances && typeof data.chances.battle_point_chance === 'number') {
+                    chancePct = data.chances.battle_point_chance;
                 }
             }
         } catch (err) {
@@ -329,7 +383,7 @@ async function showStatInfo(statKey, anchor) {
     }
 
     const chanceHtml = detail.chance && chancePct !== null
-        ? `<div class="popover-chance">Шанс прокачки за ход: ${chancePct.toFixed(1)}%</div>`
+        ? `<div class="popover-chance">Шанс БП за ход: ${chancePct.toFixed(1)}%</div>`
         : '';
 
     const popover = document.getElementById('statPopover');
