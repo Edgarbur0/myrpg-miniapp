@@ -116,6 +116,41 @@ let craftDetail = null;             // детали рецепта (GET /api/cra
 let craftSelections = {};           // 'slot_1' | 'slot_2' -> код материала
 let craftSelectedMats = {};         // 'slot_1' | 'slot_2' -> объект материала (иконка/имя/статы)
 let craftMaterialModal = null;      // {'slot', 'categories', 'materials'} для модалки
+// ---------- Tinkers (round 34): детали и сборка ----------
+let partsCatalog = [];              // каталог деталей (GET /api/parts)
+let ownedParts = [];                // детали игрока (GET /api/player/<id>/parts)
+let tinkersRecipe = null;           // выбранный рецепт сборки {'code', 'slots'}
+let tinkersCraftCode = '';          // код выбранного рецепта сборки
+let tinkersSelected = {};           // slot_key -> объект детали (для сборки)
+let tinkersPartModal = null;        // {slot, parts} — выбор детали для слота сборки
+
+// Подписи требований материалов (ключи items.requirements)
+const REQUIREMENT_LABELS = {
+    strength: 'Сила',
+    agility: 'Ловкость',
+    intelligence: 'Интеллект',
+    endurance: 'Выносливость',
+    luck: 'Удача',
+    spirit: 'Дух',
+    cultivation_stage: 'Ступень культивации',
+    element: 'Сродство стихии',
+    element_fire: 'Сродство Огня',
+    element_water: 'Сродство Воды',
+    element_wood: 'Сродство Дерева',
+    element_metal: 'Сродство Металла',
+    element_earth: 'Сродство Земли',
+};
+
+// Подписи слотов деталей
+const PART_SLOT_LABELS = {
+    handle: 'Рукоять',
+    blade: 'Лезвие',
+    guard: 'Гарда',
+    base: 'Основа',
+    wrap: 'Обмотка',
+    core: 'Ядро',
+    tip: 'Наконечник',
+};
 
 // ---------- VK Bridge ----------
 async function ensureUserId() {
@@ -1192,6 +1227,16 @@ async function loadCrafts() {
         await loadCraftDetail(activeCraftCode);
     }
     renderCrafts();
+    // Tinkers: селект рецептов сборки (с part_slots)
+    renderTinkersRecipeSelect();
+    if (!tinkersRecipe && !tinkersCraftCode) {
+        const firstPartRecipe = craftRecipes.find((recipe) => recipe.has_parts);
+        if (firstPartRecipe) {
+            await selectTinkersRecipe(firstPartRecipe.code);
+        }
+    } else if (tinkersCraftCode) {
+        await loadTinkersSlots(tinkersCraftCode);
+    }
 }
 
 // Список рецептов (левая колонка 50%)
@@ -1203,10 +1248,11 @@ function renderCrafts() {
     box.innerHTML = craftRecipes.map((craft) => `
         <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
                 type="button" data-code="${esc(craft.code)}">
-            <span class="craft-recipe-icon">🔨</span>
+            <span class="craft-recipe-icon">${craft.has_parts ? '⚙️' : '🔨'}</span>
             <span class="craft-recipe-info">
                 <span class="craft-recipe-name">${esc(craft.name)}</span>
                 <span class="craft-recipe-desc">${esc(craft.description)}</span>
+                ${craft.has_parts ? '<span class="craft-recipe-badge">сборка</span>' : ''}
             </span>
         </button>`).join('');
 
@@ -1561,6 +1607,391 @@ async function doCraft2() {
     }
 }
 
+// ---------- Tinkers (round 34): детали и сборка ----------
+
+// Загрузка каталога деталей и списка деталей игрока
+async function loadParts() {
+    try {
+        const [catalog, owned] = await Promise.all([
+            apiFetch('/parts'),
+            apiFetch(`/player/${userId}/parts`),
+        ]);
+        partsCatalog = catalog.parts || [];
+        const ownedList = owned.parts || [];
+        // Объединяем: count и требования у своих деталей, остальные — из каталога
+        const ownedMap = {};
+        ownedList.forEach((part) => { ownedMap[part.code] = part; });
+        ownedParts = partsCatalog.map((part) => ownedMap[part.code] || { ...part, count: 0 });
+    } catch (error) {
+        partsCatalog = [];
+        ownedParts = [];
+    }
+    renderParts();
+}
+
+// Список деталей для изготовления (левая подсекция)
+function renderParts() {
+    const box = document.getElementById('partsList');
+    const empty = document.getElementById('partsEmpty');
+    empty.classList.toggle('hidden', ownedParts.length > 0);
+
+    box.innerHTML = ownedParts.map((part) => {
+        const materialName = part.material_name || '';
+        const bonusText = Object.entries(part.bonuses || {}).map(([key, value]) =>
+            `${CRAFT_STAT_LABELS[key] || key} +${value}`).join(', ');
+        const reqs = (part.requirements || []).filter((req) => !req.met);
+        // Бейдж требований: ✅ выполнено, ⚠️ есть штраф
+        const badge = (part.requirements_met === true)
+            ? '<span class="tinkers-req-badge tinkers-req-badge-ok" title="Требования материала выполнены">✅</span>'
+            : (reqs.length
+                ? `<span class="tinkers-req-badge tinkers-req-badge-warn" title="${esc(reqs.map((req) =>
+                    `${REQUIREMENT_LABELS[req.key] || req.key} ${req.value}/${req.required}`).join(', '))}">⚠️</span>`
+                : '');
+        return `
+            <div class="tinkers-part">
+                <div class="tinkers-part-info">
+                    <div class="tinkers-part-name">${esc(part.name)} ${badge}</div>
+                    <div class="tinkers-part-sub">
+                        <span>${PART_SLOT_LABELS[part.slot] || part.slot}</span>
+                        ${bonusText ? ` · ${bonusText}` : ''}
+                        ${materialName ? ` · ${esc(materialName)} ×${part.cost}` : ''}
+                    </div>
+                </div>
+                <div class="tinkers-part-right">
+                    <span class="tinkers-part-count">×${esc(part.count)}</span>
+                    <button class="btn btn-sm" type="button" data-code="${esc(part.code)}"
+                            ${part.count > 0 ? '' : 'disabled'}>⚒️</button>
+                </div>
+            </div>`;
+    }).join('');
+
+    box.querySelectorAll('.tinkers-part-right button').forEach((button) => {
+        button.addEventListener('click', () => craftOnePart(button.dataset.code));
+    });
+}
+
+// Изготовление одной детали из материала
+async function craftOnePart(partCode) {
+    try {
+        const part = ownedParts.find((item) => item.code === partCode);
+        const materialName = part.material_name || part.material_code;
+        const data = await apiFetch(`/player/${userId}/craft_part`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ part_code: partCode, qty: 1 }),
+        });
+        if (data.inventory) {
+            inventoryData = data.inventory;
+            renderInventoryPanel();
+        }
+        const warning = data.part && data.part.warning ? ` (${data.part.warning})` : '';
+        showToast(`⚒️ Деталь: ${data.part.name}${warning}`);
+        await loadParts();
+        await loadCraftDetailForSlots();
+    } catch (error) {
+        showToast(error.code || 'Не удалось изготовить деталь (нет материала)');
+    }
+}
+
+// Кнопки выбора рецепта сборки (только рецепты с part_slots)
+function renderTinkersRecipeSelect() {
+    const box = document.getElementById('tinkersRecipeSelect');
+    const tinkersRecipes = craftRecipes.filter((recipe) => recipe.has_parts);
+    box.innerHTML = tinkersRecipes.length
+        ? `<div class="tinkers-recipe-label">Рецепт сборки:</div>
+           <div class="tinkers-recipe-btns">
+               ${tinkersRecipes.map((recipe) => `
+                   <button class="btn btn-sm${recipe.code === tinkersCraftCode ? ' btn-primary' : ' btn-outline'}"
+                           type="button" data-code="${esc(recipe.code)}">${esc(recipe.name)}</button>`).join('')}
+           </div>`
+        : '<div class="craft-empty-inline">Рецептов сборки нет</div>';
+
+    box.querySelectorAll('button').forEach((button) => {
+        button.addEventListener('click', () => selectTinkersRecipe(button.dataset.code));
+    });
+}
+
+// Выбор рецепта сборки и загрузка схемы слотов
+async function selectTinkersRecipe(code) {
+    tinkersCraftCode = code;
+    tinkersSelected = {};
+    tinkersRecipe = null;
+    renderTinkersRecipeSelect();
+    renderTinkersSlots();
+    await loadTinkersSlots(code);
+}
+
+// Схема слотов рецепта (GET /crafts/<code>/slots)
+async function loadTinkersSlots(code) {
+    try {
+        const data = await apiFetch(`/crafts/${code}/slots`);
+        tinkersRecipe = {
+            code,
+            result_item: data.result_item,
+            result_name: data.result_name,
+            result_icon: data.result_icon,
+            slots: data.slots || [],
+        };
+    } catch (error) {
+        tinkersRecipe = null;
+    }
+    renderTinkersSlots();
+}
+
+// Три слота сборки + превью характеристик и кнопка «Собрать»
+function renderTinkersSlots() {
+    const slotsBox = document.getElementById('tinkersSlots');
+    const assemblyBox = document.getElementById('tinkersAssembly');
+    if (!tinkersRecipe) {
+        slotsBox.innerHTML = '<div class="craft-empty-inline">Выбери рецепт сборки.</div>';
+        assemblyBox.classList.add('hidden');
+        return;
+    }
+
+    slotsBox.innerHTML = (tinkersRecipe.slots || []).map((slot) => {
+        const chosen = tinkersSelected[slot.slot] || null;
+        return `
+            <div class="craft-slot">
+                <div class="craft-slot-label">${PART_SLOT_LABELS[slot.slot] || slot.slot}</div>
+                <button class="craft-slot-btn${chosen ? ' craft-slot-filled' : ''}"
+                        type="button" data-slot="${esc(slot.slot)}">
+                    ${chosen
+                        ? `<span class="craft-material-icon">${slotIcon(chosen)}</span>
+                           <span class="craft-material-name">${esc(chosen.name)}</span>`
+                        : '<span class="craft-slot-placeholder">Выбрать деталь…</span>'}
+                </button>
+            </div>`;
+    }).join('');
+
+    slotsBox.querySelectorAll('.craft-slot-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            openTinkersPartModal(button.dataset.slot);
+        });
+    });
+
+    // Превью: суммарные статы + комбо стихий + требования
+    const assembly = computeAssemblyBonuses();
+    const ready = (tinkersRecipe.slots || []).every((slot) => !!tinkersSelected[slot.slot]);
+
+    const bonusHtml = Object.keys(assembly.stats || {}).length
+        ? Object.entries(assembly.stats).map(([key, value]) => `
+            <div class="craft-bonus">
+                <span class="craft-bonus-label">${CRAFT_STAT_LABELS[key] || key}</span>
+                <span class="craft-bonus-value">+${value}</span>
+            </div>`).join('')
+        : '<div class="craft-empty-inline">Минимальные характеристики</div>';
+
+    const elementText = assembly.element
+        ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[assembly.element] || assembly.element}</b></div>`
+        : '';
+
+    const comboHtml = assembly.combo ? `
+        <div class="craft-combo">
+            <div class="craft-combo-title">✨ ${esc(assembly.combo.name)}</div>
+            ${assembly.combo.description ? `<div class="craft-combo-desc">${esc(assembly.combo.description)}</div>` : ''}
+        </div>` : '';
+
+    const reqHtml = assembly.requirements && assembly.requirements.length ? `
+        <div class="tinkers-req-title">Требования материала (мягкий штраф при несоответствии):</div>
+        ${assembly.requirements.map((req) => `
+            <div class="tinkers-req ${req.met ? 'tinkers-req-met' : 'tinkers-req-unmet'}">
+                <span>${req.met ? '✅' : '⚠️'}</span>
+                <span>${REQUIREMENT_LABELS[req.key] || req.key}: ${req.value}/${req.required}</span>
+                ${req.met ? '' : '<span class="tinkers-req-penalty">штраф</span>'}
+            </div>`).join('')}` : '';
+
+    assemblyBox.classList.remove('hidden');
+    assemblyBox.innerHTML = `
+        <div class="craft-detail-header">
+            <span class="craft-detail-icon">${tinkersRecipe.result_icon || '🔨'}</span>
+            <div class="craft-detail-title">
+                <div class="craft-detail-name">${esc(assembly.name || tinkersRecipe.result_name)}</div>
+            </div>
+        </div>
+        ${comboHtml}
+        ${reqHtml}
+        <div class="craft-detail-bonuses">
+            <div class="craft-detail-title-small">Характеристики предмета</div>
+            ${bonusHtml}
+            ${elementText}
+        </div>
+        <button class="btn btn-primary" id="btnDoAssemble" type="button" ${ready ? '' : 'disabled'}>
+            ⚙️ Собрать
+        </button>`;
+
+    const btn = document.getElementById('btnDoAssemble');
+    if (btn) {
+        btn.addEventListener('click', doAssemble);
+    }
+}
+
+// Иконка детали (по слоту, без отдельного поля)
+function slotIcon(part) {
+    return (part && part.element) ? (CRAFT_ELEMENT_LABELS[part.element] ? ELEMENT_ICONS[part.element] || '🔮' : '🔮') : '⚙️';
+}
+
+// Превью сборки: сумма бонусов деталей + комбо стихий + требования
+function computeAssemblyBonuses() {
+    const parts = (tinkersRecipe.slots || []).map((slot) => tinkersSelected[slot.slot]).filter(Boolean);
+    const stats = {};
+    let element = '';
+    let combo = null;
+    const elements = [];
+    const elementStats = {};
+    const requirements = [];
+    const reqSeen = {};
+
+    parts.forEach((part) => {
+        Object.entries(part.bonuses || {}).forEach(([key, value]) => {
+            stats[key] = (stats[key] || 0) + value;
+        });
+        Object.entries(part.element_bonus || {}).forEach(([key, strength]) => {
+            elementStats[key] = (elementStats[key] || 0) + strength;
+            if (key in CRAFT_ELEMENT_LABELS && !elements.includes(key)) {
+                elements.push(key);
+            }
+        });
+        // Требования материалов деталей (серверные бейджи)
+        (part.requirements || []).forEach((req) => {
+            const id = req.key;
+            if (reqSeen[id]) return;
+            reqSeen[id] = true;
+            requirements.push(req);
+        });
+    });
+    if (elements.length) {
+        element = elements[0];
+    }
+
+    // Комбо стихий (по ТЗ раунда 34)
+    const set = new Set(elements);
+    let comboName = '';
+    let comboDesc = '';
+    if (set.has('fire') && set.has('wood')) {
+        comboName = 'Пепел';
+        comboDesc = 'Огонь и дерево сплетаются — пепел усиливает пламя.';
+        stats.damage = (stats.damage || 0) + Math.max(1, Math.round((stats.damage || 0) * 0.30));
+        element = 'fire';
+    } else if (set.has('water') && set.has('metal')) {
+        comboName = 'Пар';
+        comboDesc = 'Вода и металл рождают пар — удар становится смертоносным.';
+        stats.luck = (stats.luck || 0) + 2;
+        element = 'water';
+    } else if (set.has('earth') && set.has('stone')) {
+        comboName = 'Каменная кожа';
+        comboDesc = 'Земля и камень даруют несокрушимую защиту.';
+        stats.armor = (stats.armor || 0) + 5;
+        element = 'earth';
+    } else if (set.has('wood') && set.has('herb')) {
+        comboName = 'Регенерация';
+        comboDesc = 'Дерево и травы возвращают жизненную силу.';
+        stats.hp = (stats.hp || 0) + 4;
+        element = 'wood';
+    } else if (set.size >= 5) {
+        comboName = 'Пять элементов';
+        comboDesc = 'Все пять стихий слиты в гармонии — сила безгранична.';
+    }
+    combo = comboName ? { name: comboName, description: comboDesc } : null;
+
+    return {
+        stats,
+        element,
+        combo,
+        name: combo ? combo.name : (parts.length ? 'Сборка' : ''),
+        requirements,
+    };
+}
+
+// Модалка выбора детали для слота сборки (из своих деталей)
+async function openTinkersPartModal(slot) {
+    try {
+        const data = await apiFetch(`/player/${userId}/parts`);
+        const allowed = (tinkersRecipe.slots.find((item) => item.slot === slot) || {}).parts || [];
+        const allowedCodes = new Set((allowed || []).map((part) => part.code));
+        const candidates = (data.parts || [])
+            .filter((part) => allowedCodes.has(part.code) && part.count > 0);
+        tinkersPartModal = { slot, parts: candidates };
+        renderTinkersPartModal();
+    } catch (error) {
+        showToast('Не удалось загрузить детали');
+    }
+}
+
+function renderTinkersPartModal() {
+    const modal = document.getElementById('tinkersPartModal');
+    const list = document.getElementById('tinkersPartList');
+    const bonus = document.getElementById('tinkersPartBonus');
+    const slot = tinkersPartModal.slot;
+    const chosen = tinkersSelected[slot] || null;
+
+    list.innerHTML = tinkersPartModal.parts.length
+        ? tinkersPartModal.parts.map((part) => `
+            <button class="craft-material${part.code === chosen?.code ? ' craft-selected' : ''}"
+                    type="button" data-code="${esc(part.code)}">
+                <span class="craft-material-icon">${slotIcon(part)}</span>
+                <span class="craft-material-name">${esc(part.name)}</span>
+                <span class="craft-material-count">×${esc(part.count)}</span>
+            </button>`).join('')
+        : '<div class="craft-empty-inline">Нет подходящих деталей (изготови в левой панели)</div>';
+
+    list.querySelectorAll('.craft-material').forEach((button) => {
+        button.addEventListener('click', () => {
+            const code = button.dataset.code;
+            const part = tinkersPartModal.parts.find((item) => item.code === code);
+            tinkersSelected[slot] = part || null;
+            closeTinkersPartModal();
+            renderTinkersSlots();
+        });
+    });
+
+    bonus.textContent = chosen ? `Выбрано: ${chosen.name}` : 'Бонус за слот: —';
+    modal.classList.remove('hidden');
+}
+
+function closeTinkersPartModal() {
+    document.getElementById('tinkersPartModal').classList.add('hidden');
+    tinkersPartModal = null;
+}
+
+// Сборка предмета (POST /assemble)
+async function doAssemble() {
+    try {
+        const payload = {};
+        (tinkersRecipe.slots || []).forEach((slot) => {
+            if (tinkersSelected[slot.slot]) {
+                payload[slot.slot] = tinkersSelected[slot.slot].code;
+            }
+        });
+        const data = await apiFetch(`/player/${userId}/assemble`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_code: tinkersRecipe.code, selected_parts: payload }),
+        });
+        if (data.inventory) {
+            inventoryData = data.inventory;
+            renderInventoryPanel();
+        }
+        const name = data.item.name || data.item.item_code;
+        const warning = data.penalties && data.penalties.length
+            ? ' (есть штрафы требований)' : '';
+        showToast(`⚙️ Собрано: ${name}${warning}`);
+
+        // Сброс выбора и обновление деталей
+        tinkersSelected = {};
+        await loadParts();
+        await loadTinkersSlots(tinkersRecipe.code);
+    } catch (error) {
+        showToast(error.code || 'Не удалось собрать предмет');
+    }
+}
+
+// Перезагрузка схемы слотов после крафта детали (для свежих count)
+async function loadCraftDetailForSlots() {
+    if (tinkersCraftCode) {
+        await loadTinkersSlots(tinkersCraftCode);
+    }
+}
+
 // ---------- Загрузка данных ----------
 async function loadAll(showLoadingIndicator = true) {
     if (showLoadingIndicator) {
@@ -1615,6 +2046,7 @@ function initTabs() {
             // Свежий список рецептов при открытии вкладки «Крафт»
             if (button.dataset.screen === 'screen-craft') {
                 loadCrafts();
+                loadParts();
             }
         });
     });
@@ -1647,6 +2079,14 @@ function init() {
     document.getElementById('craftMaterialModal').addEventListener('click', (event) => {
         if (event.target === document.getElementById('craftMaterialModal')) {
             closeCraftMaterialModal();
+        }
+    });
+
+    // Модалка выбора детали для сборки (Tinkers)
+    document.getElementById('btnTinkersPartClose').addEventListener('click', closeTinkersPartModal);
+    document.getElementById('tinkersPartModal').addEventListener('click', (event) => {
+        if (event.target === document.getElementById('tinkersPartModal')) {
+            closeTinkersPartModal();
         }
     });
 
