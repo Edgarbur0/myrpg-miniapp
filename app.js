@@ -103,6 +103,7 @@ let techniquesData = null;
 let equipmentData = null;
 let toastTimer = null;
 let activeItemCode = null;
+let activeInstanceId = null;        // выбранный экземпляр экипировки (для надевания)
 let activeEquipSlot = null;        // слот, открытый для снятия (модалка экипировки)
 let breakthroughForecast = null;     // прогноз прорыва (GET /breakthrough/forecast)
 // Подготовка к прорыву: списки и выбранные значения (переживают перерисовку)
@@ -808,6 +809,25 @@ function renderInventoryPanel() {
 
     codes.forEach((code) => {
         const item = inventory[code];
+
+        // Экипировка с экземплярами (player_items) — карточка на каждый экземпляр.
+        // Каждый крафченый предмет уникален: показываем отдельные плитки,
+        // чтобы надетый экземпляр был явно помечен.
+        if (item.instances && item.instances.length) {
+            item.instances.forEach((inst) => {
+                const equipped = inst.equipped;
+                tiles.push(`
+                    <button class="item item-equip${equipped ? ' item-equipped' : ''}"
+                            data-code="${esc(code)}" data-instance-id="${inst.id}"
+                            type="button" title="${esc(item.name)}${equipped ? ' — надето' : ''}">
+                        <span class="item-icon">${item.icon}</span>
+                        ${equipped ? '<span class="item-badge" title="Надето">🔒</span>' : ''}
+                    </button>`);
+            });
+            return;
+        }
+
+        // Стекируемый предмет (материалы, расходники) — одна карточка
         const usable = item.type === 'consumable';
         tiles.push(`
             <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" title="${esc(item.name)}">
@@ -819,28 +839,50 @@ function renderInventoryPanel() {
     const grid = document.getElementById('inventoryGrid');
     grid.innerHTML = tiles.join('');
 
-    // Клик по расходнику — модальное окно с действием
+    // Клик по предмету — модальное окно с действием
     grid.querySelectorAll('.item[data-code]').forEach((cell) => {
-        cell.addEventListener('click', () => openItemModal(inventory, cell.dataset.code));
+        cell.addEventListener('click', () => openItemModal(inventory, cell.dataset.code, cell.dataset.instanceId));
     });
 }
 
-function openItemModal(inventory, code) {
+function openItemModal(inventory, code, instanceId) {
     const item = inventory[code];
     if (!item) {
         return;
     }
 
     activeItemCode = code;
+    activeInstanceId = instanceId ? Number(instanceId) : null;
     const usable = item.type === 'consumable';
     const equipable = item.type === 'equipment';
 
-    // Бонусы крафченых экземпляров (первый экземпляр для компактности)
-    const bonuses = Object.entries((item.instances || [])[0]?.stats || {})
+    // Бонусы конкретного экземпляра (или первого из player_items),
+    // Fallback на каталог для экипировки без экземпляров (дроп/награда).
+    let stats = {};
+    if (item.instances && item.instances.length) {
+        const inst = activeInstanceId
+            ? item.instances.find((i) => i.id === activeInstanceId)
+            : item.instances[0];
+        stats = (inst && inst.stats) || {};
+    } else {
+        stats = item.stats || {};
+    }
+    const bonuses = Object.entries(stats)
         .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
         .join(', ');
     const bonusRow = bonuses
         ? `<div><span class="muted">Бонус</span><span>${esc(bonuses)}</span></div>`
+        : '';
+
+    // Для отдельного экземпляра вместо количества показываем его номер
+    const countLine = activeInstanceId
+        ? `<div><span class="muted">Экземпляр</span><span>#${activeInstanceId}</span></div>`
+        : `<div><span class="muted">Количество</span><span>×${esc(item.count)}</span></div>`;
+
+    // Пометка «надето» для конкретного экземпляра
+    const equippedText = item.instances && activeInstanceId
+        && item.instances.some((i) => i.id === activeInstanceId && i.equipped)
+        ? '<div><span class="muted">Статус</span><span>🔒 Надето</span></div>'
         : '';
 
     document.getElementById('modalTitle').textContent = item.name;
@@ -849,7 +891,8 @@ function openItemModal(inventory, code) {
         <div class="modal-title">${esc(item.name)}</div>
         <div class="modal-desc">
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
-            <div><span class="muted">Количество</span><span>×${esc(item.count)}</span></div>
+            ${countLine}
+            ${equippedText}
             ${bonusRow}
         </div>
     `;
@@ -902,6 +945,7 @@ function openEquippedModal(slot) {
 
     activeEquipSlot = slot;
     activeItemCode = null;
+    activeInstanceId = null;
 
     // Бонусы надетого экземпляра (учитываются бонусы крафта)
     const stats = equipped.stats || {};
@@ -925,17 +969,23 @@ function openEquippedModal(slot) {
 }
 
 // Надевание снаряжения (POST /api/player/<id>/equip)
-async function equipItem(code) {
+async function equipItem(code, instanceId) {
     try {
         const data = await apiFetch(`/player/${userId}/equip`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_code: code }),
+            body: JSON.stringify({
+                item_code: code,
+                ...(instanceId ? { instance_id: instanceId } : {}),
+            }),
         });
         closeModal();
         if (data.success) {
             playerData = data.player;
             equipmentData = data.equipment;
+            if (data.inventory) {
+                inventoryData = data.inventory;
+            }
             renderHeader();
             renderCharacter();
             showToast(data.message || 'Надето');
@@ -963,6 +1013,9 @@ async function unequipItem(slot) {
         if (data.success) {
             playerData = data.player;
             equipmentData = data.equipment;
+            if (data.inventory) {
+                inventoryData = data.inventory;
+            }
             renderHeader();
             renderCharacter();
             showToast(data.message || 'Снято');
@@ -990,7 +1043,7 @@ async function onModalUse() {
     }
     const item = inventoryData && inventoryData.inventory[activeItemCode];
     if (item && item.type === 'equipment') {
-        await equipItem(activeItemCode);
+        await equipItem(activeItemCode, activeInstanceId);
         return;
     }
     await usePotion();
@@ -1119,6 +1172,7 @@ function openModal() {
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
     activeItemCode = null;
+    activeInstanceId = null;
     activeEquipSlot = null;
 }
 
