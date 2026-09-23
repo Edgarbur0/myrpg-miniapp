@@ -1238,8 +1238,11 @@ function renderCraftDetail() {
     const sel1 = craftSelectedMats['slot_1'] || null;
     const sel2 = craftSelectedMats['slot_2'] || null;
 
-    // Бонусы: базовые статы + суммарные статы выбранных ингредиентов
+    // Бонусы: базовые статы + суммарные статы выбранных ингредиентов + комбо
     const bonuses = computeCraftBonuses(recipe, sel1, sel2);
+    const combo = bonuses.combo || null;
+    // Название предмета может меняться при сработавшем комбо (напр. «Магический меч»)
+    const shownName = (combo && combo.name) || recipe.result_name || recipe.name;
 
     const required1 = recipe.slot_1_required ? ' *' : '';
     const required2 = recipe.slot_2_required ? ' *' : '';
@@ -1265,11 +1268,26 @@ function renderCraftDetail() {
         ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[bonuses.element] || bonuses.element}</b></div>`
         : '';
 
+    // Баннер комбо: название, описание и бонусные характеристики
+    const comboHtml = combo ? `
+        <div class="craft-combo">
+            <div class="craft-combo-title">✨ ${esc(combo.name || 'Комбо!')}</div>
+            ${combo.description ? `<div class="craft-combo-desc">${esc(combo.description)}</div>` : ''}
+            ${(Object.keys(combo.stats || {}).length || combo.element) ? `
+                <div class="craft-combo-chips">
+                    ${Object.entries(combo.stats || {}).map(([key, value]) => {
+                        const sign = value > 0 ? '+' : '';
+                        return `<span class="craft-combo-chip">${CRAFT_STAT_LABELS[key] || key} ${sign}${value}</span>`;
+                    }).join('')}
+                    ${combo.element ? `<span class="craft-combo-chip craft-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
+                </div>` : ''}
+        </div>` : '';
+
     detailBox.innerHTML = `
         <div class="craft-detail-header">
             <span class="craft-detail-icon">${recipe.result_icon || '🔨'}</span>
             <div class="craft-detail-title">
-                <div class="craft-detail-name">${esc(recipe.result_name || recipe.name)}</div>
+                <div class="craft-detail-name">${esc(shownName)}</div>
                 <div class="craft-detail-desc">${esc(recipe.description || '')}</div>
             </div>
         </div>
@@ -1293,6 +1311,7 @@ function renderCraftDetail() {
                 </button>
             </div>
         </div>
+        ${comboHtml}
         <div class="craft-detail-bonuses">
             <div class="craft-detail-title-small">Характеристики предмета</div>
             ${bonusHtml}
@@ -1340,7 +1359,7 @@ function findCraftMaterial(code) {
     return craftMaterialModal.materials.find((material) => material.code === code) || null;
 }
 
-// Суммарные бонусы: базовые статы предмета + статы ингредиентов
+// Суммарные бонусы: базовые статы предмета + статы ингредиентов + комбо крафта
 function computeCraftBonuses(recipe, sel1Info, sel2Info) {
     const stats = { ...(recipe.result_stats || {}) };
     const addStats = (material) => {
@@ -1360,7 +1379,60 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info) {
             element = material.element;
         }
     });
-    return { stats, element };
+
+    // Комбо крафта: бонусные статы, стихия и название поверх материалов
+    const combo = findCraftCombo(recipe, sel1Info, sel2Info);
+    if (combo) {
+        Object.entries(combo.stats || {}).forEach(([key, value]) => {
+            stats[key] = (stats[key] || 0) + value;
+        });
+        if (combo.element) {
+            element = combo.element;
+        }
+    }
+    return { stats, element, combo };
+}
+
+// Проверка условия одного слота комбо (пустое значение = любой материал)
+function craftComboMatchesSlot(slotValue, material) {
+    return !slotValue || (material && material.code === slotValue);
+}
+
+// Поиск комбо из recipe.combinations по паре выбранных материалов.
+// Приоритет у комбо с большим числом указанных кодов предметов (точность).
+function findCraftCombo(recipe, sel1Info, sel2Info) {
+    const combos = (recipe && recipe.combinations) || [];
+    if (!sel1Info || !sel2Info) {
+        return null;
+    }
+    let best = null;
+    let bestSpecificity = -1;
+    combos.forEach((combo) => {
+        if (combo.category_1 && sel1Info.category !== combo.category_1) {
+            return;
+        }
+        if (combo.category_2 && sel2Info.category !== combo.category_2) {
+            return;
+        }
+        let specificity = 0;
+        if (combo.item_code_1) {
+            if (!craftComboMatchesSlot(combo.item_code_1, sel1Info)) {
+                return;
+            }
+            specificity += 1;
+        }
+        if (combo.item_code_2) {
+            if (!craftComboMatchesSlot(combo.item_code_2, sel2Info)) {
+                return;
+            }
+            specificity += 1;
+        }
+        if (specificity > bestSpecificity) {
+            bestSpecificity = specificity;
+            best = combo;
+        }
+    });
+    return best;
 }
 
 // Открыть рецепт (загружает детали справа)

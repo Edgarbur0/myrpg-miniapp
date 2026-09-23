@@ -2095,6 +2095,56 @@ body {
     border-top: 1px dashed var(--border);
 }
 
+/* ------ Баннер комбо крафта ------ */
+.craft-combo {
+    margin: 6px 0 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(212, 175, 55, 0.04));
+    animation: craftComboIn 0.25s ease-out;
+}
+
+@keyframes craftComboIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.craft-combo-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+.craft-combo-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.craft-combo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.craft-combo-chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    background: rgba(212, 175, 55, 0.18);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.craft-combo-chip.craft-combo-element {
+    background: rgba(255, 120, 80, 0.16);
+    border-color: rgba(255, 120, 80, 0.4);
+    color: var(--accent);
+}
+
 .craft-attr {
     display: flex;
     justify-content: space-between;
