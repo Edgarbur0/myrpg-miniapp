@@ -368,8 +368,9 @@ async function spendBattlePoint(statKey, button) {
             button.disabled = false;
             return;
         }
-        // Обновляем локальные данные и перерисовываем экран персонажа
-        playerData[statKey] = data.new_value;
+        // Обновляем локальные данные и перерисовываем экран персонажа.
+        // Профиль показывает эффективный стат (накопленный + экипировка)
+        playerData[statKey] = data.new_value + (data.equipment_bonus || 0);
         playerData.battle_points = data.battle_points;
         renderCharacter();
     } catch (err) {
