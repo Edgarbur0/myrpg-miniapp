@@ -71,6 +71,7 @@ const CRAFT_CATEGORY_LABELS = {
     crystal: 'Кристалл',
     bone: 'Кость',
     leather: 'Шкура',
+    core: 'Ядро',
     any_material: 'любой материал', // свободный слот (кроме камня и ядер)
 };
 
@@ -88,6 +89,7 @@ const MATERIAL_NAMES = {
     wood_core: 'Древесное ядро',
     metal_core: 'Металлическое ядро',
     earth_core: 'Земляное ядро',
+    element_core: 'Ядро стихий',
 };
 
 // Подписи стихий
@@ -1374,28 +1376,34 @@ function renderCraftDetail() {
 
     const resultItem = craftDetail.result_item || {};
     const baseStats = recipe.result_stats || {};
-    const slot1 = recipe.slot_1_categories || [];
-    const slot2 = recipe.slot_2_categories || [];
-    const slot3 = recipe.slot_3_categories || [];
-    const sel1 = craftSelectedMats['slot_1'] || null;
-    const sel2 = craftSelectedMats['slot_2'] || null;
-    const sel3 = craftSelectedMats['slot_3'] || null;
+    // Слоты рецепта: от 1 до 5 (у «Ядра стихий» все 5 слотов — ядра)
+    const slotNums = [1, 2, 3, 4, 5];
+    const slotsDef = slotNums.map((n) => ({
+        key: `slot_${n}`,
+        cats: recipe[`slot_${n}_categories`] || [],
+        required: !!recipe[`slot_${n}_required`],
+        label: `Слот ${n}`,
+        requiredMark: recipe[`slot_${n}_required`] ? ' *' : '',
+        sel: craftSelectedMats[`slot_${n}`] || null,
+    }));
+    const sels = slotsDef.map((slot) => slot.sel);
+    const selCodes = Object.keys(craftSelections).filter((key) => craftSelections[key]);
 
     // Бонусы: базовые статы + суммарные статы ингредиентов + комбо
-    const bonuses = computeCraftBonuses(recipe, sel1, sel2, sel3);
+    const bonuses = computeCraftBonuses(recipe, ...sels);
     const combo = bonuses.combo || null;
-    // Название предмета может меняться при сработавшем комбо (напр. «Магический меч»)
-    const shownName = (combo && combo.name) || recipe.result_name || recipe.name;
+    // Название предмета: у «Ядра стихий» своё динамическое имя по набору ядер,
+    // у обычных рецептов — комбо (напр. «Магический меч») или имя по умолчанию
+    const isElementCore = recipe.code === 'element_core';
+    const shownName = isElementCore
+        ? elementCoreDisplayName(sels.filter(Boolean))
+        : (combo && combo.name) || recipe.result_name || recipe.name;
 
-    const required1 = recipe.slot_1_required ? ' *' : '';
-    const required2 = recipe.slot_2_required ? ' *' : '';
-    const required3 = recipe.slot_3_required ? ' *' : '';
-    const ready = (recipe.slot_1_required ? !!sel1 : true)
-        && (recipe.slot_2_required ? !!sel2 : true)
-        && (recipe.slot_3_required ? !!sel3 : true);
+    const ready = slotsDef.filter((slot) => slot.required).every((slot) => !!slot.sel)
+        && !(isElementCore && selCodes.length === 0);
 
     // Объединённые требования выбранных материалов (для панели ✅/⚠️)
-    const aggregateReqs = craftAggregateRequirements(sel1, sel2, sel3);
+    const aggregateReqs = craftAggregateRequirements(...sels);
     const reqHtml = aggregateReqs.length ? `
         <div class="tinkers-req-title">Требования материалов (мягкий штраф при несоответствии):</div>
         ${aggregateReqs.map((req) => `
@@ -1441,11 +1449,7 @@ function renderCraftDetail() {
                 </div>` : ''}
         </div>` : '';
 
-    const slotsHtml = [
-        { key: 'slot_1', sel: sel1, cats: slot1, label: 'Слот 1', requiredMark: required1, required: recipe.slot_1_required },
-        { key: 'slot_2', sel: sel2, cats: slot2, label: 'Слот 2', requiredMark: required2, required: recipe.slot_2_required },
-        { key: 'slot_3', sel: sel3, cats: slot3, label: 'Слот 3', requiredMark: required3, required: recipe.slot_3_required },
-    ].map((slot) => `
+    const slotsHtml = slotsDef.map((slot) => `
         <div class="craft-slot">
             <div class="craft-slot-label">${slot.label}${slot.requiredMark} · ${esc(craftCategoriesLabel(slot.cats))}</div>
             <button class="craft-slot-btn${slot.sel ? ' craft-slot-filled' : ''}"
@@ -1492,9 +1496,9 @@ function renderCraftDetail() {
 }
 
 // Объединение требований выбранных материалов: по ключу берётся максимум
-function craftAggregateRequirements(sel1Info, sel2Info, sel3Info) {
+function craftAggregateRequirements(...materialArgs) {
     const byKey = {};
-    [sel1Info, sel2Info, sel3Info].forEach((material) => {
+    materialArgs.forEach((material) => {
         if (!material) {
             return;
         }
@@ -1532,6 +1536,40 @@ function craftCategoriesLabel(categories) {
         .join(', ');
 }
 
+// Имя «Ядра стихий» по набору ядер (зеркало server element_core_display_name)
+function elementCoreDisplayName(coreMaterials) {
+    const materials = coreMaterials.filter(Boolean);
+    const count = materials.length;
+    if (count === 0) {
+        return 'Ядро стихий';
+    }
+    const CORE_NAME_BY_ELEMENT = {
+        fire: 'Ядро огня',
+        water: 'Ядро воды',
+        wood: 'Ядро дерева',
+        metal: 'Ядро металла',
+        earth: 'Ядро земли',
+    };
+    if (count === 1) {
+        return CORE_NAME_BY_ELEMENT[materials[0].element] || 'Ядро стихий';
+    }
+    const elements = new Set(materials.map((material) => material.element).filter(Boolean));
+    if (count === 2) {
+        if (elements.has('fire') && elements.has('wood')) {
+            return 'Ядро пепла';
+        }
+        if (elements.has('water') && elements.has('metal')) {
+            return 'Ядро пара';
+        }
+        return 'Двойное ядро';
+    }
+    if (count === 5) {
+        return 'Ядро пяти элементов';
+    }
+    const russianNumbers = { 3: 'трёх', 4: 'четырёх' };
+    return `Ядро ${russianNumbers[count] || 'многих'} элементов`;
+}
+
 // Поиск выбранного материала в открытой модалке (по коду)
 function findCraftMaterial(code) {
     if (!craftMaterialModal || !Array.isArray(craftMaterialModal.materials)) {
@@ -1542,7 +1580,7 @@ function findCraftMaterial(code) {
 
 // Суммарные бонусы: базовые статы предмета + статы ингредиентов +
 // комбо крафта + комбо стихий (зеркало server get_craft_bonuses)
-function computeCraftBonuses(recipe, sel1Info, sel2Info, sel3Info) {
+function computeCraftBonuses(recipe, ...materialArgs) {
     const stats = { ...(recipe.result_stats || {}) };
     const addStats = (material) => {
         if (!material) {
@@ -1552,19 +1590,17 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info, sel3Info) {
             stats[key] = (stats[key] || 0) + value;
         });
     };
-    addStats(sel1Info);
-    addStats(sel2Info);
-    addStats(sel3Info);
+    materialArgs.forEach(addStats);
 
     let element = recipe.result_element || 'none';
-    [sel1Info, sel2Info, sel3Info].forEach((material) => {
+    materialArgs.forEach((material) => {
         if (material && material.element && material.element !== 'none') {
             element = material.element;
         }
     });
 
     // Комбо крафта: бонусные статы, стихия и название поверх материалов
-    let combo = findCraftCombo(recipe, sel1Info, sel2Info);
+    let combo = findCraftCombo(recipe, materialArgs[0], materialArgs[1]);
     if (combo) {
         Object.entries(combo.stats || {}).forEach(([key, value]) => {
             stats[key] = (stats[key] || 0) + value;
@@ -1574,8 +1610,8 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info, sel3Info) {
         }
     }
 
-    // Комбо стихий по материалам всех трёх слотов (мутирует stats)
-    const materials = [sel1Info, sel2Info, sel3Info].filter(Boolean);
+    // Комбо стихий по материалам всех слотов (мутирует stats)
+    const materials = materialArgs.filter(Boolean);
     const elementCombo = getCraftElementCombo(materials, stats, element);
     if (elementCombo) {
         if (elementCombo.element) {
@@ -1590,7 +1626,7 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info, sel3Info) {
 
 // Комбо стихий по материалам слотов (зеркало game_logic.get_craft_element_combo):
 // огонь+дерево=Пепел, вода+металл=Пар, земля+камень=Каменная кожа,
-// дерево+трава=Регенерация, 5 стихий=Пять элементов
+// дерево+трава=Регенерация, 5 стихий=Пять элементов (+50% ко всем статам)
 function getCraftElementCombo(materials, stats, resultElement) {
     const elements = new Set();
     const codes = new Set();
@@ -1606,7 +1642,18 @@ function getCraftElementCombo(materials, stats, resultElement) {
     let combo = null;
     let bonusStats = {};
     let bonusElement = '';
-    if (elements.has('fire') && elements.has('wood')) {
+    // «Пять элементов» проверяется первым (как на сервере): при всех 5 стихиях
+    // парные комбо уже включены, поэтому приоритет у капстонного.
+    if (elements.size >= 5) {
+        combo = ['Пять элементов', 'Все пять стихий слиты в гармонии — сила безгранична.'];
+        // +50% ко всем ненулевым статам (зеркало серверной формулы)
+        Object.entries(stats).forEach(([key, value]) => {
+            if (value > 0) {
+                bonusStats[key] = Math.max(1, Math.round(value * 0.5));
+            }
+        });
+        bonusElement = '';
+    } else if (elements.has('fire') && elements.has('wood')) {
         combo = ['Пепел', 'Огонь и дерево сплетаются — пепел усиливает пламя.'];
         bonusStats = { damage: Math.max(1, Math.round((stats.damage || 0) * 0.30)) };
         bonusElement = 'fire';
@@ -1622,9 +1669,6 @@ function getCraftElementCombo(materials, stats, resultElement) {
         combo = ['Регенерация', 'Дерево и травы возвращают жизненную силу.'];
         bonusStats = { hp: 4 };
         bonusElement = 'wood';
-    } else if (elements.size >= 5) {
-        combo = ['Пять элементов', 'Все пять стихий слиты в гармонии — сила безгранична.'];
-        bonusElement = '';
     }
 
     if (combo === null) {
@@ -1732,9 +1776,26 @@ function renderCraftMaterialModal() {
     // Уже применённый выбор и текущее выделение (pending)
     const applied = craftSelections[slot] || null;
     const pending = craftMaterialPending;
+    // Для «Ядра стихий»: скрываем само ядро (нельзя вложить ядро в ядро)
+    // и ядра, уже занятые в других слотах (все ядра должны быть разными)
+    const isElementCore = activeCraftCode === 'element_core';
+    const usedCodes = new Set(
+        Object.entries(craftSelections)
+            .filter(([key]) => key !== slot && craftSelections[key])
+            .map(([, code]) => code)
+    );
+    const visibleMaterials = craftMaterialModal.materials.filter((material) => {
+        if (isElementCore && material.code === 'element_core') {
+            return false;
+        }
+        if (isElementCore && usedCodes.has(material.code)) {
+            return false;
+        }
+        return true;
+    });
 
-    list.innerHTML = craftMaterialModal.materials.length
-        ? craftMaterialModal.materials.map((material) => {
+    list.innerHTML = visibleMaterials.length
+        ? visibleMaterials.map((material) => {
             // Пометка: ✓ применённый материал, золотая рамка — выделенный
             const appliedClass = material.code === applied ? ' craft-applied' : '';
             const pendingClass = material.code === pending ? ' craft-pending' : '';
@@ -1838,6 +1899,8 @@ async function doCraft2() {
                 slot_1_code: craftSelections['slot_1'] || '',
                 slot_2_code: craftSelections['slot_2'] || '',
                 slot_3_code: craftSelections['slot_3'] || '',
+                slot_4_code: craftSelections['slot_4'] || '',
+                slot_5_code: craftSelections['slot_5'] || '',
             }),
         });
 
