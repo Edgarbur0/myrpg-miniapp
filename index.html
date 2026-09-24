@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=43">
+    <link rel="stylesheet" href="style.css?v=44">
 </head>
 <body>
 
@@ -207,26 +207,6 @@
                     <div id="craftDetail" class="craft-detail"></div>
                 </div>
             </div>
-
-            <!-- Tinkers: детали и сборка (round 34) -->
-            <div class="craft-column-title tinkers-title">⚙️ Детали и сборка</div>
-            <div class="tinkers-layout">
-                <!-- Изготовление деталей из материалов -->
-                <div class="craft-column craft-column-left">
-                    <div class="tinkers-subtitle">Изготовить деталь</div>
-                    <div id="partsEmpty" class="craft-empty hidden">
-                        <div class="stub-text">Детали недоступны.</div>
-                    </div>
-                    <div id="partsList" class="craft-list"></div>
-                </div>
-                <!-- Сборка предмета из деталей -->
-                <div class="craft-column craft-column-right">
-                    <div class="tinkers-subtitle">Собрать предмет</div>
-                    <div id="tinkersRecipeSelect" class="tinkers-recipe-select"></div>
-                    <div id="tinkersSlots" class="tinkers-slots"></div>
-                    <div id="tinkersAssembly" class="tinkers-assembly hidden"></div>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -325,20 +305,6 @@
     </div>
 </div>
 
-<!-- МОДАЛКА ВЫБОРА ДЕТАЛИ ДЛЯ СБОРКИ -->
-<div id="tinkersPartModal" class="craft-material-modal hidden">
-    <div class="craft-material-modal-content">
-        <div class="craft-material-modal-header">
-            <span id="tinkersPartTitle">Выбери деталь</span>
-            <button class="icon-btn" id="btnTinkersPartClose" type="button" aria-label="Закрыть">✕</button>
-        </div>
-        <div class="craft-material-modal-bonus">
-            <span id="tinkersPartBonus">Бонус за слот: —</span>
-        </div>
-        <div id="tinkersPartList" class="craft-material-list"></div>
-    </div>
-</div>
-
 <!-- POPOVER СТАТА -->
 <div id="statPopover" class="stat-popover hidden"></div>
 
@@ -346,5 +312,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=43"></script></body>
+    <script src="app.js?v=44"></script></body>
 </html>

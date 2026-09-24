@@ -116,13 +116,6 @@ let craftDetail = null;             // детали рецепта (GET /api/cra
 let craftSelections = {};           // 'slot_1' | 'slot_2' -> код материала
 let craftSelectedMats = {};         // 'slot_1' | 'slot_2' -> объект материала (иконка/имя/статы)
 let craftMaterialModal = null;      // {'slot', 'categories', 'materials'} для модалки
-// ---------- Tinkers (round 34): детали и сборка ----------
-let partsCatalog = [];              // каталог деталей (GET /api/parts)
-let ownedParts = [];                // детали игрока (GET /api/player/<id>/parts)
-let tinkersRecipe = null;           // выбранный рецепт сборки {'code', 'slots'}
-let tinkersCraftCode = '';          // код выбранного рецепта сборки
-let tinkersSelected = {};           // slot_key -> объект детали (для сборки)
-let tinkersPartModal = null;        // {slot, parts} — выбор детали для слота сборки
 
 // Подписи требований материалов (ключи items.requirements)
 const REQUIREMENT_LABELS = {
@@ -139,17 +132,6 @@ const REQUIREMENT_LABELS = {
     element_wood: 'Сродство Дерева',
     element_metal: 'Сродство Металла',
     element_earth: 'Сродство Земли',
-};
-
-// Подписи слотов деталей
-const PART_SLOT_LABELS = {
-    handle: 'Рукоять',
-    blade: 'Лезвие',
-    guard: 'Гарда',
-    base: 'Основа',
-    wrap: 'Обмотка',
-    core: 'Ядро',
-    tip: 'Наконечник',
 };
 
 // ---------- VK Bridge ----------
@@ -1227,16 +1209,6 @@ async function loadCrafts() {
         await loadCraftDetail(activeCraftCode);
     }
     renderCrafts();
-    // Tinkers: селект рецептов сборки (с part_slots)
-    renderTinkersRecipeSelect();
-    if (!tinkersRecipe && !tinkersCraftCode) {
-        const firstPartRecipe = craftRecipes.find((recipe) => recipe.has_parts);
-        if (firstPartRecipe) {
-            await selectTinkersRecipe(firstPartRecipe.code);
-        }
-    } else if (tinkersCraftCode) {
-        await loadTinkersSlots(tinkersCraftCode);
-    }
 }
 
 // Список рецептов (левая колонка 50%)
@@ -1248,11 +1220,10 @@ function renderCrafts() {
     box.innerHTML = craftRecipes.map((craft) => `
         <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
                 type="button" data-code="${esc(craft.code)}">
-            <span class="craft-recipe-icon">${craft.has_parts ? '⚙️' : '🔨'}</span>
+            <span class="craft-recipe-icon">🔨</span>
             <span class="craft-recipe-info">
                 <span class="craft-recipe-name">${esc(craft.name)}</span>
                 <span class="craft-recipe-desc">${esc(craft.description)}</span>
-                ${craft.has_parts ? '<span class="craft-recipe-badge">сборка</span>' : ''}
             </span>
         </button>`).join('');
 
@@ -1282,19 +1253,36 @@ function renderCraftDetail() {
     const baseStats = recipe.result_stats || {};
     const slot1 = recipe.slot_1_categories || [];
     const slot2 = recipe.slot_2_categories || [];
+    const slot3 = recipe.slot_3_categories || [];
     const sel1 = craftSelectedMats['slot_1'] || null;
     const sel2 = craftSelectedMats['slot_2'] || null;
+    const sel3 = craftSelectedMats['slot_3'] || null;
 
-    // Бонусы: базовые статы + суммарные статы выбранных ингредиентов + комбо
-    const bonuses = computeCraftBonuses(recipe, sel1, sel2);
+    // Бонусы: базовые статы + суммарные статы ингредиентов + комбо
+    const bonuses = computeCraftBonuses(recipe, sel1, sel2, sel3);
     const combo = bonuses.combo || null;
     // Название предмета может меняться при сработавшем комбо (напр. «Магический меч»)
     const shownName = (combo && combo.name) || recipe.result_name || recipe.name;
 
     const required1 = recipe.slot_1_required ? ' *' : '';
     const required2 = recipe.slot_2_required ? ' *' : '';
+    const required3 = recipe.slot_3_required ? ' *' : '';
     const ready = (recipe.slot_1_required ? !!sel1 : true)
-        && (recipe.slot_2_required ? !!sel2 : true);
+        && (recipe.slot_2_required ? !!sel2 : true)
+        && (recipe.slot_3_required ? !!sel3 : true);
+
+    // Объединённые требования выбранных материалов (для панели ✅/⚠️)
+    const aggregateReqs = craftAggregateRequirements(sel1, sel2, sel3);
+    const reqHtml = aggregateReqs.length ? `
+        <div class="tinkers-req-title">Требования материалов (мягкий штраф при несоответствии):</div>
+        ${aggregateReqs.map((req) => `
+            <div class="tinkers-req ${req.met ? 'tinkers-req-met' : 'tinkers-req-unmet'}">
+                <span>${req.met ? '✅' : '⚠️'}</span>
+                <span>${REQUIREMENT_LABELS[req.key] || req.key}: ${req.value}/${req.required}</span>
+                ${req.met ? '' : '<span class="tinkers-req-penalty">штраф</span>'}
+            </div>`).join('')}
+        <div class="tinkers-req-note">Невыполненные требования снизят характеристики предмета.</div>`
+        : '';
 
     const bonusHtml = Object.keys(bonuses.stats || {}).length
         ? Object.entries(bonuses.stats).map(([key, value]) => {
@@ -1330,6 +1318,21 @@ function renderCraftDetail() {
                 </div>` : ''}
         </div>` : '';
 
+    const slotsHtml = [
+        { key: 'slot_1', sel: sel1, cats: slot1, label: 'Слот 1', requiredMark: required1, required: recipe.slot_1_required },
+        { key: 'slot_2', sel: sel2, cats: slot2, label: 'Слот 2', requiredMark: required2, required: recipe.slot_2_required },
+        { key: 'slot_3', sel: sel3, cats: slot3, label: 'Слот 3', requiredMark: required3, required: recipe.slot_3_required },
+    ].map((slot) => `
+        <div class="craft-slot">
+            <div class="craft-slot-label">${slot.label}${slot.requiredMark} · ${esc(craftCategoriesLabel(slot.cats))}</div>
+            <button class="craft-slot-btn${slot.sel ? ' craft-slot-filled' : ''}"
+                    type="button" data-slot="${slot.key}" data-categories="${esc((slot.cats || []).join(','))}">
+                ${slot.sel
+                    ? `${renderMaterialCell(slot.sel)}`
+                    : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
+            </button>
+        </div>`).join('');
+
     detailBox.innerHTML = `
         <div class="craft-detail-header">
             <span class="craft-detail-icon">${recipe.result_icon || '🔨'}</span>
@@ -1339,26 +1342,10 @@ function renderCraftDetail() {
             </div>
         </div>
         <div class="craft-detail-slots">
-            <div class="craft-slot">
-                <div class="craft-slot-label">Слот 1${required1} · ${esc(craftCategoriesLabel(slot1))}</div>
-                <button class="craft-slot-btn${sel1 ? ' craft-slot-filled' : ''}"
-                        type="button" data-slot="slot_1" data-categories="${esc((slot1 || []).join(','))}">
-                    ${sel1
-                        ? `${renderMaterialCell(sel1)}`
-                        : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
-                </button>
-            </div>
-            <div class="craft-slot">
-                <div class="craft-slot-label">Слот 2${required2} · ${esc(craftCategoriesLabel(slot2))}</div>
-                <button class="craft-slot-btn${sel2 ? ' craft-slot-filled' : ''}"
-                        type="button" data-slot="slot_2" data-categories="${esc((slot2 || []).join(','))}">
-                    ${sel2
-                        ? `${renderMaterialCell(sel2)}`
-                        : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
-                </button>
-            </div>
+            ${slotsHtml}
         </div>
         ${comboHtml}
+        ${reqHtml}
         <div class="craft-detail-bonuses">
             <div class="craft-detail-title-small">Характеристики предмета</div>
             ${bonusHtml}
@@ -1381,10 +1368,34 @@ function renderCraftDetail() {
     }
 }
 
+// Объединение требований выбранных материалов: по ключу берётся максимум
+function craftAggregateRequirements(sel1Info, sel2Info, sel3Info) {
+    const byKey = {};
+    [sel1Info, sel2Info, sel3Info].forEach((material) => {
+        if (!material) {
+            return;
+        }
+        (material.requirements || []).forEach((req) => {
+            if (!byKey[req.key]) {
+                byKey[req.key] = { ...req };
+                return;
+            }
+            byKey[req.key].required = Math.max(byKey[req.key].required, req.required);
+            byKey[req.key].value = Math.max(byKey[req.key].value || 0, req.value || 0);
+            byKey[req.key].met = byKey[req.key].met && req.met;
+        });
+    });
+    return Object.values(byKey);
+}
+
 function renderMaterialCell(material) {
+    // Бейдж ⚠️ у материала с невыполненными требованиями (мягкий штраф)
+    const badge = (material.requirements_met === false)
+        ? ' <span class="tinkers-req-badge tinkers-req-badge-warn" title="Требования не выполнены — будет штраф">⚠️</span>'
+        : '';
     return `
         <span class="craft-material-icon">${material.icon || '📦'}</span>
-        <span class="craft-material-name">${esc(material.name)}</span>
+        <span class="craft-material-name">${esc(material.name)}${badge}</span>
         <span class="craft-material-count">×${esc(material.count)}</span>`;
 }
 
@@ -1406,8 +1417,9 @@ function findCraftMaterial(code) {
     return craftMaterialModal.materials.find((material) => material.code === code) || null;
 }
 
-// Суммарные бонусы: базовые статы предмета + статы ингредиентов + комбо крафта
-function computeCraftBonuses(recipe, sel1Info, sel2Info) {
+// Суммарные бонусы: базовые статы предмета + статы ингредиентов +
+// комбо крафта + комбо стихий (зеркало server get_craft_bonuses)
+function computeCraftBonuses(recipe, sel1Info, sel2Info, sel3Info) {
     const stats = { ...(recipe.result_stats || {}) };
     const addStats = (material) => {
         if (!material) {
@@ -1419,16 +1431,17 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info) {
     };
     addStats(sel1Info);
     addStats(sel2Info);
+    addStats(sel3Info);
 
     let element = recipe.result_element || 'none';
-    [sel1Info, sel2Info].forEach((material) => {
+    [sel1Info, sel2Info, sel3Info].forEach((material) => {
         if (material && material.element && material.element !== 'none') {
             element = material.element;
         }
     });
 
     // Комбо крафта: бонусные статы, стихия и название поверх материалов
-    const combo = findCraftCombo(recipe, sel1Info, sel2Info);
+    let combo = findCraftCombo(recipe, sel1Info, sel2Info);
     if (combo) {
         Object.entries(combo.stats || {}).forEach(([key, value]) => {
             stats[key] = (stats[key] || 0) + value;
@@ -1437,7 +1450,72 @@ function computeCraftBonuses(recipe, sel1Info, sel2Info) {
             element = combo.element;
         }
     }
+
+    // Комбо стихий по материалам всех трёх слотов (мутирует stats)
+    const materials = [sel1Info, sel2Info, sel3Info].filter(Boolean);
+    const elementCombo = getCraftElementCombo(materials, stats, element);
+    if (elementCombo) {
+        if (elementCombo.element) {
+            element = elementCombo.element;
+        }
+        if (!combo) {
+            combo = elementCombo;
+        }
+    }
     return { stats, element, combo };
+}
+
+// Комбо стихий по материалам слотов (зеркало game_logic.get_craft_element_combo):
+// огонь+дерево=Пепел, вода+металл=Пар, земля+камень=Каменная кожа,
+// дерево+трава=Регенерация, 5 стихий=Пять элементов
+function getCraftElementCombo(materials, stats, resultElement) {
+    const elements = new Set();
+    const codes = new Set();
+    materials.forEach((material) => {
+        if (material.element && material.element !== 'none') {
+            elements.add(material.element);
+        }
+        if (material.code) {
+            codes.add(material.code);
+        }
+    });
+
+    let combo = null;
+    let bonusStats = {};
+    let bonusElement = '';
+    if (elements.has('fire') && elements.has('wood')) {
+        combo = ['Пепел', 'Огонь и дерево сплетаются — пепел усиливает пламя.'];
+        bonusStats = { damage: Math.max(1, Math.round((stats.damage || 0) * 0.30)) };
+        bonusElement = 'fire';
+    } else if (elements.has('water') && elements.has('metal')) {
+        combo = ['Пар', 'Вода и металл рождают пар — удар становится смертоносным.'];
+        bonusStats = { luck: 2 };
+        bonusElement = 'water';
+    } else if (elements.has('earth') && (codes.has('stone') || codes.has('earth_core'))) {
+        combo = ['Каменная кожа', 'Земля и камень даруют несокрушимую защиту.'];
+        bonusStats = { armor: 5 };
+        bonusElement = 'earth';
+    } else if (elements.has('wood') && codes.has('herb_qi')) {
+        combo = ['Регенерация', 'Дерево и травы возвращают жизненную силу.'];
+        bonusStats = { hp: 4 };
+        bonusElement = 'wood';
+    } else if (elements.size >= 5) {
+        combo = ['Пять элементов', 'Все пять стихий слиты в гармонии — сила безгранична.'];
+        bonusElement = '';
+    }
+
+    if (combo === null) {
+        return null;
+    }
+    Object.entries(bonusStats).forEach(([key, value]) => {
+        stats[key] = (stats[key] || 0) + value;
+    });
+    return {
+        name: combo[0],
+        description: combo[1],
+        stats: bonusStats,
+        element: bonusElement,
+    };
 }
 
 // Проверка условия одного слота комбо (пустое значение = любой материал)
@@ -1557,7 +1635,7 @@ function renderCraftMaterialModal() {
 // Текст бонуса: статы текущих выбранных материалов
 function craftColumnBonusText() {
     const blocks = [];
-    ['slot_1', 'slot_2'].forEach((slot) => {
+    ['slot_1', 'slot_2', 'slot_3'].forEach((slot) => {
         const material = craftSelectedMats[slot];
         if (!material) {
             return;
@@ -1585,6 +1663,7 @@ async function doCraft2() {
                 recipe_code: activeCraftCode,
                 slot_1_code: craftSelections['slot_1'] || '',
                 slot_2_code: craftSelections['slot_2'] || '',
+                slot_3_code: craftSelections['slot_3'] || '',
             }),
         });
 
@@ -1597,398 +1676,15 @@ async function doCraft2() {
         const statsText = Object.entries(data.stats || {})
             .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
             .join(', ');
-        showToast(`🔨 Создано: ${data.item.name}${statsText ? ' (' + statsText + ')' : ''}`);
+        const penalties = (data.penalties || []).length
+            ? ' ⚠️ есть штрафы требований' : '';
+        showToast(`🔨 Создано: ${data.item.name}${statsText ? ' (' + statsText + ')' : ''}${penalties}`);
 
         craftSelections = {};
         craftSelectedMats = {};
         await loadCraftDetail(activeCraftCode);
     } catch (error) {
         showToast(error.code || 'Не удалось создать предмет');
-    }
-}
-
-// ---------- Tinkers (round 34): детали и сборка ----------
-
-// Загрузка каталога деталей и списка деталей игрока
-async function loadParts() {
-    try {
-        const [catalog, owned] = await Promise.all([
-            apiFetch('/parts'),
-            apiFetch(`/player/${userId}/parts`),
-        ]);
-        partsCatalog = catalog.parts || [];
-        const ownedList = owned.parts || [];
-        // Объединяем: count и требования у своих деталей, остальные — из каталога
-        const ownedMap = {};
-        ownedList.forEach((part) => { ownedMap[part.code] = part; });
-        ownedParts = partsCatalog.map((part) => ownedMap[part.code] || { ...part, count: 0 });
-    } catch (error) {
-        partsCatalog = [];
-        ownedParts = [];
-    }
-    renderParts();
-}
-
-// Список деталей для изготовления (левая подсекция)
-function renderParts() {
-    const box = document.getElementById('partsList');
-    const empty = document.getElementById('partsEmpty');
-    empty.classList.toggle('hidden', ownedParts.length > 0);
-
-    box.innerHTML = ownedParts.map((part) => {
-        const materialName = part.material_name || '';
-        const bonusText = Object.entries(part.bonuses || {}).map(([key, value]) =>
-            `${CRAFT_STAT_LABELS[key] || key} +${value}`).join(', ');
-        const reqs = (part.requirements || []).filter((req) => !req.met);
-        // Бейдж требований: ✅ выполнено, ⚠️ есть штраф
-        const badge = (part.requirements_met === true)
-            ? '<span class="tinkers-req-badge tinkers-req-badge-ok" title="Требования материала выполнены">✅</span>'
-            : (reqs.length
-                ? `<span class="tinkers-req-badge tinkers-req-badge-warn" title="${esc(reqs.map((req) =>
-                    `${REQUIREMENT_LABELS[req.key] || req.key} ${req.value}/${req.required}`).join(', '))}">⚠️</span>`
-                : '');
-        return `
-            <div class="tinkers-part">
-                <div class="tinkers-part-info">
-                    <div class="tinkers-part-name">${esc(part.name)} ${badge}</div>
-                    <div class="tinkers-part-sub">
-                        <span>${PART_SLOT_LABELS[part.slot] || part.slot}</span>
-                        ${bonusText ? ` · ${bonusText}` : ''}
-                        ${materialName ? ` · ${esc(materialName)} ×${part.cost}` : ''}
-                    </div>
-                </div>
-                <div class="tinkers-part-right">
-                    <span class="tinkers-part-count">×${esc(part.count)}</span>
-                    <button class="btn btn-sm" type="button" data-code="${esc(part.code)}"
-                            ${part.count > 0 ? '' : 'disabled'}>⚒️</button>
-                </div>
-            </div>`;
-    }).join('');
-
-    box.querySelectorAll('.tinkers-part-right button').forEach((button) => {
-        button.addEventListener('click', () => craftOnePart(button.dataset.code));
-    });
-}
-
-// Изготовление одной детали из материала
-async function craftOnePart(partCode) {
-    try {
-        const part = ownedParts.find((item) => item.code === partCode);
-        const materialName = part.material_name || part.material_code;
-        const data = await apiFetch(`/player/${userId}/craft_part`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ part_code: partCode, qty: 1 }),
-        });
-        if (data.inventory) {
-            inventoryData = data.inventory;
-            renderInventoryPanel();
-        }
-        const warning = data.part && data.part.warning ? ` (${data.part.warning})` : '';
-        showToast(`⚒️ Деталь: ${data.part.name}${warning}`);
-        await loadParts();
-        await loadCraftDetailForSlots();
-    } catch (error) {
-        showToast(error.code || 'Не удалось изготовить деталь (нет материала)');
-    }
-}
-
-// Кнопки выбора рецепта сборки (только рецепты с part_slots)
-function renderTinkersRecipeSelect() {
-    const box = document.getElementById('tinkersRecipeSelect');
-    const tinkersRecipes = craftRecipes.filter((recipe) => recipe.has_parts);
-    box.innerHTML = tinkersRecipes.length
-        ? `<div class="tinkers-recipe-label">Рецепт сборки:</div>
-           <div class="tinkers-recipe-btns">
-               ${tinkersRecipes.map((recipe) => `
-                   <button class="btn btn-sm${recipe.code === tinkersCraftCode ? ' btn-primary' : ' btn-outline'}"
-                           type="button" data-code="${esc(recipe.code)}">${esc(recipe.name)}</button>`).join('')}
-           </div>`
-        : '<div class="craft-empty-inline">Рецептов сборки нет</div>';
-
-    box.querySelectorAll('button').forEach((button) => {
-        button.addEventListener('click', () => selectTinkersRecipe(button.dataset.code));
-    });
-}
-
-// Выбор рецепта сборки и загрузка схемы слотов
-async function selectTinkersRecipe(code) {
-    tinkersCraftCode = code;
-    tinkersSelected = {};
-    tinkersRecipe = null;
-    renderTinkersRecipeSelect();
-    renderTinkersSlots();
-    await loadTinkersSlots(code);
-}
-
-// Схема слотов рецепта (GET /crafts/<code>/slots)
-async function loadTinkersSlots(code) {
-    try {
-        const data = await apiFetch(`/crafts/${code}/slots`);
-        tinkersRecipe = {
-            code,
-            result_item: data.result_item,
-            result_name: data.result_name,
-            result_icon: data.result_icon,
-            slots: data.slots || [],
-        };
-    } catch (error) {
-        tinkersRecipe = null;
-    }
-    renderTinkersSlots();
-}
-
-// Три слота сборки + превью характеристик и кнопка «Собрать»
-function renderTinkersSlots() {
-    const slotsBox = document.getElementById('tinkersSlots');
-    const assemblyBox = document.getElementById('tinkersAssembly');
-    if (!tinkersRecipe) {
-        slotsBox.innerHTML = '<div class="craft-empty-inline">Выбери рецепт сборки.</div>';
-        assemblyBox.classList.add('hidden');
-        return;
-    }
-
-    slotsBox.innerHTML = (tinkersRecipe.slots || []).map((slot) => {
-        const chosen = tinkersSelected[slot.slot] || null;
-        return `
-            <div class="craft-slot">
-                <div class="craft-slot-label">${PART_SLOT_LABELS[slot.slot] || slot.slot}</div>
-                <button class="craft-slot-btn${chosen ? ' craft-slot-filled' : ''}"
-                        type="button" data-slot="${esc(slot.slot)}">
-                    ${chosen
-                        ? `<span class="craft-material-icon">${slotIcon(chosen)}</span>
-                           <span class="craft-material-name">${esc(chosen.name)}</span>`
-                        : '<span class="craft-slot-placeholder">Выбрать деталь…</span>'}
-                </button>
-            </div>`;
-    }).join('');
-
-    slotsBox.querySelectorAll('.craft-slot-btn').forEach((button) => {
-        button.addEventListener('click', () => {
-            openTinkersPartModal(button.dataset.slot);
-        });
-    });
-
-    // Превью: суммарные статы + комбо стихий + требования
-    const assembly = computeAssemblyBonuses();
-    const ready = (tinkersRecipe.slots || []).every((slot) => !!tinkersSelected[slot.slot]);
-
-    const bonusHtml = Object.keys(assembly.stats || {}).length
-        ? Object.entries(assembly.stats).map(([key, value]) => `
-            <div class="craft-bonus">
-                <span class="craft-bonus-label">${CRAFT_STAT_LABELS[key] || key}</span>
-                <span class="craft-bonus-value">+${value}</span>
-            </div>`).join('')
-        : '<div class="craft-empty-inline">Минимальные характеристики</div>';
-
-    const elementText = assembly.element
-        ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[assembly.element] || assembly.element}</b></div>`
-        : '';
-
-    const comboHtml = assembly.combo ? `
-        <div class="craft-combo">
-            <div class="craft-combo-title">✨ ${esc(assembly.combo.name)}</div>
-            ${assembly.combo.description ? `<div class="craft-combo-desc">${esc(assembly.combo.description)}</div>` : ''}
-        </div>` : '';
-
-    const reqHtml = assembly.requirements && assembly.requirements.length ? `
-        <div class="tinkers-req-title">Требования материала (мягкий штраф при несоответствии):</div>
-        ${assembly.requirements.map((req) => `
-            <div class="tinkers-req ${req.met ? 'tinkers-req-met' : 'tinkers-req-unmet'}">
-                <span>${req.met ? '✅' : '⚠️'}</span>
-                <span>${REQUIREMENT_LABELS[req.key] || req.key}: ${req.value}/${req.required}</span>
-                ${req.met ? '' : '<span class="tinkers-req-penalty">штраф</span>'}
-            </div>`).join('')}` : '';
-
-    assemblyBox.classList.remove('hidden');
-    assemblyBox.innerHTML = `
-        <div class="craft-detail-header">
-            <span class="craft-detail-icon">${tinkersRecipe.result_icon || '🔨'}</span>
-            <div class="craft-detail-title">
-                <div class="craft-detail-name">${esc(assembly.name || tinkersRecipe.result_name)}</div>
-            </div>
-        </div>
-        ${comboHtml}
-        ${reqHtml}
-        <div class="craft-detail-bonuses">
-            <div class="craft-detail-title-small">Характеристики предмета</div>
-            ${bonusHtml}
-            ${elementText}
-        </div>
-        <button class="btn btn-primary" id="btnDoAssemble" type="button" ${ready ? '' : 'disabled'}>
-            ⚙️ Собрать
-        </button>`;
-
-    const btn = document.getElementById('btnDoAssemble');
-    if (btn) {
-        btn.addEventListener('click', doAssemble);
-    }
-}
-
-// Иконка детали (по слоту, без отдельного поля)
-function slotIcon(part) {
-    return (part && part.element) ? (CRAFT_ELEMENT_LABELS[part.element] ? ELEMENT_ICONS[part.element] || '🔮' : '🔮') : '⚙️';
-}
-
-// Превью сборки: сумма бонусов деталей + комбо стихий + требования
-function computeAssemblyBonuses() {
-    const parts = (tinkersRecipe.slots || []).map((slot) => tinkersSelected[slot.slot]).filter(Boolean);
-    const stats = {};
-    let element = '';
-    let combo = null;
-    const elements = [];
-    const elementStats = {};
-    const requirements = [];
-    const reqSeen = {};
-
-    parts.forEach((part) => {
-        Object.entries(part.bonuses || {}).forEach(([key, value]) => {
-            stats[key] = (stats[key] || 0) + value;
-        });
-        Object.entries(part.element_bonus || {}).forEach(([key, strength]) => {
-            elementStats[key] = (elementStats[key] || 0) + strength;
-            if (key in CRAFT_ELEMENT_LABELS && !elements.includes(key)) {
-                elements.push(key);
-            }
-        });
-        // Требования материалов деталей (серверные бейджи)
-        (part.requirements || []).forEach((req) => {
-            const id = req.key;
-            if (reqSeen[id]) return;
-            reqSeen[id] = true;
-            requirements.push(req);
-        });
-    });
-    if (elements.length) {
-        element = elements[0];
-    }
-
-    // Комбо стихий (по ТЗ раунда 34)
-    const set = new Set(elements);
-    let comboName = '';
-    let comboDesc = '';
-    if (set.has('fire') && set.has('wood')) {
-        comboName = 'Пепел';
-        comboDesc = 'Огонь и дерево сплетаются — пепел усиливает пламя.';
-        stats.damage = (stats.damage || 0) + Math.max(1, Math.round((stats.damage || 0) * 0.30));
-        element = 'fire';
-    } else if (set.has('water') && set.has('metal')) {
-        comboName = 'Пар';
-        comboDesc = 'Вода и металл рождают пар — удар становится смертоносным.';
-        stats.luck = (stats.luck || 0) + 2;
-        element = 'water';
-    } else if (set.has('earth') && set.has('stone')) {
-        comboName = 'Каменная кожа';
-        comboDesc = 'Земля и камень даруют несокрушимую защиту.';
-        stats.armor = (stats.armor || 0) + 5;
-        element = 'earth';
-    } else if (set.has('wood') && set.has('herb')) {
-        comboName = 'Регенерация';
-        comboDesc = 'Дерево и травы возвращают жизненную силу.';
-        stats.hp = (stats.hp || 0) + 4;
-        element = 'wood';
-    } else if (set.size >= 5) {
-        comboName = 'Пять элементов';
-        comboDesc = 'Все пять стихий слиты в гармонии — сила безгранична.';
-    }
-    combo = comboName ? { name: comboName, description: comboDesc } : null;
-
-    return {
-        stats,
-        element,
-        combo,
-        name: combo ? combo.name : (parts.length ? 'Сборка' : ''),
-        requirements,
-    };
-}
-
-// Модалка выбора детали для слота сборки (из своих деталей)
-async function openTinkersPartModal(slot) {
-    try {
-        const data = await apiFetch(`/player/${userId}/parts`);
-        const allowed = (tinkersRecipe.slots.find((item) => item.slot === slot) || {}).parts || [];
-        const allowedCodes = new Set((allowed || []).map((part) => part.code));
-        const candidates = (data.parts || [])
-            .filter((part) => allowedCodes.has(part.code) && part.count > 0);
-        tinkersPartModal = { slot, parts: candidates };
-        renderTinkersPartModal();
-    } catch (error) {
-        showToast('Не удалось загрузить детали');
-    }
-}
-
-function renderTinkersPartModal() {
-    const modal = document.getElementById('tinkersPartModal');
-    const list = document.getElementById('tinkersPartList');
-    const bonus = document.getElementById('tinkersPartBonus');
-    const slot = tinkersPartModal.slot;
-    const chosen = tinkersSelected[slot] || null;
-
-    list.innerHTML = tinkersPartModal.parts.length
-        ? tinkersPartModal.parts.map((part) => `
-            <button class="craft-material${part.code === chosen?.code ? ' craft-selected' : ''}"
-                    type="button" data-code="${esc(part.code)}">
-                <span class="craft-material-icon">${slotIcon(part)}</span>
-                <span class="craft-material-name">${esc(part.name)}</span>
-                <span class="craft-material-count">×${esc(part.count)}</span>
-            </button>`).join('')
-        : '<div class="craft-empty-inline">Нет подходящих деталей (изготови в левой панели)</div>';
-
-    list.querySelectorAll('.craft-material').forEach((button) => {
-        button.addEventListener('click', () => {
-            const code = button.dataset.code;
-            const part = tinkersPartModal.parts.find((item) => item.code === code);
-            tinkersSelected[slot] = part || null;
-            closeTinkersPartModal();
-            renderTinkersSlots();
-        });
-    });
-
-    bonus.textContent = chosen ? `Выбрано: ${chosen.name}` : 'Бонус за слот: —';
-    modal.classList.remove('hidden');
-}
-
-function closeTinkersPartModal() {
-    document.getElementById('tinkersPartModal').classList.add('hidden');
-    tinkersPartModal = null;
-}
-
-// Сборка предмета (POST /assemble)
-async function doAssemble() {
-    try {
-        const payload = {};
-        (tinkersRecipe.slots || []).forEach((slot) => {
-            if (tinkersSelected[slot.slot]) {
-                payload[slot.slot] = tinkersSelected[slot.slot].code;
-            }
-        });
-        const data = await apiFetch(`/player/${userId}/assemble`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_code: tinkersRecipe.code, selected_parts: payload }),
-        });
-        if (data.inventory) {
-            inventoryData = data.inventory;
-            renderInventoryPanel();
-        }
-        const name = data.item.name || data.item.item_code;
-        const warning = data.penalties && data.penalties.length
-            ? ' (есть штрафы требований)' : '';
-        showToast(`⚙️ Собрано: ${name}${warning}`);
-
-        // Сброс выбора и обновление деталей
-        tinkersSelected = {};
-        await loadParts();
-        await loadTinkersSlots(tinkersRecipe.code);
-    } catch (error) {
-        showToast(error.code || 'Не удалось собрать предмет');
-    }
-}
-
-// Перезагрузка схемы слотов после крафта детали (для свежих count)
-async function loadCraftDetailForSlots() {
-    if (tinkersCraftCode) {
-        await loadTinkersSlots(tinkersCraftCode);
     }
 }
 
@@ -2046,7 +1742,6 @@ function initTabs() {
             // Свежий список рецептов при открытии вкладки «Крафт»
             if (button.dataset.screen === 'screen-craft') {
                 loadCrafts();
-                loadParts();
             }
         });
     });
@@ -2079,14 +1774,6 @@ function init() {
     document.getElementById('craftMaterialModal').addEventListener('click', (event) => {
         if (event.target === document.getElementById('craftMaterialModal')) {
             closeCraftMaterialModal();
-        }
-    });
-
-    // Модалка выбора детали для сборки (Tinkers)
-    document.getElementById('btnTinkersPartClose').addEventListener('click', closeTinkersPartModal);
-    document.getElementById('tinkersPartModal').addEventListener('click', (event) => {
-        if (event.target === document.getElementById('tinkersPartModal')) {
-            closeTinkersPartModal();
         }
     });
 
