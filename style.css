@@ -1675,6 +1675,53 @@ body {
     filter: brightness(1.08);
 }
 
+/* Комбо в карточке предмета (модалка): название, описание, чипы эффектов */
+.modal-desc > .item-combo {
+    display: block;
+    padding: 8px 10px;
+    margin: 2px 0 6px;
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(212, 175, 55, 0.04));
+}
+
+.item-combo-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    overflow-wrap: break-word;
+}
+
+.item-combo-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    overflow-wrap: break-word;
+}
+
+.item-combo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.item-combo-chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    background: rgba(212, 175, 55, 0.18);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.item-combo-chip.item-combo-element {
+    background: rgba(255, 120, 80, 0.16);
+    border-color: rgba(255, 120, 80, 0.4);
+    color: var(--accent);
+}
+
 /* ================= НЕБЕСНАЯ КАРА ================= */
 
 .trib-modal {

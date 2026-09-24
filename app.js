@@ -944,6 +944,19 @@ function openItemModal(inventory, code, instanceId) {
         disassembleRow = `<div><span class="muted">Разборка</span><span>${parts.join(', ')}</span></div>`;
     }
 
+    // Комбо экземпляра: название, описание и боевые эффекты (раунд 41)
+    const instCombo = (activeInst && activeInst.combo) || item.combo || null;
+    const comboRow = instCombo ? `
+        <div class="item-combo">
+            <div class="item-combo-title">✨ Комбо: ${esc(instCombo.name || '')}</div>
+            ${instCombo.description ? `<div class="item-combo-desc">${esc(instCombo.description)}</div>` : ''}
+            ${(instCombo.effects && instCombo.effects.length || instCombo.element) ? `
+                <div class="item-combo-chips">
+                    ${(instCombo.effects || []).map((effect) => `<span class="item-combo-chip">${esc(itemComboEffectLabel(effect))}</span>`).join('')}
+                    ${instCombo.element ? `<span class="item-combo-chip item-combo-element">${CRAFT_ELEMENT_LABELS[instCombo.element] || instCombo.element}</span>` : ''}
+                </div>` : ''}
+        </div>` : '';
+
     document.getElementById('modalTitle').textContent = item.name;
     document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${item.icon}</div>
@@ -953,6 +966,7 @@ function openItemModal(inventory, code, instanceId) {
             ${countLine}
             ${equippedText}
             ${disassembleRow}
+            ${comboRow}
             ${bonusRow}
         </div>
     `;
@@ -967,6 +981,16 @@ function openItemModal(inventory, code, instanceId) {
         'hidden', !disassemblable && isEquipped
     );
     openModal();
+}
+
+// Подпись боевого эффекта комбо в карточке предмета
+function itemComboEffectLabel(effect) {
+    const value = effect.value;
+    if (effect.type === 'hp_regen') return `💚 HP +${value}/ход`;
+    if (effect.type === 'fire_damage_bonus') return `🔥 Урон огнём +${Math.round(value * 100)}%`;
+    if (effect.type === 'stat_bonus') return `${CRAFT_STAT_LABELS[effect.stat] || effect.stat} +${value}`;
+    if (effect.type === 'all_stats_bonus') return `✨ Все статы +${Math.round(value * 100)}%`;
+    return `✨ ${effect.type} +${value}`;
 }
 
 // ---------- Экипировка ----------
@@ -1021,12 +1045,26 @@ function openEquippedModal(slot) {
         .join(', ');
     const slotMeta = (data.slots || []).find((s) => s.key === slot);
 
+    // Комбо надетого экземпляра (регенерация HP и т.п.)
+    const combo = equipped.combo || null;
+    const comboRow = combo ? `
+        <div class="item-combo">
+            <div class="item-combo-title">✨ Комбо: ${esc(combo.name || '')}</div>
+            ${combo.description ? `<div class="item-combo-desc">${esc(combo.description)}</div>` : ''}
+            ${(combo.effects && combo.effects.length || combo.element) ? `
+                <div class="item-combo-chips">
+                    ${(combo.effects || []).map((effect) => `<span class="item-combo-chip">${esc(itemComboEffectLabel(effect))}</span>`).join('')}
+                    ${combo.element ? `<span class="item-combo-chip item-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
+                </div>` : ''}
+        </div>` : '';
+
     document.getElementById('modalTitle').textContent = equipped.name;
     document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${equipped.icon}</div>
         <div class="modal-title">${esc(equipped.name)}</div>
         <div class="modal-desc">
             <div><span class="muted">Слот</span><span>${esc(slotMeta ? slotMeta.name : slot)}</span></div>
+            ${comboRow}
             ${bonusText ? `<div><span class="muted">Бонус</span><span>${esc(bonusText)}</span></div>` : ''}
         </div>
     `;
