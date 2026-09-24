@@ -1538,6 +1538,12 @@ body {
     transform: scale(0.97);
 }
 
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .btn-primary {
     background: var(--accent);
     color: #1a1a2e;
@@ -2246,9 +2252,13 @@ body {
 }
 
 .craft-material {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+        'icon name count'
+        'stats stats stats';
     align-items: center;
-    gap: 8px;
+    gap: 2px 8px;
     padding: 10px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
@@ -2256,20 +2266,77 @@ body {
     color: var(--text);
     cursor: pointer;
     text-align: left;
+    font-family: inherit;
+    transition: var(--transition);
 }
 
 .craft-material:hover {
     border-color: var(--accent);
 }
 
-.craft-material.craft-selected {
+.craft-material-icon {
+    grid-area: icon;
+    font-size: 20px;
+}
+
+.craft-material-name {
+    grid-area: name;
+    font-size: 14px;
+    min-width: 0;
+}
+
+.craft-material-count {
+    grid-area: count;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* Мини-строка бонуса материала в карточке модалки */
+.craft-material-stats {
+    grid-area: stats;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Уже применённый для слота материал: бледная рамка + зелёная галочка */
+.craft-material.craft-applied {
+    border-color: var(--muted);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.craft-material.craft-applied .craft-material-name::after {
+    content: ' ✓';
+    color: var(--xp);
+}
+
+/* Выделенный материал (без применения): золотая рамка со свечением */
+.craft-material.craft-pending,
+.craft-material.craft-pending:hover {
     border-color: var(--accent);
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(212, 175, 55, 0.15);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.35);
+}
+
+.craft-material.craft-pending .craft-material-name {
+    color: var(--accent);
 }
 
 .craft-material:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* Футер модалки выбора: «Выбрать» + «Отмена» */
+.craft-material-modal-footer {
+    display: flex;
+    gap: 8px;
+}
+
+.craft-material-modal-footer .btn {
+    flex: 1;
 }
 
 @media (max-width: 640px) {

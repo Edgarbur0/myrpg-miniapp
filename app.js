@@ -71,6 +71,7 @@ const CRAFT_CATEGORY_LABELS = {
     crystal: 'Кристалл',
     bone: 'Кость',
     leather: 'Шкура',
+    any_material: 'любой материал', // свободный слот (кроме камня и ядер)
 };
 
 // Русские названия материалов (для превью разборки по кодам из player_items)
@@ -132,6 +133,7 @@ let craftDetail = null;             // детали рецепта (GET /api/cra
 let craftSelections = {};           // 'slot_1' | 'slot_2' -> код материала
 let craftSelectedMats = {};         // 'slot_1' | 'slot_2' -> объект материала (иконка/имя/статы)
 let craftMaterialModal = null;      // {'slot', 'categories', 'materials'} для модалки
+let craftMaterialPending = null;    // код материала, выделенного в модалке (ещё не выбран)
 
 // Подписи требований материалов (ключи items.requirements)
 const REQUIREMENT_LABELS = {
@@ -1708,6 +1710,8 @@ async function openCraftMaterialModal(slot, categories) {
     try {
         const query = encodeURIComponent((categories || []).join(','));
         const data = await apiFetch(`/player/${userId}/craft_materials?categories=${query}`);
+        // Выделяем материал, который уже выбран для слота (если есть)
+        craftMaterialPending = craftSelections[slot] || null;
         craftMaterialModal = {
             slot,
             categories,
@@ -1723,55 +1727,104 @@ function renderCraftMaterialModal() {
     const modal = document.getElementById('craftMaterialModal');
     const bonus = document.getElementById('craftMaterialBonus');
     const list = document.getElementById('craftMaterialList');
+    const chooseBtn = document.getElementById('btnCraftMaterialChoose');
     const slot = craftMaterialModal.slot;
-    const selected = craftSelections[slot] || null;
+    // Уже применённый выбор и текущее выделение (pending)
+    const applied = craftSelections[slot] || null;
+    const pending = craftMaterialPending;
 
     list.innerHTML = craftMaterialModal.materials.length
-        ? craftMaterialModal.materials.map((material) => `
-            <button class="craft-material${material.code === selected ? ' craft-selected' : ''}"
+        ? craftMaterialModal.materials.map((material) => {
+            // Пометка: ✓ применённый материал, золотая рамка — выделенный
+            const appliedClass = material.code === applied ? ' craft-applied' : '';
+            const pendingClass = material.code === pending ? ' craft-pending' : '';
+            // Бейдж ⚠️ у материала с невыполненными требованиями (мягкий штраф)
+            const badge = (material.requirements_met === false)
+                ? '<span class="tinkers-req-badge tinkers-req-badge-warn" title="Требования не выполнены — будет штраф">⚠️</span>'
+                : '';
+            return `
+            <button class="craft-material${appliedClass}${pendingClass}"
                     type="button" data-code="${esc(material.code)}">
                 <span class="craft-material-icon">${material.icon || '📦'}</span>
-                <span class="craft-material-name">${esc(material.name)}</span>
+                <span class="craft-material-name">${esc(material.name)}${badge}</span>
+                <span class="craft-material-stats">${craftMaterialBonusText(material)}</span>
                 <span class="craft-material-count">×${esc(material.count)}</span>
-            </button>`).join('')
+            </button>`;
+        }).join('')
         : '<div class="craft-empty-inline">Подходящих материалов нет</div>';
 
     list.querySelectorAll('.craft-material').forEach((button) => {
         button.addEventListener('click', () => {
             const code = button.dataset.code;
-            const chosen = craftMaterialModal.materials.find((material) => material.code === code);
-            craftSelections[slot] = code;
-            craftSelectedMats[slot] = chosen || null;
-            closeCraftMaterialModal();
-            renderCraftDetail();
+            selectCraftMaterial(code);
         });
     });
 
-    // Спойлер бонуса слота: статы выбранных материалов обоих слотов
-    bonus.textContent = craftColumnBonusText();
+    // Бонус за слот выделенного материала (статы + стихия)
+    const pendingMaterial = findCraftMaterial(craftMaterialPending);
+    bonus.textContent = pendingMaterial
+        ? `Бонус за слот: ${craftMaterialStatsText(pendingMaterial)}`
+        : 'Бонус за слот: —';
+
+    // «Выбрать» активна, только когда material выделен
+    chooseBtn.disabled = !craftMaterialPending;
 
     modal.classList.remove('hidden');
 }
 
-// Текст бонуса: статы текущих выбранных материалов
-function craftColumnBonusText() {
-    const blocks = [];
-    ['slot_1', 'slot_2', 'slot_3'].forEach((slot) => {
-        const material = craftSelectedMats[slot];
-        if (!material) {
-            return;
-        }
-        const statsText = Object.entries(material.stats || {})
-            .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
-            .join(', ');
-        blocks.push(`${material.name}${statsText ? ' (' + statsText + ')' : ''}`);
-    });
-    return blocks.length ? `Выбрано: ${blocks.join(' · ')}` : 'Бонус за слот: —';
+// Выделение материала в модалке (без закрытия и применения)
+function selectCraftMaterial(code) {
+    if (!craftMaterialModal) {
+        return;
+    }
+    craftMaterialPending = code;
+    renderCraftMaterialModal();
+}
+
+// «Выбрать»: применяет выделенный материал и закрывает модалку
+function confirmCraftMaterial() {
+    if (!craftMaterialModal || !craftMaterialPending) {
+        return;
+    }
+    const slot = craftMaterialModal.slot;
+    const chosen = findCraftMaterial(craftMaterialPending);
+    craftSelections[slot] = craftMaterialPending;
+    craftSelectedMats[slot] = chosen || null;
+    closeCraftMaterialModal();
+    renderCraftDetail();
+}
+
+// «Отмена»: закрывает модалку без применения выделения
+function cancelCraftMaterial() {
+    craftMaterialPending = null;
+    closeCraftMaterialModal();
+}
+
+// Текстовое описание бонуса материала: статы и стихия (для карточки)
+function craftMaterialBonusText(material) {
+    if (!material) {
+        return '';
+    }
+    const statsText = craftMaterialStatsText(material);
+    const element = material.element && material.element !== 'none'
+        ? `стихия ${CRAFT_ELEMENT_LABELS[material.element] || material.element}`
+        : '';
+    const parts = [statsText, element].filter(Boolean);
+    return parts.join(', ');
+}
+
+// Статы материала одной строкой («+5 выносливости», «+2 брони, +3 HP»)
+function craftMaterialStatsText(material) {
+    const stats = Object.entries(material.stats || {})
+        .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
+        .join(', ');
+    return stats || 'без бонусов';
 }
 
 function closeCraftMaterialModal() {
     document.getElementById('craftMaterialModal').classList.add('hidden');
     craftMaterialModal = null;
+    craftMaterialPending = null;
 }
 
 // Выполнение крафта (POST /api/player/<id>/craft)
@@ -1893,10 +1946,12 @@ function init() {
     });
 
     // Модалка выбора материала для крафта
-    document.getElementById('btnCraftMaterialClose').addEventListener('click', closeCraftMaterialModal);
+    document.getElementById('btnCraftMaterialClose').addEventListener('click', cancelCraftMaterial);
+    document.getElementById('btnCraftMaterialChoose').addEventListener('click', confirmCraftMaterial);
+    document.getElementById('btnCraftMaterialCancel').addEventListener('click', cancelCraftMaterial);
     document.getElementById('craftMaterialModal').addEventListener('click', (event) => {
         if (event.target === document.getElementById('craftMaterialModal')) {
-            closeCraftMaterialModal();
+            cancelCraftMaterial();
         }
     });
 
