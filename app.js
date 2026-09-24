@@ -73,6 +73,22 @@ const CRAFT_CATEGORY_LABELS = {
     leather: 'Шкура',
 };
 
+// Русские названия материалов (для превью разборки по кодам из player_items)
+const MATERIAL_NAMES = {
+    dry_wood: 'Сухое дерево',
+    iron_ingot: 'Слиток железа',
+    stone: 'Камень',
+    herb_qi: 'Трава ци',
+    wolf_pelt: 'Шкура волка',
+    wolf_fang: 'Клык волка',
+    spirit_crystal: 'Кристалл духа',
+    fire_core: 'Ядро пламени',
+    water_core: 'Водное ядро',
+    wood_core: 'Древесное ядро',
+    metal_core: 'Металлическое ядро',
+    earth_core: 'Земляное ядро',
+};
+
 // Подписи стихий
 const CRAFT_ELEMENT_LABELS = {
     fire: 'Огонь',
@@ -903,6 +919,26 @@ function openItemModal(inventory, code, instanceId) {
         ? '<div><span class="muted">Статус</span><span>🔒 Надето</span></div>'
         : '';
 
+    // Активный экземпляр: материалы крафта (превью разборки) и флаг «надето»
+    const activeInst = activeInstanceId
+        ? (item.instances || []).find((i) => i.id === activeInstanceId)
+        : null;
+    const materials = (activeInst && activeInst.materials) || {};
+    const materialCodes = Object.keys(materials);
+    const isEquipped = !!activeInst && activeInst.equipped;
+    const disassemblable = !!activeInst && materialCodes.length > 0 && !isEquipped;
+
+    // Превью разборки: возврат 50% материалов, округление вверх (как на сервере)
+    let disassembleRow = '';
+    if (materialCodes.length) {
+        const parts = materialCodes.map((code) => {
+            const name = MATERIAL_NAMES[code] || code;
+            const count = Math.max(1, Math.ceil(materials[code] * 0.5));
+            return `${esc(name)}×${count}`;
+        });
+        disassembleRow = `<div><span class="muted">Разборка</span><span>${parts.join(', ')}</span></div>`;
+    }
+
     document.getElementById('modalTitle').textContent = item.name;
     document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${item.icon}</div>
@@ -911,12 +947,20 @@ function openItemModal(inventory, code, instanceId) {
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
             ${countLine}
             ${equippedText}
+            ${disassembleRow}
             ${bonusRow}
         </div>
     `;
 
     document.getElementById('modalUse').textContent = equipable ? 'Надеть' : 'Использовать';
     document.getElementById('modalUse').classList.toggle('hidden', !(usable || equipable));
+
+    // Действия с предметом: разобрать (крафченый) и удалить (не надетый)
+    document.getElementById('modalDisassemble').classList.toggle('hidden', !disassemblable);
+    document.getElementById('modalDelete').classList.toggle('hidden', isEquipped);
+    document.getElementById('modalActions').classList.toggle(
+        'hidden', !disassemblable && isEquipped
+    );
     openModal();
 }
 
@@ -1104,6 +1148,82 @@ async function usePotion() {
     }
 }
 
+// Разборка предмета (POST /api/player/<id>/disassemble)
+async function disassembleItemAction() {
+    if (!activeItemCode || !activeInstanceId) {
+        return;
+    }
+    const item = inventoryData && inventoryData.inventory[activeItemCode];
+    const name = item ? item.name : activeItemCode;
+    if (!confirm(`Разобрать «${name}»? Материалы вернутся частично (50%).`)) {
+        return;
+    }
+
+    try {
+        const data = await apiFetch(`/player/${userId}/disassemble`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instance_id: activeInstanceId }),
+        });
+        closeModal();
+        if (data.success) {
+            if (data.inventory) {
+                inventoryData = data.inventory;
+            }
+            renderInventoryPanel();
+            const parts = (data.materials || [])
+                .map((material) => `${material.name}×${material.count}`)
+                .join(', ');
+            showToast(`⚒️ Разобрано: ${parts}`);
+        }
+    } catch (error) {
+        closeModal();
+        const messages = {
+            resting: 'Ты восстанавливаешься',
+            disassemble_failed: 'Не удалось разобрать',
+            'player not found': 'Игрок не найден',
+        };
+        showToast(messages[error.code] || error.message || 'Не удалось разобрать');
+    }
+}
+
+// Удаление предмета (POST /api/player/<id>/delete_item)
+async function deleteItemAction() {
+    const item = inventoryData && inventoryData.inventory[activeItemCode];
+    const name = item ? item.name : (activeItemCode || 'предмет');
+    if (!confirm(`Удалить «${name}»? Это действие необратимо.`)) {
+        return;
+    }
+
+    const body = activeInstanceId
+        ? { instance_id: activeInstanceId }
+        : { item_code: activeItemCode, count: 1 };
+
+    try {
+        const data = await apiFetch(`/player/${userId}/delete_item`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        closeModal();
+        if (data.success) {
+            if (data.inventory) {
+                inventoryData = data.inventory;
+            }
+            renderInventoryPanel();
+            showToast('🗑️ Предмет удалён');
+        }
+    } catch (error) {
+        closeModal();
+        const messages = {
+            resting: 'Ты восстанавливаешься',
+            delete_failed: 'Не удалось удалить',
+            'player not found': 'Игрок не найден',
+        };
+        showToast(messages[error.code] || error.message || 'Не удалось удалить');
+    }
+}
+
 // ---------- Экран: Техники ----------
 function renderTechniques() {
     const data = techniquesData;
@@ -1189,6 +1309,7 @@ function openModal() {
 
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
+    document.getElementById('modalActions').classList.add('hidden');
     activeItemCode = null;
     activeInstanceId = null;
     activeEquipSlot = null;
@@ -1755,6 +1876,8 @@ function init() {
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));
     document.getElementById('btnModalClose').addEventListener('click', closeModal);
     document.getElementById('modalUse').addEventListener('click', onModalUse);
+    document.getElementById('modalDisassemble').addEventListener('click', disassembleItemAction);
+    document.getElementById('modalDelete').addEventListener('click', deleteItemAction);
 
     // Подготовка к прорыву: кнопки формы
     document.getElementById('btnStartPrep').addEventListener('click', startPreparation);

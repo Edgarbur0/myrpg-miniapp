@@ -1647,6 +1647,25 @@ body {
 
 #modalUse {
     width: 100%;
+    margin-bottom: 8px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.modal-actions .btn {
+    flex: 1;
+}
+
+.btn-danger {
+    background: #b3403f;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    filter: brightness(1.08);
 }
 
 /* ================= НЕБЕСНАЯ КАРА ================= */
