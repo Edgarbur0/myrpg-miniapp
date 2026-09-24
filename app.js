@@ -130,6 +130,7 @@ let prepCores = [];
 let prepSelectedCore = '';
 let prepFormOpen = false;            // открыта ли форма подготовки
 let craftRecipes = [];              // рецепты крафта (GET /api/crafts)
+let craftLoading = false;           // идёт загрузка списка рецептов (для loading-state)
 let activeCraftCode = null;         // выбранный рецепт (детали справа)
 let craftDetail = null;             // детали рецепта (GET /api/crafts/<code>)
 let craftSelections = {};           // 'slot_1' | 'slot_2' -> код материала
@@ -1323,11 +1324,15 @@ function closeModal() {
 
 // Загрузка рецептов (при открытии вкладки)
 async function loadCrafts() {
+    craftLoading = true;
+    renderCrafts();
     try {
         const data = await apiFetch(`/crafts`);
         craftRecipes = data.crafts || [];
     } catch (error) {
         craftRecipes = [];
+    } finally {
+        craftLoading = false;
     }
     // Перезагружаем детали выбранного рецепта, если он открыт
     if (activeCraftCode) {
@@ -1340,11 +1345,18 @@ async function loadCrafts() {
 function renderCrafts() {
     const box = document.getElementById('craftRecipes');
     const empty = document.getElementById('craftEmpty');
-    empty.classList.toggle('hidden', craftRecipes.length > 0);
+    empty.classList.toggle('hidden', craftRecipes.length > 0 || craftLoading);
+
+    // Пока грузится список — не показываем «рецептов нет»
+    if (craftLoading) {
+        box.innerHTML = '<div class="craft-loading">⏳ Загрузка рецептов…</div>';
+        return;
+    }
 
     box.innerHTML = craftRecipes.map((craft) => `
         <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
-                type="button" data-code="${esc(craft.code)}">
+                type="button" data-code="${esc(craft.code)}"
+                title="${esc(craft.description || '')}">
             <span class="craft-recipe-icon">🔨</span>
             <span class="craft-recipe-info">
                 <span class="craft-recipe-name">${esc(craft.name)}</span>
@@ -1376,8 +1388,12 @@ function renderCraftDetail() {
 
     const resultItem = craftDetail.result_item || {};
     const baseStats = recipe.result_stats || {};
-    // Слоты рецепта: от 1 до 5 (у «Ядра стихий» все 5 слотов — ядра)
-    const slotNums = [1, 2, 3, 4, 5];
+    // Слоты рецепта: рисуем ТОЛЬКО объявленные — у обычных рецептов их 3,
+    // у «Ядра стихий» все 5. Пустые слоты 4–5 не показываем (фикс раунда 39).
+    const slotNums = [1, 2, 3, 4, 5].filter((n) => {
+        const cats = recipe[`slot_${n}_categories`];
+        return Array.isArray(cats) && cats.length > 0;
+    });
     const slotsDef = slotNums.map((n) => ({
         key: `slot_${n}`,
         cats: recipe[`slot_${n}_categories`] || [],
@@ -1406,12 +1422,21 @@ function renderCraftDetail() {
     const aggregateReqs = craftAggregateRequirements(...sels);
     const reqHtml = aggregateReqs.length ? `
         <div class="tinkers-req-title">Требования материалов (мягкий штраф при несоответствии):</div>
-        ${aggregateReqs.map((req) => `
+        ${aggregateReqs.map((req) => {
+            // Прогресс требования: сила 3/5 → полоска с заполнением
+            const percent = req.met
+                ? 100
+                : Math.min(100, Math.round((req.value || 0) / Math.max(1, req.required) * 100));
+            return `
             <div class="tinkers-req ${req.met ? 'tinkers-req-met' : 'tinkers-req-unmet'}">
                 <span>${req.met ? '✅' : '⚠️'}</span>
                 <span>${REQUIREMENT_LABELS[req.key] || req.key}: ${req.value}/${req.required}</span>
                 ${req.met ? '' : '<span class="tinkers-req-penalty">штраф</span>'}
-            </div>`).join('')}
+                <span class="tinkers-req-bar">
+                    <span class="tinkers-req-bar-fill${req.met ? ' ok' : ''}" style="width:${percent}%"></span>
+                </span>
+            </div>`;
+        }).join('')}
         <div class="tinkers-req-note">Невыполненные требования снизят характеристики предмета.</div>`
         : '';
 
@@ -1739,6 +1764,13 @@ async function openCraft(code) {
 }
 
 async function loadCraftDetail(code) {
+    const detailBox = document.getElementById('craftDetail');
+    const hint = document.getElementById('craftDetailHint');
+    if (hint) {
+        hint.classList.add('hidden');
+    }
+    // Показываем loading вместо пустого блока
+    detailBox.innerHTML = '<div class="craft-loading">⏳ Загрузка рецепта…</div>';
     try {
         const data = await apiFetch(`/crafts/${code}`);
         craftDetail = data;
@@ -1890,6 +1922,12 @@ function closeCraftMaterialModal() {
 
 // Выполнение крафта (POST /api/player/<id>/craft)
 async function doCraft2() {
+    // Блокируем кнопку «Создать» на время запроса (loading-state)
+    const btn = document.getElementById('btnDoCraft2');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Создаю…';
+    }
     try {
         const data = await apiFetch(`/player/${userId}/craft`, {
             method: 'POST',
@@ -1922,6 +1960,8 @@ async function doCraft2() {
         await loadCraftDetail(activeCraftCode);
     } catch (error) {
         showToast(error.code || 'Не удалось создать предмет');
+        // Возвращаем кнопке прежнее состояние (selections не тронуты)
+        renderCraftDetail();
     }
 }
 

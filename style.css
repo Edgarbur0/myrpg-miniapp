@@ -31,6 +31,7 @@
 
 html, body {
     height: 100%;
+    overflow-x: hidden; /* защита от горизонтального скролла (раунд 39) */
 }
 
 body {
@@ -1892,9 +1893,12 @@ body {
 
 .craft-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr) — ключевой фикс: без него грид-трек расширяется
+       за контейнер длинным контентом (мин-размер по min-content) */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
     align-items: start;
+    width: 100%;
 }
 
 .craft-column {
@@ -1906,6 +1910,8 @@ body {
     flex-direction: column;
     gap: 10px;
     min-height: 260px;
+    min-width: 0;       /* не даём колонке раздавить соседнюю */
+    overflow: hidden;   /* страховка: длинный контент не вылезает за рамку */
 }
 
 .craft-column-title {
@@ -1961,6 +1967,10 @@ body {
 .craft-recipe-name {
     font-weight: 700;
     color: var(--accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .craft-recipe-desc {
@@ -1993,6 +2003,7 @@ body {
 
 .craft-detail-icon {
     font-size: 36px;
+    flex-shrink: 0;
 }
 
 .craft-detail-title {
@@ -2006,23 +2017,32 @@ body {
     font-size: 18px;
     font-weight: 700;
     color: var(--text);
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .craft-detail-desc {
     font-size: 13px;
     color: var(--muted);
+    /* длинное описание (напр. «Ядро стихий») переносится, а не растягивает блок */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .craft-detail-slots {
-    display: flex;
-    flex-direction: column;
+    /* сетка слотов: 5 слотов «Ядра стихий» умещаются без растягивания */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 12px;
+    width: 100%;
 }
 
 .craft-slot {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    min-width: 0;
 }
 
 .craft-slot-label {
@@ -2035,6 +2055,8 @@ body {
     align-items: center;
     gap: 10px;
     width: 100%;
+    min-width: 0;
+    min-height: 64px;
     padding: 12px 14px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px dashed var(--border);
@@ -2042,6 +2064,7 @@ body {
     color: var(--text);
     cursor: pointer;
     text-align: left;
+    overflow: hidden;
 }
 
 .craft-slot-btn:hover {
@@ -2066,11 +2089,17 @@ body {
 .craft-material-name {
     font-size: 14px;
     flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .craft-material-count {
     font-size: 13px;
     color: var(--muted);
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .craft-detail-bonuses {
@@ -2100,6 +2129,7 @@ body {
 
 .craft-bonus-label {
     color: var(--muted);
+    min-width: 0;
 }
 
 .craft-bonus-value {
@@ -2140,12 +2170,14 @@ body {
     font-weight: 700;
     color: var(--accent);
     margin-bottom: 4px;
+    overflow-wrap: break-word;
 }
 
 .craft-combo-desc {
     font-size: 12px;
     color: var(--muted);
     margin-bottom: 8px;
+    overflow-wrap: break-word;
 }
 
 .craft-combo-chips {
@@ -2198,6 +2230,53 @@ body {
     text-align: center;
     color: var(--muted);
     font-size: 14px;
+}
+
+/* Состояние загрузки списка/деталей рецепта */
+.craft-loading {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* Справочник «Как крафтить» (раунд 39) */
+.craft-help {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+}
+
+.craft-help summary {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+
+.craft-help summary::-webkit-details-marker {
+    display: none;
+}
+
+.craft-help-body {
+    display: grid;
+    gap: 8px;
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    overflow-wrap: break-word;
+}
+
+.craft-help-body b {
+    color: var(--text);
 }
 
 /* ------ Модалка выбора материала ------ */
@@ -2341,11 +2420,36 @@ body {
 
 @media (max-width: 640px) {
     .craft-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .craft-column {
         min-height: 0;
+    }
+
+    /* 5 слотов «Ядра стихий» на мобильном — 3 в ряд × 2 ряда */
+    .craft-detail-slots {
+        grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+        gap: 8px;
+    }
+
+    .craft-slot-btn {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 4px;
+        min-height: 74px;
+        padding: 10px 8px;
+    }
+
+    .craft-slot-label {
+        word-break: break-word;
+    }
+
+    .craft-material-name {
+        white-space: normal;
+        word-break: break-word;
     }
 }
 
@@ -2367,6 +2471,7 @@ body {
 .tinkers-req {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
     font-size: 13px;
     padding: 6px 10px;
@@ -2388,6 +2493,26 @@ body {
     margin-left: auto;
     font-size: 11px;
     color: #ef4444;
+}
+
+/* Прогресс требования (например, сила 3/5) — мини-полоска */
+.tinkers-req-bar {
+    flex-basis: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.tinkers-req-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--hp);
+    transition: width var(--transition);
+}
+
+.tinkers-req-bar-fill.ok {
+    background: var(--xp);
 }
 
 .tinkers-req-note {
