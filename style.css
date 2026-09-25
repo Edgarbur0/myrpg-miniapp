@@ -1517,6 +1517,31 @@ body {
     flex-shrink: 0;
 }
 
+.tech-item.equipped {
+    border-color: var(--accent);
+}
+
+.tech-badge {
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.tech-badge-equipped {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.modal-info {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .tech-empty {
     text-align: center;
     padding: 24px 0;

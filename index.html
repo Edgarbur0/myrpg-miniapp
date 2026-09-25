@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=49">
+    <link rel="stylesheet" href="style.css?v=50">
 </head>
 <body>
 
@@ -251,9 +251,18 @@
             <div class="panel-title-row">
                 <h2 class="panel-title">Техники</h2>
             </div>
-            <div class="tech-settings">
-                <button class="btn btn-outline" id="btnSaveTech" type="button">💾 Сохранить</button>
+
+            <!-- Ци техник: запас энергии для боевых техник -->
+            <div class="bar-block">
+                <div class="bar-label">
+                    <span>🌀 Ци техник</span>
+                    <span id="techQiText" class="bar-values">0 / 0</span>
+                </div>
+                <div class="bar">
+                    <div id="techQiFill" class="bar-fill fill-qi"></div>
+                </div>
             </div>
+
             <div id="techSlots" class="tech-slots">
                 <div class="tech-slot empty">—</div>
             </div>
@@ -337,5 +346,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=49"></script></body>
+    <script src="app.js?v=50"></script></body>
 </html>
