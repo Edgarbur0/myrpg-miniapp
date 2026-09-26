@@ -105,6 +105,7 @@ const CRAFT_ELEMENT_LABELS = {
 // Подписи основных типов предметов
 const ITEM_TYPE_LABELS = {
     consumable: 'Расходник',
+    scroll: 'Свиток техники',
     equipment: 'Экипировка',
     material: 'Материал',
     currency: 'Валюта',
@@ -125,6 +126,7 @@ let activeItemCode = null;
 let activeInstanceId = null;        // выбранный экземпляр экипировки (для надевания)
 let activeEquipSlot = null;        // слот, открытый для снятия (модалка экипировки)
 let activeTechniqueCode = null;    // техника в модалке (для Надеть/Снять)
+let activeScrollCode = null;       // свиток в модалке (для Изучить)
 let breakthroughForecast = null;     // прогноз прорыва (GET /breakthrough/forecast)
 // Подготовка к прорыву: списки и выбранные значения (переживают перерисовку)
 let prepCores = [];
@@ -893,7 +895,11 @@ function openItemModal(inventory, code, instanceId) {
 
     activeItemCode = code;
     activeInstanceId = instanceId ? Number(instanceId) : null;
-    const usable = item.type === 'consumable';
+    // Свиток техники — отдельное действие (изучить), зелье — лечение
+    const isScroll = !!(item.technique_code || item.type === 'scroll');
+    const scrollTechnique = scrollTechniqueCode(item);
+    const learnable = isScroll && !!scrollTechnique;
+    const usable = !isScroll && item.type === 'consumable';
     const equipable = item.type === 'equipment';
 
     // Бонусы конкретного экземпляра (или первого из player_items),
@@ -958,6 +964,17 @@ function openItemModal(inventory, code, instanceId) {
                 </div>` : ''}
         </div>` : '';
 
+    // Свиток: какую технику он даёт и изучена ли она уже
+    const learnedTech = (techniquesData && techniquesData.techniques || [])
+        .find((technique) => technique.code === scrollTechnique);
+    const scrollRow = isScroll
+        ? `<div><span class="muted">Техника</span><span>${
+            scrollTechnique
+                ? `${esc(scrollTechnique)}${learnedTech ? ' ✅ уже изучена' : ''}`
+                : 'неизвестна'
+        }</span></div>`
+        : '';
+
     document.getElementById('modalTitle').textContent = item.name;
     document.getElementById('modalBody').innerHTML = `
         <div class="modal-icon">${item.icon}</div>
@@ -966,14 +983,24 @@ function openItemModal(inventory, code, instanceId) {
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
             ${countLine}
             ${equippedText}
+            ${scrollRow}
             ${disassembleRow}
             ${comboRow}
             ${bonusRow}
         </div>
     `;
 
-    document.getElementById('modalUse').textContent = equipable ? 'Надеть' : 'Использовать';
-    document.getElementById('modalUse').classList.toggle('hidden', !(usable || equipable));
+    if (learnable) {
+        activeScrollCode = code;
+        document.getElementById('modalUse').textContent = learnedTech ? 'Изучена' : 'Изучить';
+        document.getElementById('modalUse').classList.remove('hidden');
+        document.getElementById('modalUse').classList.toggle('disabled', !!learnedTech);
+    } else {
+        activeScrollCode = null;
+        document.getElementById('modalUse').textContent = equipable ? 'Надеть' : 'Использовать';
+        document.getElementById('modalUse').classList.toggle('hidden', !(usable || equipable));
+        document.getElementById('modalUse').classList.remove('disabled');
+    }
 
     // Действия с предметом: разобрать (крафченый) и удалить (не надетый)
     document.getElementById('modalDisassemble').classList.toggle('hidden', !disassemblable);
@@ -994,12 +1021,74 @@ function itemComboEffectLabel(effect) {
     return `✨ ${effect.type} +${value}`;
 }
 
-// Подпись боевого эффекта техники (extra_attack / damage_reduction / bleed)
+// Подписи боевых эффектов техники (раунд 44: полный набор из game_logic)
 function techniqueEffectLabel(effect) {
-    if (effect.type === 'extra_attack') return `⚔️ Доп. атака ×${effect.count || 1}`;
-    if (effect.type === 'damage_reduction') return `🛡️ Поглощает ${effect.value} урона`;
-    if (effect.type === 'bleed') return `🩸 Кровотечение ${effect.value} HP, ${effect.duration || 0} ход.`;
-    return itemComboEffectLabel(effect);
+    const value = effect.value;
+    const dur = effect.duration ? `, ${effect.duration} ход.` : '';
+    const chance = effect.chance ? ` (${effect.chance}%)` : '';
+    if (effect.type === 'damage') return `⚔️ Урон ${effect.min ?? value}–${effect.max ?? value}`;
+    if (effect.type === 'aoe') return '🌐 По всем врагам';
+    if (effect.type === 'heal') return `💚 Лечение ${value}`;
+    if (effect.type === 'burn') return `🔥 Ожог ${effect.power} HP/ход${dur}`;
+    if (effect.type === 'poison') return `☠️ Яд ${effect.power} HP/ход${dur}`;
+    if (effect.type === 'bleed') return `🩸 Кровотечение ${effect.power} HP/ход${dur}`;
+    if (effect.type === 'stun') return `💫 Оглушение${chance}${dur}`;
+    if (effect.type === 'freeze') return `🧊 Заморозка${chance}${dur}`;
+    if (effect.type === 'slow') return `🐌 Замедление −${Math.round(value * 100)}% урона${dur}`;
+    if (effect.type === 'armor') return `🛡️ Броня +${value}${dur}`;
+    if (effect.type === 'damage_reduction') return `🛡️ Поглощает ${value} урона${dur}`;
+    if (effect.type === 'buff_attack') return `⚔️ Атака +${Math.round(value * 100)}%${dur}`;
+    if (effect.type === 'regen') return `💚 Регенерация ${value} HP/ход${dur}`;
+    if (effect.type === 'immunity') {
+        const blocks = effect.blocks || [];
+        const names = blocks.map((code) => AFFINITY_EFFECT_LABELS[code] || code).join(', ');
+        return `✨ Иммунитет: ${names || '—'}${dur}`;
+    }
+    if (effect.type === 'extra_attack') return `⚔️ Доп. атака ×${effect.count || value || 1}`;
+    if (effect.type === 'dispel') return '💨 Снятие эффектов';
+    return `✨ ${effect.type} ${value ?? ''}`.trim();
+}
+
+// Подписи защитных эффектов для «Железной воли»
+const AFFINITY_EFFECT_LABELS = {
+    poison: 'яду',
+    bleed: 'кровотечения',
+    stun: 'оглушения',
+    freeze: 'заморозки',
+    slow: 'замедления',
+    burn: 'ожога',
+};
+
+// Какая техника зашита в свиток: из предмета, из каталога или по коду scroll_<техника>
+function scrollTechniqueCode(item) {
+    if (!item) {
+        return '';
+    }
+    if (item.technique_code) {
+        return item.technique_code;
+    }
+    const catalog = (techniquesData && techniquesData.catalog) || [];
+    const match = catalog.find((technique) => item.code === `scroll_${technique.code}`);
+    if (match) {
+        return match.code;
+    }
+    return item.code.indexOf('scroll_') === 0 ? item.code.slice(7) : '';
+}
+
+// Чипы требований техники (✅ выполнено / ⚠️ не хватает)
+function techniqueRequirementsChips(technique) {
+    const requirements = technique.requirements || [];
+    if (!requirements.length) {
+        return '';
+    }
+    return `<div class="item-combo-chips">
+        ${requirements.map((req) => {
+            const ok = req.met;
+            return `<span class="item-combo-chip ${ok ? 'req-ok' : 'req-warn'}">
+                ${ok ? '✅' : '⚠️'} ${esc(req.label)} ${esc(req.value)}/${esc(req.required)}
+            </span>`;
+        }).join('')}
+    </div>`;
 }
 
 // ---------- Экипировка ----------
@@ -1147,6 +1236,11 @@ async function unequipItem(slot) {
 
 // Кнопка модалки: использовать зелье / надеть / снять
 async function onModalUse() {
+    // Свиток техники — изучить (POST /api/player/<id>/techniques/learn)
+    if (activeScrollCode) {
+        await learnTechniqueFromScroll(activeScrollCode);
+        return;
+    }
     // Сначала снятие — activeEquipSlot задействован только модалкой экипировки
     if (activeEquipSlot) {
         await unequipItem(activeEquipSlot);
@@ -1165,6 +1259,42 @@ async function onModalUse() {
         return;
     }
     await usePotion();
+}
+
+// Изучение техники из свитка (POST /api/player/<id>/techniques/learn)
+async function learnTechniqueFromScroll(itemCode) {
+    try {
+        const data = await apiFetch(`/player/${userId}/techniques/learn`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_code: itemCode }),
+        });
+        if (data.success) {
+            if (data.inventory) {
+                inventoryData = data.inventory;
+            }
+            if (data.techniques) {
+                techniquesData = data.techniques;
+            }
+            renderInventoryPanel();
+            renderTechniques();
+        }
+        closeModal();
+        showToast(data.message || '📜 Техника изучена');
+    } catch (error) {
+        closeModal();
+        renderTechniques();
+        const messages = {
+            already_learned: 'Эта техника уже изучена',
+            not_a_scroll: 'Это не свиток с техникой',
+            no_technique: 'В свитке не указана техника',
+            no_scroll: 'Свитка нет в инвентаре',
+            technique_not_found: 'Техника из свитка не найдена',
+            player_not_found: 'Игрок не найден',
+            resting: 'Ты восстанавливаешься',
+        };
+        showToast(messages[error.code] || error.message || 'Не удалось изучить технику');
+    }
 }
 
 // Надеть/снять боевую технику (POST /api/player/<id>/techniques/equip или /unequip)
@@ -1388,6 +1518,58 @@ function renderTechniques() {
     list.querySelectorAll('.tech-item').forEach((row) => {
         row.addEventListener('click', () => openTechniqueModal(techniques, row.dataset.code));
     });
+
+    renderTechniqueCatalog();
+}
+
+// Каталог всех техник мира: изученные и заблокированные
+function renderTechniqueCatalog() {
+    const box = document.getElementById('techCatalog');
+    if (!box) {
+        return;
+    }
+    const catalog = (techniquesData && techniquesData.catalog) || [];
+    if (!catalog.length) {
+        box.classList.add('hidden');
+        return;
+    }
+    box.classList.remove('hidden');
+    box.innerHTML = catalog.map((technique) => {
+        const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
+        const learned = technique.is_learned;
+        const met = technique.requirements_met;
+        const classes = ['tech-item', 'tech-catalog-item'];
+        if (learned) {
+            classes.push('learned');
+        } else if (met) {
+            classes.push('available');
+        } else {
+            classes.push('locked');
+        }
+        // Недоступно: сначала закрыто, но выполнимо при выполнении требований
+        const status = learned
+            ? '<span class="tech-badge tech-badge-equipped">✅ Изучена</span>'
+            : (met ? '📜 Ищи свиток' : '🔒');
+        const sub = [
+            technique.required_affinity
+                ? `Сродство ${esc(technique.required_affinity)}`
+                : 'Без сродства',
+            technique.qi_cost ? `🌀 Ци ${esc(technique.qi_cost)}` : '',
+        ].filter(Boolean).join(' · ');
+        return `
+        <button class="${classes.join(' ')}" data-code="${esc(technique.code)}" type="button">
+            <span class="tech-item-icon">${icon}</span>
+            <span class="tech-item-meta">
+                <span class="tech-item-name">${esc(technique.name)}</span>
+                <span class="tech-item-sub">${sub}</span>
+            </span>
+            <span class="tech-item-level">${status}</span>
+        </button>`;
+    }).join('');
+
+    box.querySelectorAll('.tech-item').forEach((row) => {
+        row.addEventListener('click', () => openTechniqueModal(catalog, row.dataset.code));
+    });
 }
 
 function openTechniqueModal(techniques, code) {
@@ -1404,6 +1586,19 @@ function openTechniqueModal(techniques, code) {
         </div>`
         : '';
 
+    // Урон техники: из диапазона с сервера (учитывает уровень игрока)
+    let damageRow = '';
+    if (technique.damage_max) {
+        damageRow = `<div><span class="muted">Урон</span><span>${esc(technique.damage_min)}–${esc(technique.damage_max)}</span></div>`;
+    }
+    if (technique.base_heal) {
+        damageRow += `<div><span class="muted">Лечение</span><span>${esc(technique.base_heal)}</span></div>`;
+    }
+    const affinityRow = technique.required_affinity
+        ? `<div><span class="muted">Сродство</span><span>${esc(technique.required_affinity)}</span></div>`
+        : '';
+    const requirementsChips = techniqueRequirementsChips(technique);
+
     activeTechniqueCode = technique.code;
     activeItemCode = null;
     activeEquipSlot = null;
@@ -1415,15 +1610,23 @@ function openTechniqueModal(techniques, code) {
         <div class="modal-desc">
             <div><span class="muted">Элемент</span><span>${esc(technique.element || '—')}</span></div>
             <div><span class="muted">Тип</span><span>${esc(technique.tech_type || '—')}</span></div>
-            <div><span class="muted">Уровень</span><span>${esc(technique.level)}</span></div>
+            ${technique.is_learned
+                ? `<div><span class="muted">Уровень</span><span>${esc(technique.level)}</span></div>`
+                : '<div><span class="muted">Статус</span><span>Не изучена</span></div>'}
             <div><span class="muted">Стоимость</span><span>${technique.qi_cost ? `🌀 Ци ${esc(technique.qi_cost)}` : '—'}</span></div>
-            <div><span class="muted">Экипирована</span><span>${technique.is_equipped ? 'да ⚔️' : 'нет'}</span></div>
+            ${damageRow}
+            ${affinityRow}
+            ${technique.is_learned
+                ? `<div><span class="muted">Экипирована</span><span>${technique.is_equipped ? 'да ⚔️' : 'нет'}</span></div>`
+                : ''}
         </div>
         ${technique.description ? `<div class="modal-info">${esc(technique.description)}</div>` : ''}
+        ${requirementsChips}
         ${effectChips}
     `;
-    document.getElementById('modalUse').textContent = technique.is_equipped ? 'Снять' : 'Надеть';
-    document.getElementById('modalUse').classList.remove('hidden');
+    const useButton = document.getElementById('modalUse');
+    useButton.textContent = technique.is_equipped ? 'Снять' : 'Надеть';
+    useButton.classList.toggle('hidden', !technique.is_learned);
     openModal();
 }
 
@@ -1439,6 +1642,7 @@ function closeModal() {
     activeInstanceId = null;
     activeEquipSlot = null;
     activeTechniqueCode = null;
+    activeScrollCode = null;
 }
 
 // ---------- Экран: Крафт ----------
@@ -2097,7 +2301,7 @@ async function loadAll(showLoadingIndicator = true) {
         const [player, inventory, techniques, equipment] = await Promise.all([
             apiFetch(`/player/${id}`),
             apiFetch(`/player/${id}/inventory`),
-            apiFetch(`/player/${id}/techniques`),
+            apiFetch(`/player/${id}/techniques?all=1`),
             apiFetch(`/player/${id}/equipment`),
         ]);
 

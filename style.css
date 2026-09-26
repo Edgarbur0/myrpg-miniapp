@@ -1535,6 +1535,52 @@ body {
     border: 1px solid var(--accent);
 }
 
+/* Каталог техник: изученные, доступные и заблокированные */
+.tech-hint {
+    margin: 6px 0 10px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.tech-catalog {
+    margin-top: 4px;
+}
+
+.tech-catalog-item.locked {
+    opacity: 0.55;
+}
+
+.tech-catalog-item.locked .tech-item-icon {
+    filter: grayscale(1);
+}
+
+.tech-catalog-item.available {
+    border-color: var(--accent-soft);
+    border-style: dashed;
+}
+
+.tech-catalog-item.learned {
+    border-color: var(--accent);
+}
+
+/* Чипы требований техники */
+.item-combo-chip.req-ok {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.item-combo-chip.req-warn {
+    border-color: #d97706;
+    color: #d97706;
+}
+
+/* Недоступная кнопка модалки (например, уже изученная техника) */
+.modal-actions .btn.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 .modal-info {
     margin-top: 10px;
     color: var(--muted);
