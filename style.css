@@ -2834,3 +2834,62 @@ body {
         right: 3px;
     }
 }
+
+/* ================= РАУНД 51: предметы без рамок =================
+   Инвентарь — чистые картинки без рамок: рамка убрана полностью
+   (border: none выигрывает у правил раунда 50 по порядку в файле),
+   фон прозрачный, картинка крупная — до 90% плитки. Единственный
+   маркер — красная подсветка надетого (box-shadow, не border, чтобы
+   не прыгал layout) + бейдж-замок 🔒 (уже рисует JS). Счётчик ×N
+   из раунда 50 не трогаем — он уже в правом нижнем углу. */
+
+/* Плитки инвентаря и слоты экипировки — без рамок и фона */
+.item,
+.equip-slot,
+.equip-slot.filled,
+.tile-empty {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Hover — лёгкое увеличение вместо подсветки рамки */
+.item:hover {
+    border: none;
+    box-shadow: none;
+    transform: scale(1.05);
+}
+
+.item.active {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    transform: scale(1.05);
+}
+
+/* Надетый экземпляр — красная подсветка (box-shadow вместо border) */
+.item.item-equipped {
+    border: none;
+    box-shadow: 0 0 0 2px #e74c3c, 0 0 10px rgba(231, 76, 60, 0.35);
+}
+
+/* Пустой слот — тоже без пунктира, просто приглушённая иконка */
+.equip-slot.empty {
+    border: none;
+    background: transparent;
+}
+
+/* Картинка — крупная, до 90% плитки */
+.item .item-img {
+    width: 90%;
+    max-width: 90%;
+    max-height: 90%;
+}
+
+/* Мобильный (≤640px): картинка тоже крупная */
+@media (max-width: 640px) {
+    .item .item-img {
+        max-width: 90%;
+        max-height: 90%;
+    }
+}
