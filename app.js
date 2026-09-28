@@ -560,6 +560,97 @@ function renderCultivation() {
     }
 }
 
+// ================= ФОНЫ (раунд 48) =================
+// Фон приложения приходит из GET /api/settings (ключ background_url),
+// фон локации — из locations.image_url внутри ответа игрока. Оба адреса
+// хранятся в БД и заливаются через админку, поэтому клиент не должен
+// падать, если фон пустой или не загрузился: во всех случаях есть
+// градиентный запасной вариант.
+
+// Градиенты по биому локации — рисуются, когда своей картинки нет.
+const LOCATION_BIOME_GRADIENTS = {
+    forest: 'linear-gradient(165deg, #10281f 0%, #0d1a1c 60%, #0a1012 100%)',
+    cave: 'linear-gradient(170deg, #1b1726 0%, #120f18 60%, #0a0810 100%)',
+    mountains: 'linear-gradient(170deg, #16233c 0%, #101726 55%, #0a0d16 100%)',
+    river: 'linear-gradient(170deg, #122a3a 0%, #0e1d29 55%, #0a1017 100%)',
+    volcano: 'linear-gradient(170deg, #2c1210 0%, #1c0d0e 55%, #0c0709 100%)',
+    settlement: 'linear-gradient(170deg, #2a2416 0%, #1c1810 55%, #100e0a 100%)',
+    wilderness: 'linear-gradient(170deg, #1a1c2c 0%, #12131f 55%, #0b0c13 100%)',
+    dungeon: 'linear-gradient(170deg, #211726 0%, #16101b 55%, #0c0910 100%)',
+};
+
+const DEFAULT_LOCATION_GRADIENT =
+    'linear-gradient(170deg, #1c1a2c 0%, #141323 55%, #0b0a12 100%)';
+
+// Готовит адрес для CSS url(). Кавычки и обратный слэш убираем всегда,
+// закрывающую скобку — тоже: иначе значение вырвется из url() и сломает
+// весь фон. Адрес и так приходит нормализованным с сервера, но клиент
+// не должен зависеть от этого.
+function cssUrl(value) {
+    const clean = String(value || '').replace(/["\\]/g, '');
+    return clean.split(')').join('');
+}
+
+// Ставит --app-bg на <body>. Фон-картинка кладётся первым слоем, под ним
+// остаётся фирменный градиент — так текст остаётся читаемым на светлой
+// картинке, а пустое место не выглядит дырой.
+function applyAppBackground(url) {
+    const body = document.body;
+    if (!body) {
+        return;
+    }
+    const clean = cssUrl(url).trim();
+    if (!clean) {
+        body.style.removeProperty('--app-bg');
+        return;
+    }
+    const fallback = getComputedStyle(document.documentElement)
+        .getPropertyValue('--app-bg');
+    body.style.setProperty(
+        '--app-bg',
+        `url("${clean}"), ${fallback || DEFAULT_LOCATION_GRADIENT}`
+    );
+}
+
+// Ставит фон карточки локации: картинка из БД либо градиент по биому.
+function applyLocationBackground(box, location) {
+    if (!box) {
+        return;
+    }
+    const biome = String((location && location.biome) || '').toLowerCase();
+    const type = String((location && location.location_type) || '').toLowerCase();
+    const gradient = LOCATION_BIOME_GRADIENTS[biome]
+        || LOCATION_BIOME_GRADIENTS[type]
+        || DEFAULT_LOCATION_GRADIENT;
+    box.style.setProperty('--loc-bg', gradient);
+    box.classList.remove('has-image');
+    const url = (location && location.image_url) || '';
+    if (!url) {
+        return;
+    }
+    // Пробуем грузить картинку: если файла нет (404) — остаётся градиент,
+    // а не пустая карточка.
+    const src = cssUrl(url);
+    const probe = new Image();
+    probe.onload = function () {
+        if (box.isConnected) {
+            box.style.setProperty('--loc-bg', `url("${src}")`);
+            box.classList.add('has-image');
+        }
+    };
+    probe.src = src;
+}
+
+// Один раз при старте: общий фон приложения (GET /api/settings).
+async function loadAppBackground() {
+    try {
+        const data = await apiFetch('/settings');
+        applyAppBackground(data && data.background_url);
+    } catch (e) {
+        // Фон — украшение, а не данные: молча оставляем градиент из CSS
+    }
+}
+
 // Блок «Текущая локация» (название, описание, бонусы локации)
 function renderCurrentLocation() {
     const location = (playerData && playerData.location) || null;
@@ -572,6 +663,7 @@ function renderCurrentLocation() {
         return;
     }
     box.classList.remove('hidden');
+    applyLocationBackground(box, location);
 
     // Только бонусы из location.modifiers (регион/биом/тип/шанс событий не показываем)
     const mods = location.modifiers || {};
@@ -836,18 +928,22 @@ async function cancelPreparation() {
 
 // ---------- Инвентарь (мини-панель на экране персонажа) ----------
 
-// Иконка предмета: картинка из БД (items.image) либо эмодзи-фолбэк.
-// Если файл не загрузился (404/битый) — показываем эмодзи, чтобы карточка
-// не осталась пустой. Раунд 47.
+// Иконка предмета: картинка из БД (items.image) → пустышка → эмодзи.
+// Пустое поле бывает у новых предметов, которым ещё не залили иконку:
+// вместо разнородных эмодзи показываем placeholder.png, чтобы все карточки
+// выглядели одинаково. Если файл не загрузился (404/битый) — эмодзи,
+// чтобы карточка не осталась пустой (раунд 47, дополнено в 48).
+const ITEM_IMAGE_PLACEHOLDER = '/static/images/items/placeholder.png';
+
 function itemVisual(item, imgClass) {
     // Эмодзи-фолбэк подставляется в inline-обработчик onerror, поэтому
     // кавычки и обратный слэш из значения убираем — иначе строка развалится.
     const rawEmoji = (item && item.icon) || '📦';
     const emoji = esc(String(rawEmoji).replace(/['"\\<>&]/g, '') || '📦');
-    if (!item || !item.image) {
+    if (!item) {
         return emoji;
     }
-    const src = esc(item.image);
+    const src = esc(item.image || ITEM_IMAGE_PLACEHOLDER);
     return `<img class="${imgClass}" src="${src}" alt="" loading="lazy"`
         + ` onerror="this.outerHTML='${emoji}'">`;
 }
@@ -2427,6 +2523,10 @@ function init() {
             hideAllPopovers();
         }
     });
+
+    // Фон приложения (раунд 48): подгружаем отдельно от данных игрока,
+    // чтобы медленный /api/settings не задерживал отрисовку профиля
+    loadAppBackground();
 
     loadAll(true);
 }

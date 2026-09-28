@@ -35,14 +35,37 @@ html, body {
 }
 
 body {
-    background: var(--bg);
-    background-image:
-        radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 100%, rgba(52, 152, 219, 0.06), transparent 45%);
+    /* Фон приложения (раунд 48). Адрес приходит из GET /api/settings
+       и кладётся в --app-bg через JS. Пока фона нет (или он не загрузился) —
+       остаётся фирменный градиент, который и записан в --app-bg по умолчанию. */
+    background-color: var(--bg);
+    background-image: var(--app-bg);
+    background-size: cover;
+    background-position: center top;
     background-attachment: fixed;
+    background-repeat: no-repeat;
     color: var(--text);
     font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
     line-height: 1.45;
+}
+
+/* Фирменный градиент — и запасной вариант, и значение по умолчанию.
+   Слои мягкие, чтобы текст поверх фона оставался читаемым. */
+:root {
+    --app-bg:
+        radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.10), transparent 45%),
+        radial-gradient(circle at 85% 100%, rgba(52, 152, 219, 0.08), transparent 50%),
+        linear-gradient(180deg, #1a1428 0%, #14121f 45%, #0e1018 100%);
+}
+
+/* Карточки и панели поверх фона: чуть плотнее, иначе текст не читается */
+.header,
+.card,
+.panel,
+.cult-location,
+.modal,
+.cult-card {
+    backdrop-filter: blur(6px);
 }
 
 .hidden {
@@ -825,6 +848,20 @@ body {
     margin-bottom: 12px;
 }
 
+/* Фон локации (раунд 48): картинка из locations.image_url, а поверх —
+   плотная подложка, чтобы название и описание читались. Без картинки
+   остаётся градиент по биому (--loc-bg задаёт JS). */
+.cult-location.has-image {
+    position: relative;
+    overflow: hidden;
+    background-image:
+        linear-gradient(180deg, rgba(10, 9, 16, 0.55) 0%, rgba(10, 9, 16, 0.86) 100%),
+        var(--loc-bg, none);
+    background-size: cover;
+    background-position: center;
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
 .cult-location-title {
     font-size: 11px;
     font-weight: 700;
@@ -839,12 +876,14 @@ body {
     font-weight: 700;
     color: var(--text);
     margin-bottom: 4px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
 }
 
 .cult-location-desc {
     font-size: 13px;
     color: var(--muted);
     line-height: 1.5;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .cult-location-chips {
