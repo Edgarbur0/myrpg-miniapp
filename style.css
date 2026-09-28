@@ -2716,3 +2716,121 @@ body {
     color: var(--muted);
     margin-top: 4px;
 }
+
+/* ================= РАУНД 50: UI-полировка =================
+   Полупрозрачные панели (текстура бумаги --app-bg видна сквозь них),
+   чистые карточки предметов без рамок, центрирование иконок,
+   счётчик стака в углу картинки (как в Minecraft/Diablo).
+   Аудит: классов .stat-row / .inventory-item / .equipment-slot в коде нет —
+   реальные имена: .stat (статы), .item (плитка инвентаря),
+   .equip-slot (слот экипировки). Правила ниже бьют по реальным классам. */
+
+/* --- Задача 1: прозрачность синих панелей --- */
+/* Текст остаётся контрастным: меняем только фоны, цвета текста не трогаем.
+   -webkit- префикс — для VK webview (старый Chromium без чистого backdrop-filter). */
+.header,
+.character-panel,
+.stats-panel,
+.card,
+.cult-card {
+    background: rgba(26, 26, 46, 0.7);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+/* Статы, чипы культивации, бары, техники-строки */
+.stat,
+.cult-chip,
+.bar-block,
+.tech-item,
+.breakthrough-block,
+.prep-form {
+    background: rgba(22, 33, 62, 0.6);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+/* Плитки инвентаря и слоты экипировки — самые прозрачные */
+.item,
+.equip-slot,
+.tech-slot {
+    background: rgba(22, 33, 62, 0.5);
+}
+
+/* --- Задача 2: убрать рамки вокруг картинок --- */
+/* По умолчанию у плиток и слотов рамки нет — только тонкая светлая. */
+.item,
+.equip-slot {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Наведение/выбор — золотая подсветка (было, оставляем) */
+.item:hover,
+.item.active {
+    border-color: var(--accent);
+}
+
+/* Надетый экземпляр — красная рамка-маркер (единственная яркая) */
+.item.item-equipped {
+    border: 2px solid #e74c3c;
+    box-shadow: inset 3px 0 0 #e74c3c, 0 0 10px rgba(231, 76, 60, 0.35);
+}
+
+/* Слот экипировки: пустой — пунктир, занятый — без яркой рамки */
+.equip-slot.empty {
+    border-style: dashed;
+}
+
+.equip-slot.filled {
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(22, 33, 62, 0.5);
+}
+
+/* --- Задача 3: центрирование предметов --- */
+/* .item уже position: relative — якорь для абсолютного счётчика. */
+.item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.item .item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* Картинка — по центру, не больше 70% плитки */
+.item .item-img {
+    max-width: 70%;
+    max-height: 70%;
+}
+
+/* --- Задача 4: количество стака — в правом нижнем углу картинки --- */
+.item .item-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+    pointer-events: none;
+}
+
+/* Мобильный (≤640px): плитки меньше — счётчик чуть компактнее */
+@media (max-width: 640px) {
+    .item .item-img {
+        max-width: 70%;
+        max-height: 70%;
+    }
+
+    .item .item-count {
+        font-size: 10px;
+        bottom: 1px;
+        right: 3px;
+    }
+}
