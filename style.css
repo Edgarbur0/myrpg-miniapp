@@ -698,6 +698,17 @@ body {
     line-height: 1;
 }
 
+/* Картинка предмета (items.image, раунд 47). Пропорции 1:1, эмодзи-фолбэк
+   подставляется в JS через onerror, если файл не загрузился. */
+.item-img {
+    width: 76%;
+    max-width: 48px;
+    aspect-ratio: 1;
+    object-fit: contain;
+    display: block;
+    image-rendering: auto;
+}
+
 .item-count {
     font-size: 11px;
     font-weight: 700;
@@ -1699,6 +1710,34 @@ body {
     font-size: 40px;
     text-align: center;
     margin-bottom: 8px;
+}
+
+/* Картинка предмета в модалке (крупнее, чем в плитке инвентаря) */
+.modal-icon-img {
+    width: 96px;
+    max-width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Картинка в слоте экипировки и в списке материалов крафта (раунд 47) */
+.equip-img,
+.craft-material-img {
+    width: 100%;
+    max-width: 40px;
+    aspect-ratio: 1;
+    object-fit: contain;
+    display: block;
+}
+
+.modal-note {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+    margin-bottom: 12px;
+    overflow-wrap: break-word;
 }
 
 .modal-title {

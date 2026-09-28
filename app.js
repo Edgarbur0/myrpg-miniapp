@@ -108,6 +108,7 @@ const ITEM_TYPE_LABELS = {
     scroll: 'Свиток техники',
     equipment: 'Экипировка',
     material: 'Материал',
+    part: 'Деталь',
     currency: 'Валюта',
     unknown: 'Предмет',
 };
@@ -834,6 +835,23 @@ async function cancelPreparation() {
 }
 
 // ---------- Инвентарь (мини-панель на экране персонажа) ----------
+
+// Иконка предмета: картинка из БД (items.image) либо эмодзи-фолбэк.
+// Если файл не загрузился (404/битый) — показываем эмодзи, чтобы карточка
+// не осталась пустой. Раунд 47.
+function itemVisual(item, imgClass) {
+    // Эмодзи-фолбэк подставляется в inline-обработчик onerror, поэтому
+    // кавычки и обратный слэш из значения убираем — иначе строка развалится.
+    const rawEmoji = (item && item.icon) || '📦';
+    const emoji = esc(String(rawEmoji).replace(/['"\\<>&]/g, '') || '📦');
+    if (!item || !item.image) {
+        return emoji;
+    }
+    const src = esc(item.image);
+    return `<img class="${imgClass}" src="${src}" alt="" loading="lazy"`
+        + ` onerror="this.outerHTML='${emoji}'">`;
+}
+
 function renderInventoryPanel() {
     const data = inventoryData;
     const inventory = (data && data.inventory) || {};
@@ -862,7 +880,7 @@ function renderInventoryPanel() {
                     <button class="item item-equip${equipped ? ' item-equipped' : ''}"
                             data-code="${esc(code)}" data-instance-id="${inst.id}"
                             type="button" title="${esc(item.name)}${equipped ? ' — надето' : ''}">
-                        <span class="item-icon">${item.icon}</span>
+                        <span class="item-icon">${itemVisual(item, 'item-img')}</span>
                         ${equipped ? '<span class="item-badge" title="Надето">🔒</span>' : ''}
                     </button>`);
             });
@@ -873,7 +891,7 @@ function renderInventoryPanel() {
         const usable = item.type === 'consumable';
         tiles.push(`
             <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" title="${esc(item.name)}">
-                <span class="item-icon">${item.icon}</span>
+                <span class="item-icon">${itemVisual(item, 'item-img')}</span>
                 <span class="item-count">×${esc(item.count)}</span>
             </button>`);
     });
@@ -881,9 +899,18 @@ function renderInventoryPanel() {
     const grid = document.getElementById('inventoryGrid');
     grid.innerHTML = tiles.join('');
 
-    // Клик по предмету — модальное окно с действием
+    // Клик по предмету — модальное окно с действием.
+    // Ошибку показываем тостом: раньше исключение внутри openItemModal
+    // гасилось браузером, и карточка выглядела «мёртвой» (раунд 47).
     grid.querySelectorAll('.item[data-code]').forEach((cell) => {
-        cell.addEventListener('click', () => openItemModal(inventory, cell.dataset.code, cell.dataset.instanceId));
+        cell.addEventListener('click', () => {
+            try {
+                openItemModal(inventory, cell.dataset.code, cell.dataset.instanceId);
+            } catch (error) {
+                console.error('openItemModal', error);
+                showToast('Не удалось открыть карточку предмета');
+            }
+        });
     });
 }
 
@@ -893,14 +920,17 @@ function openItemModal(inventory, code, instanceId) {
         return;
     }
 
-    activeItemCode = code;
-    activeInstanceId = instanceId ? Number(instanceId) : null;
     // Свиток техники — отдельное действие (изучить), зелье — лечение
     const isScroll = !!(item.technique_code || item.type === 'scroll');
-    const scrollTechnique = scrollTechniqueCode(item);
+    const scrollTechnique = scrollTechniqueCode(item, code);
     const learnable = isScroll && !!scrollTechnique;
     const usable = !isScroll && item.type === 'consumable';
     const equipable = item.type === 'equipment';
+
+    // Активный предмет фиксируем только после всех вычислений: раньше
+    // исключение до openModal() оставлял в памяти код ненужного предмета
+    activeItemCode = code;
+    activeInstanceId = instanceId ? Number(instanceId) : null;
 
     // Бонусы конкретного экземпляра (или первого из player_items),
     // Fallback на каталог для экипировки без экземпляров (дроп/награда).
@@ -977,7 +1007,7 @@ function openItemModal(inventory, code, instanceId) {
 
     document.getElementById('modalTitle').textContent = item.name;
     document.getElementById('modalBody').innerHTML = `
-        <div class="modal-icon">${item.icon}</div>
+        <div class="modal-icon">${itemVisual(item, 'modal-icon-img')}</div>
         <div class="modal-title">${esc(item.name)}</div>
         <div class="modal-desc">
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
@@ -988,6 +1018,7 @@ function openItemModal(inventory, code, instanceId) {
             ${comboRow}
             ${bonusRow}
         </div>
+        ${item.description ? `<div class="modal-note">${esc(item.description)}</div>` : ''}
     `;
 
     if (learnable) {
@@ -1059,20 +1090,27 @@ const AFFINITY_EFFECT_LABELS = {
     burn: 'ожога',
 };
 
-// Какая техника зашита в свиток: из предмета, из каталога или по коду scroll_<техника>
-function scrollTechniqueCode(item) {
+// Какая техника зашита в свиток: из предмета, из каталога или по коду scroll_<техника>.
+// Код передаётся отдельно и обязательно проверяется на строку: раньше здесь
+// читался item.code, которого нет в ответе /inventory, и функция падала с
+// TypeError на КАЖДОМ не-свитке — карточка не открывала модалку (раунд 47).
+function scrollTechniqueCode(item, code) {
     if (!item) {
         return '';
     }
     if (item.technique_code) {
         return item.technique_code;
     }
+    const itemCode = typeof code === 'string' && code ? code : (item.code || '');
+    if (!itemCode) {
+        return '';
+    }
     const catalog = (techniquesData && techniquesData.catalog) || [];
-    const match = catalog.find((technique) => item.code === `scroll_${technique.code}`);
+    const match = catalog.find((technique) => itemCode === `scroll_${technique.code}`);
     if (match) {
         return match.code;
     }
-    return item.code.indexOf('scroll_') === 0 ? item.code.slice(7) : '';
+    return itemCode.indexOf('scroll_') === 0 ? itemCode.slice(7) : '';
 }
 
 // Чипы требований техники (✅ выполнено / ⚠️ не хватает)
@@ -1104,7 +1142,7 @@ function renderEquipment() {
         if (equipped) {
             return `
             <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" title="${esc(equipped.name)}">
-                <span class="equip-icon">${equipped.icon}</span>
+                <span class="equip-icon">${itemVisual(equipped, 'equip-img')}</span>
                 <span class="equip-name">${esc(equipped.name)}</span>
             </button>`;
         }
@@ -1158,7 +1196,7 @@ function openEquippedModal(slot) {
 
     document.getElementById('modalTitle').textContent = equipped.name;
     document.getElementById('modalBody').innerHTML = `
-        <div class="modal-icon">${equipped.icon}</div>
+        <div class="modal-icon">${itemVisual(equipped, 'modal-icon-img')}</div>
         <div class="modal-title">${esc(equipped.name)}</div>
         <div class="modal-desc">
             <div><span class="muted">Слот</span><span>${esc(slotMeta ? slotMeta.name : slot)}</span></div>
@@ -1871,7 +1909,7 @@ function renderMaterialCell(material) {
         ? ' <span class="tinkers-req-badge tinkers-req-badge-warn" title="Требования не выполнены — будет штраф">⚠️</span>'
         : '';
     return `
-        <span class="craft-material-icon">${material.icon || '📦'}</span>
+        <span class="craft-material-icon">${itemVisual(material, 'craft-material-img')}</span>
         <span class="craft-material-name">${esc(material.name)}${badge}</span>
         <span class="craft-material-count">×${esc(material.count)}</span>`;
 }
@@ -2163,7 +2201,7 @@ function renderCraftMaterialModal() {
             return `
             <button class="craft-material${appliedClass}${pendingClass}"
                     type="button" data-code="${esc(material.code)}">
-                <span class="craft-material-icon">${material.icon || '📦'}</span>
+                <span class="craft-material-icon">${itemVisual(material, 'craft-material-img')}</span>
                 <span class="craft-material-name">${esc(material.name)}${badge}</span>
                 <span class="craft-material-stats">${craftMaterialBonusText(material)}</span>
                 <span class="craft-material-count">×${esc(material.count)}</span>
