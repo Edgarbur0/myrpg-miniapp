@@ -948,6 +948,23 @@ function itemVisual(item, imgClass) {
         + ` onerror="this.outerHTML='${emoji}'">`;
 }
 
+// Картинка техники-книги: иконка из справочника (techniques.image) →
+// эмодзи стихии → 📖. Пустышки-подстановки нет: техник мало и у каждой
+// должна быть своя иконка из админки (раунд 57). Пустое поле — это
+// штатно, а не «сломанная картинка», поэтому <img> рисуем только когда
+// адрес есть.
+function techVisual(technique, imgClass) {
+    const fallback = ELEMENT_ICONS[(technique && technique.element) || 'none'] || '📖';
+    const rawEmoji = (technique && technique.icon) || fallback;
+    const emoji = esc(String(rawEmoji).replace(/['"\\<>&]/g, '') || '📖');
+    if (!technique || !technique.image) {
+        return emoji;
+    }
+    const src = esc(technique.image);
+    return `<img class="${imgClass}" src="${src}" alt="" loading="lazy"`
+        + ` onerror="this.outerHTML='${emoji}'">`;
+}
+
 function renderInventoryPanel() {
     const data = inventoryData;
     const inventory = (data && data.inventory) || {};
@@ -1002,11 +1019,10 @@ function renderInventoryPanel() {
     const learnedBooks = (techniquesData && techniquesData.techniques || [])
         .filter((technique) => technique.is_learned !== false && !technique.is_equipped);
     learnedBooks.forEach((technique) => {
-        const icon = ELEMENT_ICONS[technique.element] || '📖';
         tiles.push(`
             <button class="item item-techbook" data-tech-code="${esc(technique.code)}"
                     type="button" title="${esc(technique.name)} (Ур. ${esc(technique.level)})">
-                <span class="item-icon">${icon}</span>
+                <span class="item-icon">${techVisual(technique, 'item-img')}</span>
             </button>`);
     });
 
@@ -1329,7 +1345,7 @@ function renderEquipment() {
     const equippedBooks = (data.equipped_techniques
         || (techniquesData && techniquesData.techniques || [])
             .filter((t) => t.is_equipped)
-            .map((t) => ({ code: t.code, name: t.name, icon: '📖' }))
+            .map((t) => ({ code: t.code, name: t.name, icon: '📖', image: t.image || '' }))
         || []);
     const techBox = document.getElementById('equipmentTechSlots');
     const techTitle = document.getElementById('equipmentTechTitle');
@@ -1341,7 +1357,7 @@ function renderEquipment() {
             cell.type = 'button';
             cell.dataset.code = book.code;
             cell.title = `${book.name} — в бою`;
-            cell.innerHTML = `📖<span>${esc(book.name)}</span>`;
+            cell.innerHTML = `${techVisual(book, 'tech-img')}<span>${esc(book.name)}</span>`;
             cell.addEventListener('click', () => {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
@@ -1715,13 +1731,12 @@ function renderTechniques() {
     for (let index = 0; index < data.max_equipped; index += 1) {
         const technique = equipped[index];
         if (technique) {
-            const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
             const cell = document.createElement('button');
             cell.className = 'tech-slot filled';
             cell.type = 'button';
             cell.dataset.code = technique.code;
             cell.title = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
-            cell.innerHTML = `${icon}<span>${esc(technique.name)}</span>`;
+            cell.innerHTML = `${techVisual(technique, 'tech-img')}<span>${esc(technique.name)}</span>`;
             cell.addEventListener('click', () => openTechniqueModal(techniques, technique.code));
             slots.appendChild(cell);
         } else {
@@ -1819,7 +1834,7 @@ function openTechniqueModal(techniques, code) {
         return;
     }
 
-    const icon = ELEMENT_ICONS[technique.element] || ELEMENT_ICONS.none;
+    const icon = techVisual(technique, 'modal-icon-img');
     const effects = technique.effects || [];
     const effectChips = effects.length
         ? `<div class="item-combo-chips">
