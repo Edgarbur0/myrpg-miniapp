@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=58">
+    <link rel="stylesheet" href="style.css?v=59">
 </head>
 <body>
 
@@ -36,6 +36,7 @@
             <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
             <button class="tab" type="button" data-screen="screen-guild">Гильдия</button>
             <button class="tab" type="button" data-screen="screen-techniques">Техники</button>
+            <button class="tab" type="button" data-screen="screen-quests">Квесты</button>
         </nav>
 
         <button id="btnRefresh" class="icon-btn" type="button" aria-label="Обновить">🔄</button>
@@ -282,6 +283,21 @@
         </div>
     </section>
 
+    <!-- ЭКРАН: КВЕСТЫ (раунд 53, без NPC) -->
+    <section id="screen-quests" class="screen">
+        <div class="stats-panel">
+            <div class="panel-title-row">
+                <h2 class="panel-title">Квесты</h2>
+            </div>
+            <div class="tech-section-title">Готовы к награде</div>
+            <div id="questClaimable" class="tech-list"></div>
+            <div class="tech-section-title">Активные</div>
+            <div id="questActive" class="tech-list"></div>
+            <div class="tech-section-title">Доступные</div>
+            <div id="questAvailable" class="tech-list"></div>
+        </div>
+    </section>
+
     <!-- БЛОК ОШИБКИ -->
     <div id="errorBox" class="error-box hidden">
         <div class="stub-icon">⚠️</div>
@@ -353,5 +369,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=58"></script></body>
+    <script src="app.js?v=59"></script></body>
 </html>

@@ -2459,6 +2459,51 @@ function renderAll() {
     renderTechniques();
 }
 
+// ---------- Квесты (раунд 53, без NPC) ----------
+function questRow(q, action) {
+    const pct = q.count > 0 ? Math.min(100, Math.round((q.progress / q.count) * 100)) : 0;
+    const btn = action === 'claim'
+        ? `<button class="btn btn-primary" onclick="claimQuest('${q.code}')">Забрать</button>`
+        : (action === 'start'
+            ? `<button class="btn btn-outline" onclick="startQuest('${q.code}')">Начать</button>` : '');
+    return `<div class="tech-item"><div class="tech-item-meta">`
+        + `<span class="tech-item-name">${q.name} (${q.progress}/${q.count})</span>`
+        + `<span class="tech-item-sub">${q.description || ''}</span>`
+        + `<div class="bar" style="margin-top:6px"><div class="bar-fill fill-xp" style="width:${pct}%"></div></div>`
+        + `</div>${btn}</div>`;
+}
+
+async function loadQuests() {
+    try {
+        const id = await ensureUserId();
+        const data = await apiFetch(`/player/${id}/quests`);
+        const claim = document.getElementById('questClaimable');
+        const active = document.getElementById('questActive');
+        const avail = document.getElementById('questAvailable');
+        if (!claim || !active || !avail) return;
+        claim.innerHTML = (data.claimable || []).map((q) => questRow(q, 'claim')).join('')
+            || '<div class="tech-empty">Нет готовых наград.</div>';
+        active.innerHTML = (data.active || []).map((q) => questRow(q, null)).join('')
+            || '<div class="tech-empty">Нет активных квестов.</div>';
+        avail.innerHTML = (data.available || []).map((q) => questRow(q, 'start')).join('')
+            || '<div class="tech-empty">Нет доступных квестов.</div>';
+    } catch (e) { console.error('Квесты:', e); }
+}
+
+async function startQuest(code) {
+    const id = await ensureUserId();
+    await apiFetch(`/player/${id}/quests/start`, { method: 'POST', body: JSON.stringify({ code }) });
+    loadQuests();
+}
+
+async function claimQuest(code) {
+    const id = await ensureUserId();
+    const res = await apiFetch(`/player/${id}/quests/claim`, { method: 'POST', body: JSON.stringify({ code }) });
+    showToast(res.success ? 'Награда получена!' : ('Ошибка: ' + res.message));
+    loadQuests();
+    loadAll(false);
+}
+
 // ---------- Переключение вкладок ----------
 function initTabs() {
     document.querySelectorAll('.tab').forEach((button) => {
@@ -2478,6 +2523,11 @@ function initTabs() {
             // Свежий список рецептов при открытии вкладки «Крафт»
             if (button.dataset.screen === 'screen-craft') {
                 loadCrafts();
+            }
+
+            // Квесты при открытии вкладки «Квесты»
+            if (button.dataset.screen === 'screen-quests') {
+                loadQuests();
             }
         });
     });

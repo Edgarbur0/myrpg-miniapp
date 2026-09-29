@@ -2893,3 +2893,95 @@ body {
         max-height: 90%;
     }
 }
+
+/* ================= РАУНД 53: полная прозрачность =================
+   Фон --app-bg (текстура бумаги) виден сквозь ВСЕ панели и карточки.
+   Только добавления каскадом бьют раунды 50/51. Текст не трогаем,
+   кроме лёгкой тени для контраста на светлом фоне. */
+.header,
+.character-panel,
+.stats-panel,
+.card,
+.cult-card,
+.craft-column,
+.stub,
+.error-box,
+.modal-content,
+.trib-modal-content,
+.craft-material-modal-content {
+    background: rgba(26, 26, 46, 0.5);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.stat,
+.cult-chip,
+.bar-block,
+.tech-item,
+.breakthrough-block,
+.prep-form,
+.craft-recipe,
+.craft-detail-bonuses,
+.craft-help,
+.cult-location,
+.prep-forecast,
+.prep-location-bonus,
+.prep-start-here,
+.bt-loc,
+.bt-core-slot,
+.prep-core,
+.tech-slot,
+.craft-slot-btn,
+.craft-material,
+.craft-material-modal-bonus,
+.prep-not-ready,
+.modal-desc {
+    background: rgba(22, 33, 62, 0.4);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+/* Плитки инвентаря/слоты — остаются без рамок и фона (раунд 51) */
+.item,
+.equip-slot,
+.equip-slot.filled,
+.equip-slot.empty,
+.tile-empty {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Кнопки и табы — золотые, но полупрозрачные */
+.btn-primary,
+.bt-start,
+.tab.active,
+.toast {
+    background: rgba(212, 175, 55, 0.8);
+}
+.tab,
+.icon-btn,
+.btn-outline,
+.btn-secondary {
+    background: rgba(22, 33, 62, 0.4);
+}
+
+/* Hover — усилить непрозрачность для отклика */
+.card:hover,
+.tech-item:hover,
+.craft-recipe:hover,
+.stat:hover {
+    background: rgba(22, 33, 62, 0.7);
+}
+.btn-primary:hover,
+.tab.active:hover {
+    background: rgba(212, 175, 55, 0.95);
+}
+
+/* Контраст текста на светлой текстуре */
+.main {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.item .item-count {
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+}
