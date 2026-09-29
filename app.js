@@ -1258,15 +1258,29 @@ function techniqueRequirementsChips(technique) {
 }
 
 // ---------- Экипировка ----------
+// Фолбэк 4 слотов (хотфикс раунда 54): сетка снаряжения рисуется всегда,
+// даже если API прислал ответ без slots. Порядок и ключи — как серверный
+// EQUIPMENT_SLOTS из game_logic.py.
+const EQUIPMENT_SLOT_FALLBACK = [
+    { key: 'weapon', name: 'Оружие', icon: '⚔️' },
+    { key: 'armor', name: 'Броня', icon: '🛡️' },
+    { key: 'head', name: 'Шлем', icon: '🪖' },
+    { key: 'accessory', name: 'Аксессуар', icon: '💍' },
+];
+
 function renderEquipment() {
     const data = equipmentData;
     if (!data) {
         return;
     }
 
+    const slots = (data.slots && data.slots.length)
+        ? data.slots
+        : EQUIPMENT_SLOT_FALLBACK;
+    const worn = data.equipment || {};
     const box = document.getElementById('equipmentSlots');
-    box.innerHTML = (data.slots || []).map((slot) => {
-        const equipped = data.equipment[slot.key];
+    box.innerHTML = slots.map((slot) => {
+        const equipped = worn[slot.key];
         if (equipped) {
             return `
             <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" title="${esc(equipped.name)}">
@@ -1282,17 +1296,19 @@ function renderEquipment() {
         cell.addEventListener('click', () => openEquippedModal(cell.dataset.slot));
     });
 
-    // Экипированные техники-книги (раунд 54): слоты боя живут в Экипировке.
+    // Экипированные техники-книги (раунд 54, хотфикс): отдельный подписанный
+    // блок #equipmentTechSlots, а НЕ append внутрь flex-сетки слотов (иначе
+    // книги сжимают 4 слота). innerHTML-замена — без дублей при перерендере.
     // Источник — equipmentData.equipped_techniques (API), фолбэк — techniquesData.
     const equippedBooks = (data.equipped_techniques
         || (techniquesData && techniquesData.techniques || [])
             .filter((t) => t.is_equipped)
             .map((t) => ({ code: t.code, name: t.name, icon: '📖' }))
         || []);
-    if (equippedBooks.length) {
-        const wrap = document.createElement('div');
-        wrap.className = 'tech-slots';
-        wrap.id = 'equipmentTechSlots';
+    const techBox = document.getElementById('equipmentTechSlots');
+    const techTitle = document.getElementById('equipmentTechTitle');
+    if (techBox) {
+        techBox.innerHTML = '';
         equippedBooks.forEach((book) => {
             const cell = document.createElement('button');
             cell.className = 'tech-slot filled';
@@ -1305,9 +1321,11 @@ function renderEquipment() {
                     .concat((techniquesData && techniquesData.catalog || []));
                 openTechniqueModal(books, book.code);
             });
-            wrap.appendChild(cell);
+            techBox.appendChild(cell);
         });
-        box.appendChild(wrap);
+    }
+    if (techTitle) {
+        techTitle.classList.toggle('hidden', equippedBooks.length === 0);
     }
 
     // Суммарные бонусы экипировки в заголовке карточки
@@ -1335,7 +1353,8 @@ function openEquippedModal(slot) {
     const bonusText = Object.entries(stats)
         .map(([key, value]) => `${CRAFT_STAT_LABELS[key] || key} +${value}`)
         .join(', ');
-    const slotMeta = (data.slots || []).find((s) => s.key === slot);
+    const slotMeta = ((data.slots && data.slots.length)
+        ? data.slots : EQUIPMENT_SLOT_FALLBACK).find((s) => s.key === slot);
 
     // Комбо надетого экземпляра (регенерация HP и т.п.)
     const combo = equipped.combo || null;
@@ -1513,7 +1532,9 @@ async function toggleTechnique() {
         }
         closeModal();
         activeTechniqueCode = null;
-        renderTechniques();
+        // Хотфикс раунда 54: книга ушла/вернулась (инвентарь ↔ экипировка) —
+        // перезагружаем всё без спиннера, иначе экраны показывают старое
+        await loadAll(false);
         showToast(data.message || (technique.is_equipped ? 'Техника снята' : 'Техника экипирована'));
     } catch (error) {
         closeModal();

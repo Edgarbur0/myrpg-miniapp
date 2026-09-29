@@ -722,10 +722,11 @@ body {
 }
 
 /* Картинка предмета (items.image, раунд 47). Пропорции 1:1, эмодзи-фолбэк
-   подставляется в JS через onerror, если файл не загрузился. */
+   подставляется в JS через onerror, если файл не загрузился.
+   Хотфикс раунда 54: +10% к размеру (было 76% / 48px). */
 .item-img {
-    width: 76%;
-    max-width: 48px;
+    width: 84%;
+    max-width: 53px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -1753,7 +1754,7 @@ body {
 
 /* Картинка предмета в модалке (крупнее, чем в плитке инвентаря) */
 .modal-icon-img {
-    width: 96px;
+    width: 106px;
     max-width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
@@ -1761,11 +1762,12 @@ body {
     margin: 0 auto;
 }
 
-/* Картинка в слоте экипировки и в списке материалов крафта (раунд 47) */
+/* Картинка в слоте экипировки и в списке материалов крафта (раунд 47).
+   Хотфикс раунда 54: +10% (было 40px). */
 .equip-img,
 .craft-material-img {
     width: 100%;
-    max-width: 40px;
+    max-width: 44px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -2149,7 +2151,7 @@ body {
 }
 
 .craft-recipe-icon {
-    font-size: 24px;
+    font-size: 26px;
 }
 
 .craft-recipe-info {
@@ -2198,7 +2200,7 @@ body {
 }
 
 .craft-detail-icon {
-    font-size: 36px;
+    font-size: 40px;
     flex-shrink: 0;
 }
 
@@ -2279,7 +2281,7 @@ body {
 }
 
 .craft-material-icon {
-    font-size: 20px;
+    font-size: 22px;
 }
 
 .craft-material-name {
@@ -2803,10 +2805,10 @@ body {
     line-height: 1;
 }
 
-/* Картинка — по центру, не больше 70% плитки */
+/* Картинка — по центру, не больше 77% плитки (хотфикс раунда 54: +10%) */
 .item .item-img {
-    max-width: 70%;
-    max-height: 70%;
+    max-width: 77%;
+    max-height: 77%;
 }
 
 /* --- Задача 4: количество стака — в правом нижнем углу картинки --- */
@@ -2824,8 +2826,8 @@ body {
 /* Мобильный (≤640px): плитки меньше — счётчик чуть компактнее */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 70%;
-        max-height: 70%;
+        max-width: 77%;
+        max-height: 77%;
     }
 
     .item .item-count {
@@ -2879,18 +2881,18 @@ body {
     background: transparent;
 }
 
-/* Картинка — крупная, до 90% плитки */
+/* Картинка — крупная, до 99% плитки (хотфикс раунда 54: +10% от 90%) */
 .item .item-img {
-    width: 90%;
-    max-width: 90%;
-    max-height: 90%;
+    width: 99%;
+    max-width: 99%;
+    max-height: 99%;
 }
 
 /* Мобильный (≤640px): картинка тоже крупная */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 90%;
-        max-height: 90%;
+        max-width: 99%;
+        max-height: 99%;
     }
 }
 
@@ -2984,4 +2986,15 @@ body {
 }
 .item .item-count {
     text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+}
+
+/* ================= ХОТФИКС РАУНДА 54: блок книг под сеткой =================
+   Книги техник живут в отдельном #equipmentTechSlots НИЖЕ flex-сетки слотов
+   (раньше append'ились внутрь неё 5-м flex-элементом и сжимали 4 слота).
+   Отступ сверху + сброс нижнего отступа сетки книг внутри карточки. */
+#equipmentTechSlots:empty {
+    display: none;
+}
+#equipmentTechTitle {
+    margin-top: 10px;
 }
