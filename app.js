@@ -1241,6 +1241,32 @@ function scrollTechniqueCode(item, code) {
     return itemCode.indexOf('scroll_') === 0 ? itemCode.slice(7) : '';
 }
 
+// Свиток-источник техники по её коду (раунд 56, только для подписи
+// «📜 Источник» в модалке книги-навыка). Ищем в инвентаре запись
+// с technique_code, иначе — по соглашению scroll_<код техники>.
+function findScrollForTechnique(techniqueCode) {
+    if (!techniqueCode) {
+        return '';
+    }
+    try {
+        const inventory = (inventoryData && inventoryData.inventory) || {};
+        const codes = Object.keys(inventory);
+        for (const code of codes) {
+            const item = inventory[code];
+            if (item && item.technique_code === techniqueCode) {
+                return item.name || code;
+            }
+        }
+        const fallback = `scroll_${techniqueCode}`;
+        if (inventory[fallback] && inventory[fallback].name) {
+            return inventory[fallback].name;
+        }
+    } catch (error) {
+        return '';
+    }
+    return '';
+}
+
 // Чипы требований техники (✅ выполнено / ⚠️ не хватает)
 function techniqueRequirementsChips(technique) {
     const requirements = technique.requirements || [];
@@ -1812,6 +1838,14 @@ function openTechniqueModal(techniques, code) {
     const affinityRow = technique.required_affinity
         ? `<div><span class="muted">Сродство</span><span>${esc(technique.required_affinity)}</span></div>`
         : '';
+    // Раунд 56: книга-навык 📖 — виртуальная плитка изученной техники.
+    // Показываем свиток-источник (информационно, логику не меняет).
+    const rawSource = findScrollForTechnique(technique.code) || technique.name;
+    // Имя из инвентаря уже вида «Свиток "…"» — не заворачиваем дважды.
+    const sourceLabel = /^свиток\s/i.test(rawSource) ? rawSource : `Свиток «${rawSource}»`;
+    const sourceRow = technique.is_learned
+        ? `<div><span class="muted">📜 Источник</span><span>${esc(sourceLabel)}</span></div>`
+        : '';
     const requirementsChips = techniqueRequirementsChips(technique);
 
     activeTechniqueCode = technique.code;
@@ -1831,6 +1865,7 @@ function openTechniqueModal(techniques, code) {
             <div><span class="muted">Стоимость</span><span>${technique.qi_cost ? `🌀 Ци ${esc(technique.qi_cost)}` : '—'}</span></div>
             ${damageRow}
             ${affinityRow}
+            ${sourceRow}
             ${technique.is_learned
                 ? `<div><span class="muted">Экипирована</span><span>${technique.is_equipped ? 'да ⚔️' : 'нет'}</span></div>`
                 : ''}
