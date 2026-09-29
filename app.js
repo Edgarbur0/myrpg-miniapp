@@ -953,7 +953,12 @@ function renderInventoryPanel() {
     const inventory = (data && data.inventory) || {};
     const codes = Object.keys(inventory);
 
-    document.getElementById('invEmpty').classList.toggle('hidden', codes.length > 0);
+    document.getElementById('invEmpty').classList.toggle(
+        'hidden',
+        codes.length > 0
+        || (techniquesData && (techniquesData.techniques || [])
+            .some((technique) => !technique.is_equipped)),
+    );
 
     // Первый элемент — всегда золото
     const tiles = [
@@ -967,17 +972,16 @@ function renderInventoryPanel() {
         const item = inventory[code];
 
         // Экипировка с экземплярами (player_items) — карточка на каждый экземпляр.
-        // Каждый крафченый предмет уникален: показываем отдельные плитки,
-        // чтобы надетый экземпляр был явно помечен.
+        // Надетые экземпляры скрыты (раунд 54): экипированное видно только
+        // в Экипировке. Сервер их уже не присылает, фильтр ниже — страховка
+        // от старого API.
         if (item.instances && item.instances.length) {
-            item.instances.forEach((inst) => {
-                const equipped = inst.equipped;
+            item.instances.filter((inst) => !inst.equipped).forEach((inst) => {
                 tiles.push(`
-                    <button class="item item-equip${equipped ? ' item-equipped' : ''}"
+                    <button class="item item-equip"
                             data-code="${esc(code)}" data-instance-id="${inst.id}"
-                            type="button" title="${esc(item.name)}${equipped ? ' — надето' : ''}">
+                            type="button" title="${esc(item.name)}">
                         <span class="item-icon">${itemVisual(item, 'item-img')}</span>
-                        ${equipped ? '<span class="item-badge" title="Надето">🔒</span>' : ''}
                     </button>`);
             });
             return;
@@ -992,8 +996,36 @@ function renderInventoryPanel() {
             </button>`);
     });
 
+    // Техники-книги (раунд 54): изученные техники живут в инвентаре как 📖.
+    // Экипированные скрыты — они видны в Экипировке. Клик открывает справочную
+    // карточку техники (openTechniqueModal) с кнопкой «Надеть»/«Снять».
+    const learnedBooks = (techniquesData && techniquesData.techniques || [])
+        .filter((technique) => technique.is_learned !== false && !technique.is_equipped);
+    learnedBooks.forEach((technique) => {
+        const icon = ELEMENT_ICONS[technique.element] || '📖';
+        tiles.push(`
+            <button class="item item-techbook" data-tech-code="${esc(technique.code)}"
+                    type="button" title="${esc(technique.name)} (Ур. ${esc(technique.level)})">
+                <span class="item-icon">${icon}</span>
+            </button>`);
+    });
+
     const grid = document.getElementById('inventoryGrid');
     grid.innerHTML = tiles.join('');
+
+    // Клик по книге техники — справочная модалка техники
+    grid.querySelectorAll('.item[data-tech-code]').forEach((cell) => {
+        cell.addEventListener('click', () => {
+            try {
+                const books = (techniquesData && techniquesData.techniques || [])
+                    .concat((techniquesData && techniquesData.catalog || []));
+                openTechniqueModal(books, cell.dataset.techCode);
+            } catch (error) {
+                console.error('openTechniqueModal', error);
+                showToast('Не удалось открыть карточку техники');
+            }
+        });
+    });
 
     // Клик по предмету — модальное окно с действием.
     // Ошибку показываем тостом: раньше исключение внутри openItemModal
@@ -1249,6 +1281,34 @@ function renderEquipment() {
     box.querySelectorAll('.equip-slot.filled').forEach((cell) => {
         cell.addEventListener('click', () => openEquippedModal(cell.dataset.slot));
     });
+
+    // Экипированные техники-книги (раунд 54): слоты боя живут в Экипировке.
+    // Источник — equipmentData.equipped_techniques (API), фолбэк — techniquesData.
+    const equippedBooks = (data.equipped_techniques
+        || (techniquesData && techniquesData.techniques || [])
+            .filter((t) => t.is_equipped)
+            .map((t) => ({ code: t.code, name: t.name, icon: '📖' }))
+        || []);
+    if (equippedBooks.length) {
+        const wrap = document.createElement('div');
+        wrap.className = 'tech-slots';
+        wrap.id = 'equipmentTechSlots';
+        equippedBooks.forEach((book) => {
+            const cell = document.createElement('button');
+            cell.className = 'tech-slot filled';
+            cell.type = 'button';
+            cell.dataset.code = book.code;
+            cell.title = `${book.name} — в бою`;
+            cell.innerHTML = `📖<span>${esc(book.name)}</span>`;
+            cell.addEventListener('click', () => {
+                const books = (techniquesData && techniquesData.techniques || [])
+                    .concat((techniquesData && techniquesData.catalog || []));
+                openTechniqueModal(books, book.code);
+            });
+            wrap.appendChild(cell);
+        });
+        box.appendChild(wrap);
+    }
 
     // Суммарные бонусы экипировки в заголовке карточки
     const bonuses = data.bonuses || {};
