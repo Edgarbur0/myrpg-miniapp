@@ -1324,10 +1324,12 @@ function renderEquipment() {
     box.innerHTML = slots.map((slot) => {
         const equipped = worn[slot.key];
         if (equipped) {
+            // Раунд 58: подписи убраны, тултип — нативный title=,
+            // надетое помечено 🔒-бейджем (как у предметов в инвентаре).
             return `
             <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" title="${esc(equipped.name)}">
                 <span class="equip-icon">${itemVisual(equipped, 'equip-img')}</span>
-                <span class="equip-name">${esc(equipped.name)}</span>
+                <span class="equip-lock">🔒</span>
             </button>`;
         }
         return `<div class="equip-slot empty" title="${esc(slot.name)}">${slot.icon}</div>`;
@@ -1345,10 +1347,9 @@ function renderEquipment() {
     const equippedBooks = (data.equipped_techniques
         || (techniquesData && techniquesData.techniques || [])
             .filter((t) => t.is_equipped)
-            .map((t) => ({ code: t.code, name: t.name, icon: '📖', image: t.image || '' }))
+            .map((t) => ({ code: t.code, name: t.name, level: t.level, icon: '📖', image: t.image || '' }))
         || []);
     const techBox = document.getElementById('equipmentTechSlots');
-    const techTitle = document.getElementById('equipmentTechTitle');
     if (techBox) {
         techBox.innerHTML = '';
         equippedBooks.forEach((book) => {
@@ -1356,8 +1357,12 @@ function renderEquipment() {
             cell.className = 'tech-slot filled';
             cell.type = 'button';
             cell.dataset.code = book.code;
-            cell.title = `${book.name} — в бою`;
-            cell.innerHTML = `${techVisual(book, 'tech-img')}<span>${esc(book.name)}</span>`;
+            // Раунд 58: заголовок блока убран, подписи убраны, золотая
+            // подсветка снята в CSS; тултип — title с уровнем, надетое — 🔒.
+            cell.title = book.level
+                ? `${book.name} (Ур. ${book.level})`
+                : `${book.name} — в бою`;
+            cell.innerHTML = `${techVisual(book, 'tech-img')}<span class="tech-lock">🔒</span>`;
             cell.addEventListener('click', () => {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
@@ -1365,9 +1370,6 @@ function renderEquipment() {
             });
             techBox.appendChild(cell);
         });
-    }
-    if (techTitle) {
-        techTitle.classList.toggle('hidden', equippedBooks.length === 0);
     }
 
     // Суммарные бонусы экипировки в заголовке карточки
@@ -1736,7 +1738,8 @@ function renderTechniques() {
             cell.type = 'button';
             cell.dataset.code = technique.code;
             cell.title = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
-            cell.innerHTML = `${techVisual(technique, 'tech-img')}<span>${esc(technique.name)}</span>`;
+            // Раунд 58: подпись убрана (тултип-title оставлен), надетое — 🔒.
+            cell.innerHTML = `${techVisual(technique, 'tech-img')}<span class="tech-lock">🔒</span>`;
             cell.addEventListener('click', () => openTechniqueModal(techniques, technique.code));
             slots.appendChild(cell);
         } else {

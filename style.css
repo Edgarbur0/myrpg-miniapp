@@ -723,10 +723,11 @@ body {
 
 /* Картинка предмета (items.image, раунд 47). Пропорции 1:1, эмодзи-фолбэк
    подставляется в JS через onerror, если файл не загрузился.
-   Хотфикс раунда 54: +10% к размеру (было 76% / 48px). */
+   Хотфикс раунда 54: +10% к размеру (было 76% / 48px).
+   Раунд 58: −5% (было 84% / 53px). */
 .item-img {
-    width: 84%;
-    max-width: 53px;
+    width: 80%;
+    max-width: 50px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -1752,9 +1753,10 @@ body {
     margin-bottom: 8px;
 }
 
-/* Картинка предмета в модалке (крупнее, чем в плитке инвентаря) */
+/* Картинка предмета в модалке (крупнее, чем в плитке инвентаря).
+   Раунд 58: −5% (было 106px). */
 .modal-icon-img {
-    width: 106px;
+    width: 101px;
     max-width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
@@ -1763,11 +1765,11 @@ body {
 }
 
 /* Картинка в слоте экипировки и в списке материалов крафта (раунд 47).
-   Хотфикс раунда 54: +10% (было 40px). */
+   Хотфикс раунда 54: +10% (было 40px). Раунд 58: −5% (было 44px). */
 .equip-img,
 .craft-material-img {
     width: 100%;
-    max-width: 44px;
+    max-width: 42px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -2805,10 +2807,10 @@ body {
     line-height: 1;
 }
 
-/* Картинка — по центру, не больше 77% плитки (хотфикс раунда 54: +10%) */
+/* Картинка — по центру, не больше 73% плитки (раунд 58: −5% от 77%) */
 .item .item-img {
-    max-width: 77%;
-    max-height: 77%;
+    max-width: 73%;
+    max-height: 73%;
 }
 
 /* --- Задача 4: количество стака — в правом нижнем углу картинки --- */
@@ -2826,8 +2828,8 @@ body {
 /* Мобильный (≤640px): плитки меньше — счётчик чуть компактнее */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 77%;
-        max-height: 77%;
+        max-width: 73%;
+        max-height: 73%;
     }
 
     .item .item-count {
@@ -2881,18 +2883,18 @@ body {
     background: transparent;
 }
 
-/* Картинка — крупная, до 99% плитки (хотфикс раунда 54: +10% от 90%) */
+/* Картинка — крупная, до 94% плитки (раунд 58: −5% от 99%) */
 .item .item-img {
-    width: 99%;
-    max-width: 99%;
-    max-height: 99%;
+    width: 94%;
+    max-width: 94%;
+    max-height: 94%;
 }
 
 /* Мобильный (≤640px): картинка тоже крупная */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 99%;
-        max-height: 99%;
+        max-width: 94%;
+        max-height: 94%;
     }
 }
 
@@ -3021,8 +3023,44 @@ body {
 }
 .tech-img {
     width: 100%;
-    max-width: 44px;
+    max-width: 42px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
+}
+
+/* ================= РАУНД 58: экипировка и техники без подписей ==========
+   - иконки −5%: .tech-img 44px → 42px (см. выше и .equip-img выше);
+   - золотая подсветка книг убрана: .tech-slot.filled приводится к стилю
+     слотов экипировки (без border и фона, раунд 51) — каскадом бьёт
+     золотое правило .tech-slot.filled выше;
+   - подписи под иконками убраны в JS, страховка здесь: текстовые span
+     внутри слотов скрыты, плитки размера не меняют;
+   - надетое отличается 🔒-бейджем (рисует JS: .equip-lock / .tech-lock);
+   - тултипы — нативный title= (рисует JS): на десктопе всплывает
+     при hover, на тач-устройствах молчит, модалка по клику работает. */
+#equipmentTechSlots .tech-slot.filled,
+.tech-slots .tech-slot.filled {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+.equip-slot .equip-name,
+.tech-slot span {
+    display: none;
+}
+/* Плитки без текста не схлопываются: размер держит aspect-ratio + высота */
+.equip-slot,
+.tech-slot {
+    position: relative;
+}
+.equip-lock,
+.tech-lock {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 11px;
+    line-height: 1;
+    pointer-events: none;
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
 }
