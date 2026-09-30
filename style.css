@@ -3334,13 +3334,14 @@ body {
     min-height: 0;
 }
 
-/* Картинка в слоте: 47px (~74% плитки 64px, раунд 64), cap в px вместо
-   процентов — процентам не нужен широкий контекст, усадки нет */
+/* Картинка в слоте: 58px (~90% плитки 64px, раунд 66 — было 47px
+   в раунде 65); cap в px вместо процентов — процентам не нужен
+   широкий контекст, усадки нет */
 .equipment-slots .equip-img {
     width: auto;
     height: auto;
-    max-width: 47px;
-    max-height: 47px;
+    max-width: 58px;
+    max-height: 58px;
     aspect-ratio: auto;
     object-fit: contain;
     margin: 0;
@@ -3415,4 +3416,45 @@ body {
         transform: translateX(-50%);
         pointer-events: none;
     }
+}
+
+/* ================= РАУНД 66: картинки = подложка, книги без рамок ======
+   Правка 1 — картинки заполняют подложку (вариант А из ТЗ: ~90% плитки,
+   как .craft-tile-icon img в раунде 60 и .item-img в инвентаре).
+   Слот 64×64 (раунд 61), картинка 58px вместо cap 47px (раунд 65) —
+   длинные (топор), квадратные (броня) и круглые (шлем, кольцо) иконки
+   ложатся через object-fit: contain, обрезки нет. Обёртки .equip-icon
+   и .tech-icon ужаты до картинки (раунд 65) — hover-зона тултипа
+   по-прежнему = картинка, клик по плитке открывает модалку.
+   .item-img (инвентарь) и .craft-tile (крафт, уже 90%) не тронуты —
+   там вид единый и жалоб нет.
+   Правка 2 — названия книг: проверка показала, что имён нет нигде
+   (инвентарь и экипировка рисуют только иконку + data-tooltip, подписи
+   скрыты правилом раунда 58) — вариант А уже соблюдён, JS не меняем.
+   Правка 3 — рамка книг: правило раунда 58 снимало border/фон только
+   у .filled, а браузерный outline при :focus/:focus-visible (книга —
+   <button>, после клика остаётся в фокусе) рисовал «рамку» поверх.
+   Фикс: явный сброс border/background/box-shadow/outline у книг
+   во всех состояниях — вид один в один как слоты экипировки. */
+#equipmentTechSlots .tech-img {
+    width: auto;
+    height: auto;
+    max-width: 58px;
+    max-height: 58px;
+    aspect-ratio: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0;
+}
+
+#equipmentTechSlots .tech-slot,
+#equipmentTechSlots .tech-slot.filled,
+#equipmentTechSlots .tech-slot:hover,
+#equipmentTechSlots .tech-slot:active,
+#equipmentTechSlots .tech-slot:focus,
+#equipmentTechSlots .tech-slot:focus-visible {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
 }
