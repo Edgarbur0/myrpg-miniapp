@@ -3306,3 +3306,61 @@ body {
     aspect-ratio: auto;
     border-radius: var(--radius);
 }
+
+/* ================= РАУНД 62: иконки экипировки + рамки + разделитель ===
+   Правка 1 — перекос иконок. Корень: у обёртки .equip-icon не было
+   размеров (inline-span), а .equip-img задан как width: 100% — проценты
+   разрешались от неопределённой ширины, и иконка 128px вылезала из слота
+   64px (после раунда 61, снявшего overflow: hidden ради тултипов, её стало
+   видно целиком). Фикс: обёртка — flex-центр на весь слот, картинка —
+   78% плитки с object-fit: contain, как у инвентаря.
+   Правка 2 — жирные рамки .card (#2a2a4a) у «Экипировки» и «Инвентаря»
+   убраны (border: none, полупрозрачный фон оставлен для группировки).
+   Скоуп — только .bottom-grid, остальные карточки не тронуты.
+   Правка 3 — вертикальный разделитель между разделами: линия по центру
+   гэпа сетки; только на десктопе (≥480px, колонки рядом), на мобильном
+   разделы стопкой — полоса скрыта. */
+
+/* Обёртка иконки надетого предмета — flex-центр на весь слот */
+.equipment-slots .equip-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Картинка в слоте: 78% плитки, пропорции сохраняет contain */
+.equipment-slots .equip-img {
+    width: auto;
+    height: auto;
+    max-width: 78%;
+    max-height: 78%;
+    aspect-ratio: auto;
+    object-fit: contain;
+    margin: 0;
+}
+
+/* Карточки «Экипировка»/«Инвентарь» — без рамок */
+.bottom-grid > .card {
+    border: none;
+}
+
+@media (min-width: 480px) {
+    .bottom-grid {
+        position: relative;
+    }
+    /* Тонкая золотая линия по центру гэпа между колонками */
+    .bottom-grid::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 8px;
+        bottom: 8px;
+        width: 1px;
+        background: rgba(212, 175, 55, 0.3);
+        transform: translateX(-50%);
+        pointer-events: none;
+    }
+}
