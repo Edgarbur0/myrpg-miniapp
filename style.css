@@ -590,7 +590,7 @@ body {
 
 .bottom-grid {
     display: grid;
-    gap: 12px;
+    gap: 6px;
 }
 
 @media (min-width: 480px) {
@@ -627,8 +627,9 @@ body {
 }
 
 .equipment-slots {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
 }
 
 .equip-slot {
@@ -679,7 +680,7 @@ body {
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 4px;
 }
 
 .item {
@@ -726,8 +727,8 @@ body {
    Хотфикс раунда 54: +10% к размеру (было 76% / 48px).
    Раунд 58: −5% (было 84% / 53px). */
 .item-img {
-    width: 80%;
-    max-width: 50px;
+    width: 76%;
+    max-width: 48px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -1756,7 +1757,7 @@ body {
 /* Картинка предмета в модалке (крупнее, чем в плитке инвентаря).
    Раунд 58: −5% (было 106px). */
 .modal-icon-img {
-    width: 101px;
+    width: 96px;
     max-width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
@@ -1769,7 +1770,7 @@ body {
 .equip-img,
 .craft-material-img {
     width: 100%;
-    max-width: 42px;
+    max-width: 40px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -2807,10 +2808,10 @@ body {
     line-height: 1;
 }
 
-/* Картинка — по центру, не больше 73% плитки (раунд 58: −5% от 77%) */
+/* Картинка — по центру, не больше 69% плитки (раунд 64: −5% от 73%) */
 .item .item-img {
-    max-width: 73%;
-    max-height: 73%;
+    max-width: 69%;
+    max-height: 69%;
 }
 
 /* --- Задача 4: количество стака — в правом нижнем углу картинки --- */
@@ -2828,8 +2829,8 @@ body {
 /* Мобильный (≤640px): плитки меньше — счётчик чуть компактнее */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 73%;
-        max-height: 73%;
+        max-width: 69%;
+        max-height: 69%;
     }
 
     .item .item-count {
@@ -2883,18 +2884,18 @@ body {
     background: transparent;
 }
 
-/* Картинка — крупная, до 94% плитки (раунд 58: −5% от 99%) */
+/* Картинка — крупная, до 89% плитки (раунд 64: −5% от 94%) */
 .item .item-img {
-    width: 94%;
-    max-width: 94%;
-    max-height: 94%;
+    width: 89%;
+    max-width: 89%;
+    max-height: 89%;
 }
 
 /* Мобильный (≤640px): картинка тоже крупная */
 @media (max-width: 640px) {
     .item .item-img {
-        max-width: 94%;
-        max-height: 94%;
+        max-width: 89%;
+        max-height: 89%;
     }
 }
 
@@ -3023,7 +3024,7 @@ body {
 }
 .tech-img {
     width: 100%;
-    max-width: 42px;
+    max-width: 40px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -3277,14 +3278,14 @@ body {
    описание в карточке больше не выводится (осталось в правой панели). */
 .craft-recipe-img {
     width: 100%;
-    max-width: 40px;
+    max-width: 38px;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
 }
 
 .equipment-slots {
-    justify-content: flex-start;
+    justify-content: start;
 }
 
 .equipment-slots .equip-slot {
@@ -3331,12 +3332,13 @@ body {
     min-height: 0;
 }
 
-/* Картинка в слоте: 78% плитки, пропорции сохраняет contain */
+/* Картинка в слоте: 74% плитки, пропорции сохраняет contain
+   (раунд 64: −5% от 78%) */
 .equipment-slots .equip-img {
     width: auto;
     height: auto;
-    max-width: 78%;
-    max-height: 78%;
+    max-width: 74%;
+    max-height: 74%;
     aspect-ratio: auto;
     object-fit: contain;
     margin: 0;
@@ -3366,15 +3368,26 @@ body {
     background: transparent;
 }
 
+/* ================= РАУНД 64: 8 слотов, плотная сетка =====================
+   - .equipment-slots: сетка 4 в ряд (2 ряда по 4: руки/броня/шлем сверху,
+     перчатки/штаны/обувь/аксессуар снизу — порядок из EQUIPMENT_SLOTS),
+     gap 8px → 4px;
+   - ряд книг #equipmentTechSlots — gap в тон (8px → 4px);
+   - иконки −5% и gap/2 у остальных сеток правлены точечно выше. */
+#equipmentTechSlots {
+    gap: 4px;
+}
+
 @media (min-width: 480px) {
     .bottom-grid {
         position: relative;
     }
-    /* Тонкая золотая линия по центру гэпа между колонками */
+    /* Тонкая золотая линия ровно по границе колонок: колонки равные
+       (1fr/1fr), граница проходит на пол-гэпа (3px) левее центра */
     .bottom-grid::before {
         content: "";
         position: absolute;
-        left: 50%;
+        left: calc(50% - 3px);
         top: 8px;
         bottom: 8px;
         width: 1px;

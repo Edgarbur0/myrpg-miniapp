@@ -1300,13 +1300,17 @@ function techniqueRequirementsChips(technique) {
 }
 
 // ---------- Экипировка ----------
-// Фолбэк 4 слотов (хотфикс раунда 54): сетка снаряжения рисуется всегда,
-// даже если API прислал ответ без slots. Порядок и ключи — как серверный
-// EQUIPMENT_SLOTS из game_logic.py.
+// Фолбэк 8 слотов (хотфикс раунда 54, расширен в раунде 64): сетка
+// снаряжения рисуется всегда, даже если API прислал ответ без slots.
+// Порядок и ключи — как серверный EQUIPMENT_SLOTS из game_logic.py.
 const EQUIPMENT_SLOT_FALLBACK = [
-    { key: 'weapon', name: 'Оружие', icon: '⚔️' },
+    { key: 'weapon_main', name: 'Правая рука', icon: '⚔️' },
+    { key: 'weapon_off', name: 'Левая рука', icon: '🗡️' },
     { key: 'armor', name: 'Броня', icon: '🛡️' },
     { key: 'head', name: 'Шлем', icon: '🪖' },
+    { key: 'gloves', name: 'Перчатки', icon: '🧤' },
+    { key: 'pants', name: 'Штаны', icon: '👖' },
+    { key: 'boots', name: 'Обувь', icon: '🥾' },
     { key: 'accessory', name: 'Аксессуар', icon: '💍' },
 ];
 
