@@ -1934,6 +1934,18 @@ async function loadCrafts() {
     renderCrafts();
 }
 
+// Картинка рецепта крафта: иконка из справочника (crafts.image) → 🔨.
+// Пустого поля не боимся: рецептов мало, иконку заливает админ (раунд 61),
+// <img> рисуем только когда адрес есть — без чужой пустышки.
+function craftRecipeVisual(craft) {
+    if (!craft || !craft.image) {
+        return '🔨';
+    }
+    const src = esc(craft.image);
+    return `<img class="craft-recipe-img" src="${src}" alt="" loading="lazy"`
+        + ` onerror="this.outerHTML='🔨'">`;
+}
+
 // Список рецептов (левая колонка 50%)
 function renderCrafts() {
     const box = document.getElementById('craftRecipes');
@@ -1950,10 +1962,9 @@ function renderCrafts() {
         <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
                 type="button" data-code="${esc(craft.code)}"
                 title="${esc(craft.description || '')}">
-            <span class="craft-recipe-icon">🔨</span>
+            <span class="craft-recipe-icon">${craftRecipeVisual(craft)}</span>
             <span class="craft-recipe-info">
                 <span class="craft-recipe-name">${esc(craft.name)}</span>
-                <span class="craft-recipe-desc">${esc(craft.description)}</span>
             </span>
         </button>`).join('');
 

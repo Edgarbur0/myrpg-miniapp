@@ -3263,3 +3263,46 @@ body {
         grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 }
+
+/* ================= РАУНД 61: рамки книг = рамки экипировки =============
+   Проблема: книги (.tech-slot, aspect-ratio 1 во всю ширину сетки 3 в ряд)
+   выходили заметно крупнее слотов экипировки (.equip-slot, flex 1×64px).
+   Фикс (только добавления, каскадом бьют правила выше):
+   - оба ряда — flex влево, плитки фиксированные 64×64 (иконки 42px
+     влезают с запасом, подписи убраны в раунде 58 — текст нечему резать);
+   - у книг сбрасываем aspect-ratio и сетку 3 в ряд из раунда 57,
+     radius приводим к общему --radius (12px, как у слотов). */
+
+/* Картинка рецепта крафта (раунд 61): компактная иконка 40px + название,
+   описание в карточке больше не выводится (осталось в правой панели). */
+.craft-recipe-img {
+    width: 100%;
+    max-width: 40px;
+    aspect-ratio: 1;
+    object-fit: contain;
+    display: block;
+}
+
+.equipment-slots {
+    justify-content: flex-start;
+}
+
+.equipment-slots .equip-slot {
+    flex: none;
+    width: 64px;
+    height: 64px;
+}
+
+#equipmentTechSlots {
+    display: flex;
+    justify-content: flex-start;
+    grid-template-columns: none;
+}
+
+#equipmentTechSlots .tech-slot {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    aspect-ratio: auto;
+    border-radius: var(--radius);
+}
