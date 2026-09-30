@@ -2421,49 +2421,71 @@ function renderCraftMaterialModal() {
 
     list.innerHTML = visibleMaterials.length
         ? visibleMaterials.map((material) => {
-            // Пометка: ✓ применённый материал, золотая рамка — выделенный
+            // Пометка: craft-applied — уже лежит в слоте (✓-бейдж в CSS),
+            // craft-pending — выделен сейчас (золотая рамка).
+            // Раунд 60: квадратные плитки как в инвентаре — только иконка
+            // и счётчик; имя и характеристики живут в тултипе (#craftTooltip)
+            // и в строке «Выбрано» под сеткой (для тач-устройств).
             const appliedClass = material.code === applied ? ' craft-applied' : '';
             const pendingClass = material.code === pending ? ' craft-pending' : '';
-            // Бейдж ⚠️ у материала с невыполненными требованиями (мягкий штраф)
-            const badge = (material.requirements_met === false)
-                ? '<span class="tinkers-req-badge tinkers-req-badge-warn" title="Требования не выполнены — будет штраф">⚠️</span>'
+            const warnBadge = (material.requirements_met === false)
+                ? '<span class="craft-tile-warn">⚠️</span>'
                 : '';
             return `
-            <button class="craft-material${appliedClass}${pendingClass}"
+            <button class="craft-tile${appliedClass}${pendingClass}"
                     type="button" data-code="${esc(material.code)}">
-                <span class="craft-material-icon">${itemVisual(material, 'craft-material-img')}</span>
-                <span class="craft-material-name">${esc(material.name)}${badge}</span>
-                <span class="craft-material-stats">${craftMaterialBonusText(material)}</span>
-                <span class="craft-material-count">×${esc(material.count)}</span>
+                <span class="craft-tile-icon">${itemVisual(material, 'craft-material-img')}</span>
+                <span class="craft-tile-count">×${esc(material.count)}</span>${warnBadge}
             </button>`;
         }).join('')
         : '<div class="craft-empty-inline">Подходящих материалов нет</div>';
 
-    list.querySelectorAll('.craft-material').forEach((button) => {
+    list.querySelectorAll('.craft-tile').forEach((button) => {
+        const code = button.dataset.code;
         button.addEventListener('click', () => {
-            const code = button.dataset.code;
             selectCraftMaterial(code);
         });
+        // Кастомный тултип только для мыши (на таче — модалка и строка
+        // «Выбрано» под сеткой). Текст задаём через dataset — безопасно:
+        // setAttribute не парсит HTML, экранировать ничего не нужно.
+        if (window.matchMedia && window.matchMedia('(hover: hover)').matches) {
+            button.addEventListener('mouseenter', () => {
+                scheduleCraftTooltip(button);
+            });
+            button.addEventListener('mouseleave', () => {
+                hideCraftTooltip();
+            });
+        }
     });
 
-    // Бонус за слот выделенного материала (статы + стихия)
+    // Строка под сеткой: выбранный материал с характеристиками.
+    // На тач-устройствах заменяет тултип (hover там не работает).
     const pendingMaterial = findCraftMaterial(craftMaterialPending);
     bonus.textContent = pendingMaterial
-        ? `Бонус за слот: ${craftMaterialStatsText(pendingMaterial)}`
-        : 'Бонус за слот: —';
+        ? `Выбрано: ${pendingMaterial.name} — ${craftMaterialBonusText(pendingMaterial)}`
+        : 'Выбрано: —';
 
     // «Выбрать» активна, только когда material выделен
     chooseBtn.disabled = !craftMaterialPending;
 
+    // Тултип привязан к координатам плитки — при скролле модалки прячем,
+    // иначе он зависнет не на месте
+    const scrollBox = modal.querySelector('.craft-material-modal-content');
+    if (scrollBox) {
+        scrollBox.onscroll = hideCraftTooltip;
+    }
+
     modal.classList.remove('hidden');
 }
 
-// Выделение материала в модалке (без закрытия и применения)
+// Выделение материала в модалке (без закрытия и применения).
+// Раунд 60: повторный клик по выделенной плитке снимает выделение.
 function selectCraftMaterial(code) {
     if (!craftMaterialModal) {
         return;
     }
-    craftMaterialPending = code;
+    hideCraftTooltip();
+    craftMaterialPending = (craftMaterialPending === code) ? null : code;
     renderCraftMaterialModal();
 }
 
@@ -2507,7 +2529,92 @@ function craftMaterialStatsText(material) {
     return stats || 'без бонусов';
 }
 
+// ---------- Кастомный тултип материалов крафта (раунд 60) ----------
+// CSS-пузырь через attr(data-tooltip) не подошёл: однострочный текст без
+// жирного заголовка и, главное, обрезается скроллом модалки. Поэтому тултип
+// живёт в body (position: fixed) и позиционируется по getBoundingClientRect
+// якоря. Весь текст задаётся через textContent — безопасно (XSS нет).
+let craftTooltipEl = null;
+let craftTooltipTimer = null;
+
+function getCraftTooltipEl() {
+    if (!craftTooltipEl) {
+        craftTooltipEl = document.createElement('div');
+        craftTooltipEl.id = 'craftTooltip';
+        craftTooltipEl.className = 'craft-tooltip hidden';
+        document.body.appendChild(craftTooltipEl);
+    }
+    return craftTooltipEl;
+}
+
+// Показать тултип с задержкой 200мс (не мелькает при быстром движении)
+function scheduleCraftTooltip(anchor) {
+    hideCraftTooltip();
+    craftTooltipTimer = setTimeout(() => {
+        craftTooltipTimer = null;
+        showCraftTooltip(anchor);
+    }, 200);
+}
+
+function showCraftTooltip(anchor) {
+    const material = anchor && findCraftMaterial(anchor.dataset.code);
+    if (!material) {
+        return;
+    }
+    const tip = getCraftTooltipEl();
+    tip.innerHTML = '';
+    const title = document.createElement('div');
+    title.className = 'craft-tooltip-title';
+    title.textContent = material.name;
+    tip.appendChild(title);
+    const stats = document.createElement('div');
+    stats.className = 'craft-tooltip-stats';
+    stats.textContent = craftMaterialStatsText(material);
+    tip.appendChild(stats);
+    if (material.element && material.element !== 'none') {
+        const element = document.createElement('div');
+        element.className = 'craft-tooltip-element';
+        element.textContent = `Стихия: ${CRAFT_ELEMENT_LABELS[material.element] || material.element}`;
+        tip.appendChild(element);
+    }
+    if (material.requirements_met === false) {
+        const warn = document.createElement('div');
+        warn.className = 'craft-tooltip-warn';
+        warn.textContent = '⚠️ Требования: будет штраф';
+        tip.appendChild(warn);
+    }
+    // Замеряем невидимым, чтобы спозиционировать до показа
+    tip.classList.remove('hidden');
+    tip.style.visibility = 'hidden';
+    const tipWidth = tip.offsetWidth;
+    const tipHeight = tip.offsetHeight;
+    const rect = anchor.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - tipWidth / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tipWidth - 8));
+    let top = rect.top - tipHeight - 10;
+    // Над плиткой нет места (первый ряд) — показываем под плиткой
+    const below = top < 8;
+    if (below) {
+        top = rect.bottom + 10;
+    }
+    tip.classList.toggle('craft-tooltip-below', below);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    tip.style.visibility = '';
+}
+
+function hideCraftTooltip() {
+    if (craftTooltipTimer) {
+        clearTimeout(craftTooltipTimer);
+        craftTooltipTimer = null;
+    }
+    if (craftTooltipEl) {
+        craftTooltipEl.classList.add('hidden');
+    }
+}
+
 function closeCraftMaterialModal() {
+    hideCraftTooltip();
     document.getElementById('craftMaterialModal').classList.add('hidden');
     craftMaterialModal = null;
     craftMaterialPending = null;

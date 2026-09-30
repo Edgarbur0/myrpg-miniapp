@@ -3135,3 +3135,131 @@ body {
         transition-delay: 200ms;
     }
 }
+
+/* ================= РАУНД 60: плитки материалов + JS-тултип ==============
+   Модалка «Выбери материал» унифицирована с инвентарём (раунды 51/59):
+   квадратные плитки (только иконка + счётчик ×N), имя и характеристики —
+   в тултипе и в строке «Выбрано» под сеткой. Старые прямоугольные правила
+   .craft-material выше не трогаем (аддитивный подход раундов 50/51). */
+
+.craft-material-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* Квадратная плитка материала: прозрачная, без рамок, как .item */
+.craft-tile {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    overflow: visible;
+}
+
+.craft-tile:hover {
+    transform: scale(1.05);
+}
+
+.craft-tile-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.craft-tile-icon .craft-material-img {
+    max-width: 90%;
+    max-height: 90%;
+}
+
+/* Счётчик стака — правый нижний угол, как в инвентаре (раунд 50) */
+.craft-tile-count {
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+    pointer-events: none;
+}
+
+/* Уже лежит в слоте: метка ✓ в левом верхнем углу */
+.craft-tile.craft-applied::after {
+    content: "✓";
+    position: absolute;
+    top: 1px;
+    left: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--xp);
+    text-shadow: 1px 1px 2px #000;
+    pointer-events: none;
+}
+
+/* Выделен сейчас: золотая рамка со свечением (бывший .craft-pending) */
+.craft-tile.craft-pending {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(212, 175, 55, 0.35);
+    transform: scale(1.05);
+}
+
+/* Бейдж невыполненных требований: левый нижний угол, мелкий */
+.craft-tile-warn {
+    position: absolute;
+    bottom: 1px;
+    left: 3px;
+    font-size: 11px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+/* Тултип материалов: живёт в body (не обрезается скроллом модалки),
+   стиль — как кастомный тултип раунда 59, шире (характеристики влезают) */
+.craft-tooltip {
+    position: fixed;
+    width: max-content;
+    max-width: 250px;
+    padding: 6px 12px;
+    background: rgba(22, 33, 62, 0.95);
+    color: #ecf0f1;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 12px;
+    line-height: 1.4;
+    pointer-events: none;
+    z-index: 1100;
+}
+
+.craft-tooltip-title {
+    font-weight: 700;
+    color: #ecf0f1;
+}
+
+.craft-tooltip-stats {
+    color: #ecf0f1;
+}
+
+.craft-tooltip-element {
+    color: var(--accent);
+}
+
+.craft-tooltip-warn {
+    color: var(--accent);
+}
+
+/* Десктоп: 6 плиток в ряд (модалка узкая — 420px, больше не влезет) */
+@media (min-width: 641px) {
+    .craft-material-list {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
