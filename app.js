@@ -977,10 +977,11 @@ function renderInventoryPanel() {
             .some((technique) => !technique.is_equipped)),
     );
 
-    // Первый элемент — всегда золото
+    // Первый элемент — всегда золото. Раунд 65: тултип на иконке,
+    // а не на плитке — hover по пустой области тултип не показывает.
     const tiles = [
-        `<div class="item tile-gold" data-tooltip="Золото">
-            <span class="item-icon">💰</span>
+        `<div class="item tile-gold">
+            <span class="item-icon" data-tooltip="Золото">💰</span>
             <span class="item-count">${esc(playerData ? playerData.gold : 0)}</span>
         </div>`,
     ];
@@ -997,8 +998,8 @@ function renderInventoryPanel() {
                 tiles.push(`
                     <button class="item item-equip"
                             data-code="${esc(code)}" data-instance-id="${inst.id}"
-                            type="button" data-tooltip="${esc(item.name)}">
-                        <span class="item-icon">${itemVisual(item, 'item-img')}</span>
+                            type="button">
+                        <span class="item-icon" data-tooltip="${esc(item.name)}">${itemVisual(item, 'item-img')}</span>
                     </button>`);
             });
             return;
@@ -1007,8 +1008,8 @@ function renderInventoryPanel() {
         // Стекируемый предмет (материалы, расходники) — одна карточка
         const usable = item.type === 'consumable';
         tiles.push(`
-            <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" data-tooltip="${esc(item.name)}">
-                <span class="item-icon">${itemVisual(item, 'item-img')}</span>
+            <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button">
+                <span class="item-icon" data-tooltip="${esc(item.name)}">${itemVisual(item, 'item-img')}</span>
                 <span class="item-count">×${esc(item.count)}</span>
             </button>`);
     });
@@ -1021,8 +1022,8 @@ function renderInventoryPanel() {
     learnedBooks.forEach((technique) => {
         tiles.push(`
             <button class="item item-techbook" data-tech-code="${esc(technique.code)}"
-                    type="button" data-tooltip="${esc(technique.name)} (Ур. ${esc(technique.level)})">
-                <span class="item-icon">${techVisual(technique, 'item-img')}</span>
+                    type="button">
+                <span class="item-icon" data-tooltip="${esc(technique.name)} (Ур. ${esc(technique.level)})">${techVisual(technique, 'item-img')}</span>
             </button>`);
     });
 
@@ -1328,11 +1329,11 @@ function renderEquipment() {
     box.innerHTML = slots.map((slot) => {
         const equipped = worn[slot.key];
         if (equipped) {
-            // Раунд 59: подписи убраны, замки убраны (слот сам по себе —
-            // признак надетого), тултип — кастомный через data-tooltip.
+            // Раунд 65: тултип на обёртке картинки (hover-зона = картинка,
+            // а не вся плитка); клик по плитке открывает модалку, как раньше.
             return `
-            <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" data-tooltip="${esc(equipped.name)}">
-                <span class="equip-icon">${itemVisual(equipped, 'equip-img')}</span>
+            <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button">
+                <span class="equip-icon" data-tooltip="${esc(equipped.name)}">${itemVisual(equipped, 'equip-img')}</span>
             </button>`;
         }
         return `<div class="equip-slot empty" data-tooltip="${esc(slot.name)}">${slot.icon}</div>`;
@@ -1363,10 +1364,12 @@ function renderEquipment() {
             // Раунд 59: заголовок блока убран, подписи и замки убраны
             // (блок «Техники в бою» сам по себе — признак экипированности);
             // тултип — кастомный через data-tooltip.
-            cell.dataset.tooltip = book.level
+            // Раунд 65: тултип на ужатой обёртке картинки (hover-зона =
+            // книга, а не вся плитка); dataset.tooltip убран с кнопки.
+            const bookTip = book.level
                 ? `${book.name} (Ур. ${book.level})`
                 : `${book.name} — в бою`;
-            cell.innerHTML = `${techVisual(book, 'tech-img')}`;
+            cell.innerHTML = `<span class="tech-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'tech-img')}</span>`;
             cell.addEventListener('click', () => {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
@@ -1741,9 +1744,9 @@ function renderTechniques() {
             cell.className = 'tech-slot filled';
             cell.type = 'button';
             cell.dataset.code = technique.code;
-            cell.dataset.tooltip = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
-            // Раунд 59: подпись и замок убраны, тултип — кастомный.
-            cell.innerHTML = `${techVisual(technique, 'tech-img')}`;
+            // Раунд 65: тултип на ужатой обёртке, а не на слоте
+            const techTip = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
+            cell.innerHTML = `<span class="tech-icon" data-tooltip="${esc(techTip)}">${techVisual(technique, 'tech-img')}</span>`;
             cell.addEventListener('click', () => openTechniqueModal(techniques, technique.code));
             slots.appendChild(cell);
         } else {
@@ -2465,7 +2468,9 @@ function renderCraftMaterialModal() {
         // setAttribute не парсит HTML, экранировать ничего не нужно.
         if (window.matchMedia && window.matchMedia('(hover: hover)').matches) {
             button.addEventListener('mouseenter', () => {
-                scheduleCraftTooltip(button);
+                // Раунд 65: якорь тултипа — иконка, а не вся плитка
+                scheduleCraftTooltip(
+                    button.querySelector('.craft-tile-icon') || button);
             });
             button.addEventListener('mouseleave', () => {
                 hideCraftTooltip();
@@ -2572,7 +2577,12 @@ function scheduleCraftTooltip(anchor) {
 }
 
 function showCraftTooltip(anchor) {
-    const material = anchor && findCraftMaterial(anchor.dataset.code);
+    // Якорь — иконка внутри плитки (раунд 65): код берём у плитки
+    const tile = (anchor && anchor.closest)
+        ? anchor.closest('.craft-tile') : null;
+    const code = ((tile || anchor) && (tile || anchor).dataset)
+        ? (tile || anchor).dataset.code : "";
+    const material = code ? findCraftMaterial(code) : null;
     if (!material) {
         return;
     }

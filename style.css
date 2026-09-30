@@ -3049,7 +3049,7 @@ body {
     box-shadow: none;
 }
 .equip-slot .equip-name,
-.tech-slot span {
+.tech-slot > span:not(.tech-icon) {
     display: none;
 }
 /* Плитки без текста не схлопываются: размер держит aspect-ratio + высота */
@@ -3322,23 +3322,25 @@ body {
    гэпа сетки; только на десктопе (≥480px, колонки рядом), на мобильном
    разделы стопкой — полоса скрыта. */
 
-/* Обёртка иконки надетого предмета — flex-центр на весь слот */
+/* Обёртка иконки надетого предмета: ужата до картинки (раунд 65) —
+   flex-элемент слота с авто-размером центрируется сам, тултип на нём
+   срабатывает только над картинкой, а не над пустой плиткой */
 .equipment-slots .equip-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
     min-height: 0;
 }
 
-/* Картинка в слоте: 74% плитки, пропорции сохраняет contain
-   (раунд 64: −5% от 78%) */
+/* Картинка в слоте: 47px (~74% плитки 64px, раунд 64), cap в px вместо
+   процентов — процентам не нужен широкий контекст, усадки нет */
 .equipment-slots .equip-img {
     width: auto;
     height: auto;
-    max-width: 74%;
-    max-height: 74%;
+    max-width: 47px;
+    max-height: 47px;
     aspect-ratio: auto;
     object-fit: contain;
     margin: 0;
@@ -3374,6 +3376,24 @@ body {
      gap 8px → 4px;
    - ряд книг #equipmentTechSlots — gap в тон (8px → 4px);
    - иконки −5% и gap/2 у остальных сеток правлены точечно выше. */
+/* ================= РАУНД 65: hover-зона = картинка =====================
+   Проблема: data-tooltip висел на всей плитке 64×64, а картинка — ~40px:
+   тултип срабатывал над пустой областью. Фикс: тултип переехал на обёртку
+   иконки, ужатой до картинки (img — replaced element, ::after на нём не
+   рендерится, поэтому именно обёртка). Клик по плитке открывает модалку,
+   как раньше (pointer-events не трогаем).
+   - инвентарь/золото: .item-icon (shrink-wrap, центрируется слотом);
+   - экипировка: .equip-icon (авто-размер, картинка cap 47px в px);
+   - книги: новая .tech-icon (shrink-wrap);
+   - крафт: якорь JS-тултипа — .craft-tile-icon вместо кнопки;
+   - пустые слоты: тултип-имя слота оставлен на плитке осознанно. */
+.tech-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 #equipmentTechSlots {
     gap: 4px;
 }
