@@ -979,7 +979,7 @@ function renderInventoryPanel() {
 
     // Первый элемент — всегда золото
     const tiles = [
-        `<div class="item tile-gold" title="Золото">
+        `<div class="item tile-gold" data-tooltip="Золото">
             <span class="item-icon">💰</span>
             <span class="item-count">${esc(playerData ? playerData.gold : 0)}</span>
         </div>`,
@@ -997,7 +997,7 @@ function renderInventoryPanel() {
                 tiles.push(`
                     <button class="item item-equip"
                             data-code="${esc(code)}" data-instance-id="${inst.id}"
-                            type="button" title="${esc(item.name)}">
+                            type="button" data-tooltip="${esc(item.name)}">
                         <span class="item-icon">${itemVisual(item, 'item-img')}</span>
                     </button>`);
             });
@@ -1007,7 +1007,7 @@ function renderInventoryPanel() {
         // Стекируемый предмет (материалы, расходники) — одна карточка
         const usable = item.type === 'consumable';
         tiles.push(`
-            <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" title="${esc(item.name)}">
+            <button class="item ${usable ? 'usable' : ''}" data-code="${esc(code)}" type="button" data-tooltip="${esc(item.name)}">
                 <span class="item-icon">${itemVisual(item, 'item-img')}</span>
                 <span class="item-count">×${esc(item.count)}</span>
             </button>`);
@@ -1021,7 +1021,7 @@ function renderInventoryPanel() {
     learnedBooks.forEach((technique) => {
         tiles.push(`
             <button class="item item-techbook" data-tech-code="${esc(technique.code)}"
-                    type="button" title="${esc(technique.name)} (Ур. ${esc(technique.level)})">
+                    type="button" data-tooltip="${esc(technique.name)} (Ур. ${esc(technique.level)})">
                 <span class="item-icon">${techVisual(technique, 'item-img')}</span>
             </button>`);
     });
@@ -1324,15 +1324,14 @@ function renderEquipment() {
     box.innerHTML = slots.map((slot) => {
         const equipped = worn[slot.key];
         if (equipped) {
-            // Раунд 58: подписи убраны, тултип — нативный title=,
-            // надетое помечено 🔒-бейджем (как у предметов в инвентаре).
+            // Раунд 59: подписи убраны, замки убраны (слот сам по себе —
+            // признак надетого), тултип — кастомный через data-tooltip.
             return `
-            <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" title="${esc(equipped.name)}">
+            <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button" data-tooltip="${esc(equipped.name)}">
                 <span class="equip-icon">${itemVisual(equipped, 'equip-img')}</span>
-                <span class="equip-lock">🔒</span>
             </button>`;
         }
-        return `<div class="equip-slot empty" title="${esc(slot.name)}">${slot.icon}</div>`;
+        return `<div class="equip-slot empty" data-tooltip="${esc(slot.name)}">${slot.icon}</div>`;
     }).join('');
 
     // Клик по надетому слоту — модалка со «Снять»
@@ -1357,12 +1356,13 @@ function renderEquipment() {
             cell.className = 'tech-slot filled';
             cell.type = 'button';
             cell.dataset.code = book.code;
-            // Раунд 58: заголовок блока убран, подписи убраны, золотая
-            // подсветка снята в CSS; тултип — title с уровнем, надетое — 🔒.
-            cell.title = book.level
+            // Раунд 59: заголовок блока убран, подписи и замки убраны
+            // (блок «Техники в бою» сам по себе — признак экипированности);
+            // тултип — кастомный через data-tooltip.
+            cell.dataset.tooltip = book.level
                 ? `${book.name} (Ур. ${book.level})`
                 : `${book.name} — в бою`;
-            cell.innerHTML = `${techVisual(book, 'tech-img')}<span class="tech-lock">🔒</span>`;
+            cell.innerHTML = `${techVisual(book, 'tech-img')}`;
             cell.addEventListener('click', () => {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
@@ -1737,9 +1737,9 @@ function renderTechniques() {
             cell.className = 'tech-slot filled';
             cell.type = 'button';
             cell.dataset.code = technique.code;
-            cell.title = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
-            // Раунд 58: подпись убрана (тултип-title оставлен), надетое — 🔒.
-            cell.innerHTML = `${techVisual(technique, 'tech-img')}<span class="tech-lock">🔒</span>`;
+            cell.dataset.tooltip = `${technique.name} (Ур. ${technique.level})·Ци ${technique.qi_cost}`;
+            // Раунд 59: подпись и замок убраны, тултип — кастомный.
+            cell.innerHTML = `${techVisual(technique, 'tech-img')}`;
             cell.addEventListener('click', () => openTechniqueModal(techniques, technique.code));
             slots.appendChild(cell);
         } else {

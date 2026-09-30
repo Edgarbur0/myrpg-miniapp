@@ -3037,8 +3037,10 @@ body {
    - подписи под иконками убраны в JS, страховка здесь: текстовые span
      внутри слотов скрыты, плитки размера не меняют;
    - надетое отличается 🔒-бейджем (рисует JS: .equip-lock / .tech-lock);
+     (раунд 59: бейджи убраны, тултип стал кастомным — см. блок «РАУНД 59»);
    - тултипы — нативный title= (рисует JS): на десктопе всплывает
-     при hover, на тач-устройствах молчит, модалка по клику работает. */
+     при hover, на тач-устройствах молчит, модалка по клику работает.
+     (раунд 59: заменён на кастомный через data-tooltip). */
 #equipmentTechSlots .tech-slot.filled,
 .tech-slots .tech-slot.filled {
     border: none;
@@ -3054,13 +3056,82 @@ body {
 .tech-slot {
     position: relative;
 }
+/* Раунд 59: замки убраны из JS; правило ниже — страховка от старого кэша.
+   Тултип вылезает НАД плиткой, поэтому overflow у слотов — visible
+   (подписи, ради которых был hidden, убраны в раунде 58). */
+.equip-slot,
+.tech-slot {
+    overflow: visible;
+}
 .equip-lock,
 .tech-lock {
-    position: absolute;
-    bottom: 1px;
-    right: 3px;
-    font-size: 11px;
-    line-height: 1;
-    pointer-events: none;
-    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+    display: none;
+}
+
+/* ================= РАУНД 59: кастомный тултип в стиле приложения ========
+   Заменяет нативный title= (белый системный пузырь) на тёмный фэнтези-пузырь.
+   Реализация — чистый CSS через content: attr(data-tooltip), JS не нужен:
+   - позиция НАД плиткой по центру, стрелочка снизу (::before);
+   - задержка 200мс (не мелькает при быстром движении), появление 150мс;
+   - ширина max-content, но не шире 200px — соседние плитки не перекрывает;
+   - только для мыши: @media (hover: hover), на тач-устройствах тултипа нет
+     (там работает модалка по клику);
+   - z-index 500: выше плиток и шапки (20–100), ниже модалки (1000). */
+@media (hover: hover) {
+    [data-tooltip] {
+        position: relative;
+    }
+    [data-tooltip]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) translateY(4px);
+        width: max-content;
+        max-width: 200px;
+        padding: 6px 12px;
+        background: rgba(22, 33, 62, 0.95);
+        color: #ecf0f1;
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        font-size: 12px;
+        line-height: 1.4;
+        text-align: center;
+        white-space: normal;
+        overflow-wrap: break-word;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 150ms ease, transform 150ms ease, visibility 150ms;
+        z-index: 500;
+    }
+    [data-tooltip]::before {
+        content: "";
+        position: absolute;
+        bottom: calc(100% + 4px);
+        left: 50%;
+        width: 8px;
+        height: 8px;
+        background: rgba(22, 33, 62, 0.95);
+        border-right: 1px solid rgba(212, 175, 55, 0.4);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+        transform: translateX(-50%) rotate(45deg);
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 150ms ease, visibility 150ms;
+        z-index: 500;
+    }
+    [data-tooltip]:hover::after {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+        transition-delay: 200ms;
+    }
+    [data-tooltip]:hover::before {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 200ms;
+    }
 }
