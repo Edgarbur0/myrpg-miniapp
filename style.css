@@ -725,10 +725,13 @@ body {
 /* Картинка предмета (items.image, раунд 47). Пропорции 1:1, эмодзи-фолбэк
    подставляется в JS через onerror, если файл не загрузился.
    Хотфикс раунда 54: +10% к размеру (было 76% / 48px).
-   Раунд 58: −5% (было 84% / 53px). */
+   Раунд 58: −5% (было 84% / 53px).
+   Раунд 67: 89% без px-ограничения — в тон правилу .item .item-img
+   (раунд 64), книги в инвентаре рисуются этим же классом. */
 .item-img {
-    width: 76%;
-    max-width: 48px;
+    width: 89%;
+    max-width: 89%;
+    max-height: 89%;
     aspect-ratio: 1;
     object-fit: contain;
     display: block;
@@ -1755,9 +1758,9 @@ body {
 }
 
 /* Картинка предмета в модалке (крупнее, чем в плитке инвентаря).
-   Раунд 58: −5% (было 106px). */
+   Раунд 58: −5% (было 106px). Раунд 67: +15% — в тон крупным плиткам. */
 .modal-icon-img {
-    width: 96px;
+    width: 112px;
     max-width: 100%;
     aspect-ratio: 1;
     object-fit: contain;
@@ -3457,4 +3460,31 @@ body {
     background: transparent;
     box-shadow: none;
     outline: none;
+}
+
+/* ================= РАУНД 67: единый размер + книги прозрачные =========
+   Правка 1 — картинки заполняют подложку везде (вариант А из ТЗ):
+   инвентарь уже 89% (.item .item-img, раунд 64), крафт уже 90%
+   (.craft-tile-icon img, раунд 60) — их не трогаем; здесь поднят
+   базовый .item-img (76%/48px → 89%, книги в инвентаре рисуются им же)
+   и модалка (.modal-icon-img 96px → 112px). object-fit: contain везде —
+   вытянутые картинки (мясо, свитки) вписываются в квадрат с полями,
+   это не баг, а сохранение пропорций.
+   Правка 2 — книги в экипировке: аудит каскада показал, что правило
+   р.58 (.tech-slot.filled → transparent) ничем не перезаписано, а сброс
+   р.66 покрывает все состояния — тёмная подложка на скрине означает
+   старый CSS в кэше webview. Страховка: явный background-color и
+   прозрачный .tech-icon (обёртка-кнопка в некоторых webview красит
+   кнопку системным фоном). Бонус-фикс: ?v=73 принудительно вытягивает
+   свежий CSS у всех клиентов. */
+#equipmentTechSlots .tech-slot,
+#equipmentTechSlots .tech-slot.filled {
+    background-color: transparent;
+}
+
+#equipmentTechSlots .tech-icon {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
 }
