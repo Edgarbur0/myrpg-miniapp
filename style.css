@@ -3347,6 +3347,25 @@ body {
     border: none;
 }
 
+/* ================= РАУНД 63: без тёмных подложек ========================
+   Убираем полупрозрачный фон, тень и отступы у карточек «Экипировка» /
+   «Инвентарь»: плитки идут напрямую по фону приложения, от края до
+   разделителя и от разделителя до края. Заголовки и иконки не тронуты.
+   Скоуп — только .bottom-grid, остальные .card не тронуты. Hover-подсветка
+   карточек из раунда 53 здесь тоже гасится, иначе фон возвращался бы
+   при наведении. Backdrop-filter снят — блюрить под прозрачным нечего. */
+.bottom-grid > .card {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.bottom-grid > .card:hover {
+    background: transparent;
+}
+
 @media (min-width: 480px) {
     .bottom-grid {
         position: relative;
