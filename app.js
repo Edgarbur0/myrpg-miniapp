@@ -948,6 +948,42 @@ function itemVisual(item, imgClass) {
         + ` onerror="this.outerHTML='${emoji}'">`;
 }
 
+// Иконка валюты (раунд 71): картинка каталожной строки 'gold' → 💰.
+// Пустышки нет — золото одно, иконка залита (gold.png).
+function goldVisual(info, imgClass) {
+    if (!info || !info.image) {
+        return '💰';
+    }
+    const src = esc(info.image);
+    return `<img class="${imgClass}" src="${src}" alt="" loading="lazy"`
+        + ` onerror="this.outerHTML='💰'">`;
+}
+
+// Карточка валюты (раунд 71): золото — счёт state.gold, а не предмет.
+// Read-only: описания и количества достаточно, кнопок действий нет
+// (валюту нельзя использовать/надеть/разобрать/удалить).
+function openGoldModal() {
+    const info = (inventoryData && inventoryData.gold_info) || {};
+    activeItemCode = null;
+    activeInstanceId = null;
+    activeScrollCode = null;
+    document.getElementById('modalTitle').textContent = info.name || 'Золото';
+    document.getElementById('modalBody').innerHTML = `
+        <div class="modal-icon">${goldVisual(info, 'modal-icon-img')}</div>
+        <div class="modal-title">${esc(info.name || 'Золото')}</div>
+        <div class="modal-desc">
+            <div><span class="muted">Тип</span><span>Валюта</span></div>
+            <div><span class="muted">Количество</span><span>${esc(playerData ? playerData.gold : 0)}</span></div>
+        </div>
+        ${info.description ? `<div class="modal-note">${esc(info.description)}</div>` : ''}
+    `;
+    document.getElementById('modalUse').classList.add('hidden');
+    document.getElementById('modalDisassemble').classList.add('hidden');
+    document.getElementById('modalDelete').classList.add('hidden');
+    document.getElementById('modalActions').classList.add('hidden');
+    openModal();
+}
+
 // Картинка техники-книги: иконка из справочника (techniques.image) →
 // эмодзи стихии → 📖. Пустышки-подстановки нет: техник мало и у каждой
 // должна быть своя иконка из админки (раунд 57). Пустое поле — это
@@ -968,7 +1004,16 @@ function techVisual(technique, imgClass) {
 function renderInventoryPanel() {
     const data = inventoryData;
     const inventory = (data && data.inventory) || {};
-    const codes = Object.keys(inventory);
+    // Порядок — из API (inventory_order, раунд 71): Flask сортирует ключи
+    // JSON по алфавиту, поэтому порядок словаря до клиента не доезжает.
+    // Фолбэк — ключи как есть (старый API без порядка).
+    const apiOrder = (data && data.inventory_order) || [];
+    const codes = apiOrder.filter((code) => inventory[code]);
+    Object.keys(inventory).forEach((code) => {
+        if (codes.indexOf(code) === -1) {
+            codes.push(code);
+        }
+    });
 
     document.getElementById('invEmpty').classList.toggle(
         'hidden',
@@ -977,13 +1022,17 @@ function renderInventoryPanel() {
             .some((technique) => !technique.is_equipped)),
     );
 
-    // Первый элемент — всегда золото. Раунд 65: тултип на иконке,
-    // а не на плитке — hover по пустой области тултип не показывает.
+    // Первый элемент — всегда золото (валюта state.gold, не стак).
+    // Раунд 65: тултип на иконке, а не на плитке — hover по пустой области
+    // тултип не показывает. Раунд 71: плитка — кнопка с картинкой из каталога
+    // (gold_info) и read-only карточкой; мусорного стака 'gold' больше нет
+    // (API его фильтрует, миграция вычистила из инвентарей и дропов).
+    const goldInfo = (data && data.gold_info) || { name: 'Золото' };
     const tiles = [
-        `<div class="item tile-gold">
-            <span class="item-icon" data-tooltip="Золото">💰</span>
+        `<button class="item tile-gold" data-gold="1" type="button">
+            <span class="item-icon" data-tooltip="${esc(goldInfo.name || 'Золото')}">${goldVisual(goldInfo, 'item-img')}</span>
             <span class="item-count">${esc(playerData ? playerData.gold : 0)}</span>
-        </div>`,
+        </button>`,
     ];
 
     codes.forEach((code) => {
@@ -1029,6 +1078,18 @@ function renderInventoryPanel() {
 
     const grid = document.getElementById('inventoryGrid');
     grid.innerHTML = tiles.join('');
+
+    // Клик по валюте — read-only карточка золота (раунд 71)
+    grid.querySelectorAll('.item[data-gold]').forEach((cell) => {
+        cell.addEventListener('click', () => {
+            try {
+                openGoldModal();
+            } catch (error) {
+                console.error('openGoldModal', error);
+                showToast('Не удалось открыть карточку золота');
+            }
+        });
+    });
 
     // Клик по книге техники — справочная модалка техники
     grid.querySelectorAll('.item[data-tech-code]').forEach((cell) => {

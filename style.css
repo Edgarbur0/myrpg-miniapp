@@ -3519,3 +3519,57 @@ body {
     -webkit-appearance: none;
     appearance: none;
 }
+
+/* ================= РАУНД 71: книги без рамок (финал) + золото-кнопка ===
+   Аудит каскада: базовый .tech-slot несёт background: var(--card) и
+   dashed-рамку, .tech-slot.filled — background: var(--accent-soft).
+   Сбросы р.58/66/67 (ID-селекторы, специфичность выше) их уже бьют,
+   но рамка возвращалась — виноват либо кэш webview, либо плитки книг
+   в ИНВЕНТАРЕ (.item-techbook на классе .item: фон rgba(22,33,62,0.5)
+   из раунда 50, р.51 снял только border). Поэтому добиваем оба места
+   одним блоком — shorthand background (бьёт background: var(--card)
+   надёжнее, чем background-color) во всех состояниях кнопки.
+   Плюс .tile-gold стала <button> (раунд 71, кликабельная валюта):
+   сбрасываем системный фон кнопки, вид — как у соседних плиток. */
+#equipmentTechSlots .tech-slot,
+#equipmentTechSlots .tech-slot.filled,
+#equipmentTechSlots .tech-slot:hover,
+#equipmentTechSlots .tech-slot:active,
+#equipmentTechSlots .tech-slot:focus,
+#equipmentTechSlots .tech-slot:focus-visible,
+#equipmentTechSlots .tech-slot:visited {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+#equipmentTechSlots .tech-icon {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+}
+.item-techbook,
+.item-techbook:hover,
+.item-techbook:active,
+.item-techbook:focus,
+.item-techbook:focus-visible {
+    background: transparent;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+button.item.tile-gold {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
