@@ -1414,61 +1414,65 @@ function renderEquipment() {
         : EQUIPMENT_SLOT_FALLBACK;
     const worn = data.equipment || {};
     const box = document.getElementById('equipmentSlots');
-    box.innerHTML = slots.map((slot) => {
+
+    // Единая сетка экипировки (раунд 83): сначала 8 слотов (надетое или
+    // картинка пустого слота из админки / эмодзи-фолбэк), затем книги техник
+    // в бою — теми же плитками .item, что в инвентаре. Отдельного блока книг
+    // (#equipmentTechSlots) больше нет: innerHTML-замена — без дублей.
+    const tiles = slots.map((slot) => {
         const equipped = worn[slot.key];
         if (equipped) {
-            // Раунд 82: плитка — как в инвентаре (.item/.item-icon/.item-img),
-            // только экипированная. Отдельные классы слотов (.equip-slot /
-            // .equip-img) больше не используются: их каскад красил плитки
-            // подложкой, а инвентарный — проверенно чистый. Клик по плитке
-            // открывает модалку со «Снять», как раньше.
+            // Клик по плитке открывает модалку со «Снять», как раньше
             return `
             <button class="item item-equip" data-slot="${esc(slot.key)}" type="button">
                 <span class="item-icon" data-tooltip="${esc(equipped.name)}">${itemVisual(equipped, 'item-img')}</span>
             </button>`;
         }
-        return `<div class="item tile-empty equip-empty" data-tooltip="${esc(slot.name)}">${slot.icon}</div>`;
-    }).join('');
-
-    // Клик по надетому слоту — модалка со «Снять»
-    box.querySelectorAll('.item-equip').forEach((cell) => {
-        cell.addEventListener('click', () => openEquippedModal(cell.dataset.slot));
+        // Пустой слот: картинка из админки (equipment_slots.image) или эмодзи
+        const emptyVisual = slot.image
+            ? `<img class="item-img" src="${esc(slot.image)}" alt="" loading="lazy"`
+                + ` onerror="this.outerHTML='${esc(String(slot.icon || '▫️').replace(/['"\\<>&]/g, ''))}'">`
+            : esc(slot.icon || '▫️');
+        return `<div class="item tile-empty equip-empty" data-tooltip="${esc(slot.name)}">`
+            + `<span class="item-icon">${emptyVisual}</span></div>`;
     });
 
-    // Экипированные техники-книги (раунд 54, хотфикс): отдельный подписанный
-    // блок #equipmentTechSlots, а НЕ append внутрь flex-сетки слотов (иначе
-    // книги сжимают 4 слота). innerHTML-замена — без дублей при перерендере.
+    // Экипированные техники-книги — в ту же сетку, после слотов.
     // Источник — equipmentData.equipped_techniques (API), фолбэк — techniquesData.
     const equippedBooks = (data.equipped_techniques
         || (techniquesData && techniquesData.techniques || [])
             .filter((t) => t.is_equipped)
             .map((t) => ({ code: t.code, name: t.name, level: t.level, icon: '📖', image: t.image || '' }))
         || []);
-    const techBox = document.getElementById('equipmentTechSlots');
-    if (techBox) {
-        techBox.innerHTML = '';
-        equippedBooks.forEach((book) => {
-            const cell = document.createElement('button');
-            // Раунд 82: книга — та же плитка, что в инвентаре
-            // (.item-techbook/.item-icon/.item-img): та же PNG выглядит
-            // один в один как в инвентаре, без подложки. Классы .tech-slot
-            // здесь больше не используются (остались только у legacy-экрана
-            // «Техники» в renderTechniques).
-            cell.className = 'item item-techbook';
-            cell.type = 'button';
-            cell.dataset.code = book.code;
-            const bookTip = book.level
-                ? `${book.name} (Ур. ${book.level})`
-                : `${book.name} — в бою`;
-            cell.innerHTML = `<span class="item-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'item-img')}</span>`;
-            cell.addEventListener('click', () => {
+    equippedBooks.forEach((book) => {
+        const bookTip = book.level
+            ? `${book.name} (Ур. ${book.level})`
+            : `${book.name} — в бою`;
+        tiles.push(`
+            <button class="item item-techbook" data-tech-code="${esc(book.code)}" type="button">
+                <span class="item-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'item-img')}</span>
+            </button>`);
+    });
+    box.innerHTML = tiles.join('');
+
+    // Клик по надетому слоту — модалка со «Снять»
+    box.querySelectorAll('.item-equip').forEach((cell) => {
+        cell.addEventListener('click', () => openEquippedModal(cell.dataset.slot));
+    });
+
+    // Клик по книге в экипировке — справочная модалка техники
+    box.querySelectorAll('.item-techbook').forEach((cell) => {
+        cell.addEventListener('click', () => {
+            try {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
-                openTechniqueModal(books, book.code);
-            });
-            techBox.appendChild(cell);
+                openTechniqueModal(books, cell.dataset.techCode);
+            } catch (error) {
+                console.error('openTechniqueModal', error);
+                showToast('Не удалось открыть карточку техники');
+            }
         });
-    }
+    });
 
     // Суммарные бонусы экипировки в заголовке карточки
     const bonuses = data.bonuses || {};

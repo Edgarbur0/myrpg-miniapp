@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=85">
+    <link rel="stylesheet" href="style.css?v=86">
 </head>
 <body>
 
@@ -105,12 +105,10 @@
                         <button id="eqSizeSave" class="btn btn-primary size-save" type="button">Сохранить</button>
                         <button id="eqSizeClose" class="icon-btn size-close" type="button" aria-label="Закрыть">✕</button>
                     </div>
+                    <!-- Единая сетка экипировки (раунд 83): 8 слотов + книги
+                         техник в бою — одним списком, без отдельного блока.
+                         Раньше книги жили в #equipmentTechSlots ниже сетки. -->
                     <div class="equipment-slots" id="equipmentSlots"></div>
-                    <!-- Техники в бою (хотфикс раунда 54): отдельный блок ниже
-                         сетки снаряжения, а не внутри неё — иначе книги как
-                         5-й flex-элемент сжимают 4 слота экипировки.
-                         Раунд 58: заголовок убран, сетка книг без подписей. -->
-                    <div class="tech-slots" id="equipmentTechSlots"></div>
                 </div>
                 <div class="card">
                     <div class="card-title-row">
@@ -399,5 +397,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=85"></script></body>
+    <script src="app.js?v=86"></script></body>
 </html>
