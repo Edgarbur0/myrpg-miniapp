@@ -4240,3 +4240,38 @@ button.item.tile-gold {
 .equipment-slots {
     grid-template-columns: repeat(auto-fill, minmax(0, var(--equipment-item-size)));
 }
+
+/* ================= РАУНД 87: минимум отступов у Экипировки/Инвентаря ====
+    По скриншоту: лишние поля слева/справа/снизу (рамка .stats-panel 16px)
+    и вокруг разделителя (gap 6px). Важно: .bottom-grid > .card уже без
+    паддинга с раунда 63 (карточки прозрачные) — добавлять им padding
+    НЕЛЬЗЯ, это вернёт зазоры обратно. Жмём внешние контейнеры:
+    - .stats-panel: padding/margin 16px → 8px (минимум из ТЗ);
+    - .bottom-grid: gap 6px → 4px, разделитель едет на пол-гэпа (2px);
+    - заголовки карточек и панели размера: margin 10px → 6px;
+    - скролл-контейнеры уже с padding-right 4px (раунд 77) — под ползунок
+      хватает, не трогаем. Десктопный margin-bottom: 0 подтверждаем
+      (правило р.74 выше по файлу, каскадом бьём здесь). */
+.stats-panel {
+    padding: 8px;
+    margin-bottom: 8px;
+}
+@media (min-width: 900px) {
+    .stats-panel {
+        margin-bottom: 0;
+    }
+}
+.bottom-grid {
+    gap: 4px;
+}
+.bottom-grid .card-title-row {
+    margin-bottom: 6px;
+}
+.size-panel {
+    margin-bottom: 6px;
+}
+@media (min-width: 480px) {
+    .bottom-grid::before {
+        left: calc(50% - 2px);
+    }
+}
