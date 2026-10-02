@@ -4171,3 +4171,56 @@ button.item.tile-gold {
     -webkit-appearance: none !important;
     appearance: none !important;
 }
+
+/* ================= РАУНД 82: экипировка = плитки инвентаря ==========
+    Скрин: та же PNG-книга в инвентаре чистая, в экипировке — с тёмной
+    подложкой; иконки экипировки не заполняют плитку. Причина: экипировка
+    рисовалась своими классами (.equip-slot/.tech-slot + .equip-img /
+    .tech-img + ужатые обёртки), а инвентарь — своими (.item/.item-icon /
+    .item-img с обёрткой на всю плитку). Фикс — унификация: renderEquipment
+    (app.js) теперь рисует теми же классами, что инвентарь: надетое —
+    .item.item-equip (клик → модалка «Снять», выборка по .item-equip),
+    пустые слоты — .item.tile-empty.equip-empty (эмодзи, тултип-имя слота),
+    книги — .item.item-techbook с .item-img (та же PNG — тот же вид).
+    Классы .equip-slot/.tech-slot остались только у legacy-экрана
+    «Техники» (renderTechniques) — их CSS не тронут.
+    Правила ниже (только добавления):
+    - сетка слотов уже на треках var (р.79) — плитка .item тянется
+      на трек (grid-stretch), квадрат держит aspect-ratio из базы;
+    - книги — фикс. размер var (flex ни при чём, контейнер flex);
+    - пустые слоты — flex-центр + эмодзи calc(var*0.34) из р.80;
+    - страховка: фон/рамка/тень у плиток экипировки сняты с !important
+      (инвентарю хватает каскада р.51/53, но красивший книги источник
+      так и не найден — страховка дешевле нового аудита). */
+.equipment-slots .item,
+#equipmentTechSlots .item {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+.equipment-slots .item:hover,
+.equipment-slots .item:active,
+#equipmentTechSlots .item:hover,
+#equipmentTechSlots .item:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.equipment-slots .item {
+    width: 100%;
+    height: auto;
+}
+#equipmentTechSlots .item {
+    flex: none;
+    width: var(--equipment-item-size);
+    height: var(--equipment-item-size);
+}
+.equipment-slots .tile-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--equipment-item-size) * 0.34);
+    cursor: default;
+}

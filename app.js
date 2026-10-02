@@ -1417,18 +1417,21 @@ function renderEquipment() {
     box.innerHTML = slots.map((slot) => {
         const equipped = worn[slot.key];
         if (equipped) {
-            // Раунд 65: тултип на обёртке картинки (hover-зона = картинка,
-            // а не вся плитка); клик по плитке открывает модалку, как раньше.
+            // Раунд 82: плитка — как в инвентаре (.item/.item-icon/.item-img),
+            // только экипированная. Отдельные классы слотов (.equip-slot /
+            // .equip-img) больше не используются: их каскад красил плитки
+            // подложкой, а инвентарный — проверенно чистый. Клик по плитке
+            // открывает модалку со «Снять», как раньше.
             return `
-            <button class="equip-slot filled" data-slot="${esc(slot.key)}" type="button">
-                <span class="equip-icon" data-tooltip="${esc(equipped.name)}">${itemVisual(equipped, 'equip-img')}</span>
+            <button class="item item-equip" data-slot="${esc(slot.key)}" type="button">
+                <span class="item-icon" data-tooltip="${esc(equipped.name)}">${itemVisual(equipped, 'item-img')}</span>
             </button>`;
         }
-        return `<div class="equip-slot empty" data-tooltip="${esc(slot.name)}">${slot.icon}</div>`;
+        return `<div class="item tile-empty equip-empty" data-tooltip="${esc(slot.name)}">${slot.icon}</div>`;
     }).join('');
 
     // Клик по надетому слоту — модалка со «Снять»
-    box.querySelectorAll('.equip-slot.filled').forEach((cell) => {
+    box.querySelectorAll('.item-equip').forEach((cell) => {
         cell.addEventListener('click', () => openEquippedModal(cell.dataset.slot));
     });
 
@@ -1446,18 +1449,18 @@ function renderEquipment() {
         techBox.innerHTML = '';
         equippedBooks.forEach((book) => {
             const cell = document.createElement('button');
-            cell.className = 'tech-slot filled';
+            // Раунд 82: книга — та же плитка, что в инвентаре
+            // (.item-techbook/.item-icon/.item-img): та же PNG выглядит
+            // один в один как в инвентаре, без подложки. Классы .tech-slot
+            // здесь больше не используются (остались только у legacy-экрана
+            // «Техники» в renderTechniques).
+            cell.className = 'item item-techbook';
             cell.type = 'button';
             cell.dataset.code = book.code;
-            // Раунд 59: заголовок блока убран, подписи и замки убраны
-            // (блок «Техники в бою» сам по себе — признак экипированности);
-            // тултип — кастомный через data-tooltip.
-            // Раунд 65: тултип на ужатой обёртке картинки (hover-зона =
-            // книга, а не вся плитка); dataset.tooltip убран с кнопки.
             const bookTip = book.level
                 ? `${book.name} (Ур. ${book.level})`
                 : `${book.name} — в бою`;
-            cell.innerHTML = `<span class="tech-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'tech-img')}</span>`;
+            cell.innerHTML = `<span class="item-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'item-img')}</span>`;
             cell.addEventListener('click', () => {
                 const books = (techniquesData && techniquesData.techniques || [])
                     .concat((techniquesData && techniquesData.catalog || []));
