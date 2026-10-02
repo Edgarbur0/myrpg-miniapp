@@ -4120,3 +4120,54 @@ button.item.tile-gold {
     box-shadow: none !important;
     outline: none !important;
 }
+
+/* ================= РАУНД 81: иконки = 90% плитки + книги без фона ====
+    Часть 1 — иконки заполняют слот (как инвентарь р.68). Корень
+    расхождения: в инвентаре обёртка .item-icon растянута на всю плитку
+    (definite-размер), а картинка — 90% обёртки = 90% плитки; в экипировке
+    обёртки ужаты до картинки (р.65), а caps считались от переменной
+    (р.80) — при любом расхождении плитки и переменной иконка отставала.
+    Фикс — та же схема, что в инвентаре: обёртки .equip-icon/.tech-icon
+    растянуты на всю плитку (flex-центр, как .item-icon), картинки —
+    90% обёртки (бьют calc-caps р.80 каскадом). Пропорции — contain,
+    центрирование — flex-родители. Компромисс с р.65 (как в р.68):
+    hover-зона тултипа — вся плитка (в крафте осталась картинка);
+    клик по плитке открывает модалку, как раньше.
+    Часть 2 — подложка книг. Источник — базовое .tech-slot
+    (style.css:1465: background: var(--card) + radius 10px): у слотов
+    экипировки фон снят ещё в р.51, а у книг базовый фон остался —
+    поэтому подложка только у книг (вывод пользователя верен). Сбросы
+    р.58/66/67/71/80 по специфичности обязаны побеждать, но симптом
+    на скрине есть — добиваем тем же сбросом (селекторы поправлены:
+    книги живут в #equipmentTechSlots, а не в .equipment-slots —
+    селекторы ТЗ с .equipment-slots .tech-slot ничему не матчились)
+    + ?v=84 против кэша webview. Оговорка р.80 в силе: если прямоугольник
+    уцелеет — он запечён в PNG книги (перезалить в /admin). */
+.equipment-slots .equip-icon,
+#equipmentTechSlots .tech-icon {
+    width: 100%;
+    height: 100%;
+}
+.equipment-slots .equip-img,
+#equipmentTechSlots .tech-img {
+    width: 90%;
+    height: 90%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+#equipmentTechSlots .tech-slot,
+#equipmentTechSlots .tech-slot.filled,
+#equipmentTechSlots .tech-slot.empty,
+#equipmentTechSlots .tech-slot:hover,
+#equipmentTechSlots .tech-slot:active,
+#equipmentTechSlots .tech-slot:focus,
+#equipmentTechSlots .tech-slot:focus-visible {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
