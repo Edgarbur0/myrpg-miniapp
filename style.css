@@ -4075,3 +4075,48 @@ button.item.tile-gold {
     max-width: none;
     aspect-ratio: 1;
 }
+
+/* ================= РАУНД 80: иконки = плитка, подложка книг ==========
+    Диагноз по скринам 48→96px: треки/плитки росли (р.79), а картинки —
+    нет: .equip-img и .tech-img были зажаты px-cap 58px (р.66), поэтому
+    при 96px иконка оставалась 58px и рост выглядел как «расстояние
+    растёт, иконки почти нет». Пустые слоты — эмодзи с фикс. font-size
+    22px (база) — тоже не масштабировались. Книги — тёмный прямоугольник
+    подложки поверх прозрачных правил р.58/66/67/71.
+    Фикс (только добавления):
+    - картинки — cap через calc(var * 0.9) вместо 58px: растут вместе
+      с плиткой во всём диапазоне 48–96; обёртки ужаты (р.65) — cap
+      в px от definite-переменной, усадки нет, hover-зона тултипа
+      по-прежнему = картинка (компромисс р.68 не понадобился);
+    - пустые слоты — font-size: calc(var * 0.34): 22px при 64px
+      (как база), масштабируется пропорционально;
+    - подложка книг — добивающий сброс с !important во всех состояниях
+      (каскад р.58/66/67/71 чист, но симптом на скринах есть — либо
+      webview держит старый CSS, либо правило теряется; !important +
+      ?v=83 закрывают оба варианта). Если тёмный прямоугольник
+      останется и после этого — он запечён в сам PNG книги, тогда
+      нужна прозрачная иконка от админа (перезалить в /admin). */
+.equipment-slots .equip-img {
+    max-width: calc(var(--equipment-item-size) * 0.9);
+    max-height: calc(var(--equipment-item-size) * 0.9);
+}
+#equipmentTechSlots .tech-img {
+    max-width: calc(var(--equipment-item-size) * 0.9);
+    max-height: calc(var(--equipment-item-size) * 0.9);
+}
+.equipment-slots .equip-slot.empty {
+    font-size: calc(var(--equipment-item-size) * 0.34);
+}
+#equipmentTechSlots .tech-slot,
+#equipmentTechSlots .tech-slot.filled,
+#equipmentTechSlots .tech-slot:hover,
+#equipmentTechSlots .tech-slot:active,
+#equipmentTechSlots .tech-slot:focus,
+#equipmentTechSlots .tech-slot:focus-visible,
+#equipmentTechSlots .tech-icon {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
