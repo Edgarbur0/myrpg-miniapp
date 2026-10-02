@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=80">
+    <link rel="stylesheet" href="style.css?v=81">
 </head>
 <body>
 
@@ -90,22 +90,20 @@
             <!-- Характеристики -->
             <div class="stats-grid" id="statsGrid"></div>
 
-            <!-- Панель размера иконок (раунд 77): открывается кликом
-                 по заголовку «Экипировка» / «Инвентарь», одна общая -->
-            <div id="sizePanel" class="size-panel hidden">
-                <button id="sizeMinus" class="size-btn" type="button" aria-label="Меньше">−</button>
-                <span id="sizeValue" class="size-value">64px</span>
-                <button id="sizePlus" class="size-btn" type="button" aria-label="Больше">+</button>
-                <button id="sizeSave" class="btn btn-primary size-save" type="button">Сохранить</button>
-                <button id="sizeClose" class="icon-btn size-close" type="button" aria-label="Закрыть">✕</button>
-            </div>
-
             <!-- Экипировка и инвентарь -->
             <div class="bottom-grid">
                 <div class="card">
                     <div class="card-title-row">
                         <button class="card-title card-title-btn" id="equipTitleBtn" type="button" title="Настроить размер иконок">Экипировка</button>
                         <span id="equipBonuses" class="card-sub"></span>
+                    </div>
+                    <!-- Панель размера экипировки (раунд 78): своя, над сеткой -->
+                    <div id="equipmentSizePanel" class="size-panel hidden">
+                        <button id="eqSizeMinus" class="size-btn" type="button" aria-label="Меньше">−</button>
+                        <span id="eqSizeValue" class="size-value">64px</span>
+                        <button id="eqSizePlus" class="size-btn" type="button" aria-label="Больше">+</button>
+                        <button id="eqSizeSave" class="btn btn-primary size-save" type="button">Сохранить</button>
+                        <button id="eqSizeClose" class="icon-btn size-close" type="button" aria-label="Закрыть">✕</button>
                     </div>
                     <div class="equipment-slots" id="equipmentSlots"></div>
                     <!-- Техники в бою (хотфикс раунда 54): отдельный блок ниже
@@ -118,6 +116,14 @@
                     <div class="card-title-row">
                         <button class="card-title card-title-btn" id="invTitleBtn" type="button" title="Настроить размер иконок">Инвентарь</button>
                         <span id="invEmpty" class="card-sub hidden">пусто</span>
+                    </div>
+                    <!-- Панель размера инвентаря (раунд 78): своя, над сеткой -->
+                    <div id="inventorySizePanel" class="size-panel hidden">
+                        <button id="invSizeMinus" class="size-btn" type="button" aria-label="Меньше">−</button>
+                        <span id="invSizeValue" class="size-value">64px</span>
+                        <button id="invSizePlus" class="size-btn" type="button" aria-label="Больше">+</button>
+                        <button id="invSizeSave" class="btn btn-primary size-save" type="button">Сохранить</button>
+                        <button id="invSizeClose" class="icon-btn size-close" type="button" aria-label="Закрыть">✕</button>
                     </div>
                     <div class="inventory-grid" id="inventoryGrid">
                         <div class="item tile-empty"></div>
@@ -385,9 +391,13 @@
 <!-- POPOVER СТАТА -->
 <div id="statPopover" class="stat-popover hidden"></div>
 
+<!-- СИНГЛТОН-ТУЛТИП предметов (раунд 78): живёт в body, position: fixed,
+     поэтому не растягивает скролл-контейнеры и не обрезается их краями -->
+<div id="itemTooltip" class="item-tooltip hidden"></div>
+
 <!-- ТОСТ -->
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=80"></script></body>
+    <script src="app.js?v=81"></script></body>
 </html>

@@ -2858,17 +2858,18 @@ async function claimQuest(code) {
     loadAll(false);
 }
 
-// ---------- Размер иконок (раунд 77) ----------
-// Хранится только в браузере игрока (localStorage, сервер не нужен).
-// Клик по заголовку «Экипировка»/«Инвентарь» открывает панель;
-// «+»/«−» меняют превью живьём (CSS-переменная), «Сохранить» пишет
-// в localStorage, «✕» закрывает без сохранения (откат к сохранённому).
-const ITEM_SIZE_KEY = 'myrpg_item_size';
+// ---------- Размеры иконок (раунд 77–78) ----------
+// Хранятся только в браузере игрока (localStorage, сервер не нужен).
+// Раунд 78: у инвентаря и экипировки свои размеры и свои панели.
+// Старый общий ключ 'myrpg_item_size' (р.77) используется как фолбэк
+// при первом запуске, чтобы не сбрасывать настройку игрока.
+const INV_SIZE_KEY = 'myrpg_inventory_item_size';
+const EQ_SIZE_KEY = 'myrpg_equipment_item_size';
+const LEGACY_SIZE_KEY = 'myrpg_item_size';
 const ITEM_SIZE_MIN = 48;
 const ITEM_SIZE_MAX = 96;
 const ITEM_SIZE_STEP = 8;
 const ITEM_SIZE_DEFAULT = 64;
-let itemSizeDraft = ITEM_SIZE_DEFAULT;
 
 function clampItemSize(value) {
     const num = parseInt(value, 10);
@@ -2878,81 +2879,187 @@ function clampItemSize(value) {
     return Math.max(ITEM_SIZE_MIN, Math.min(ITEM_SIZE_MAX, num));
 }
 
-function applyItemSize(value) {
-    const size = clampItemSize(value);
-    document.documentElement.style.setProperty('--item-size', size + 'px');
-    return size;
+// Конфиг двух панелей: ключ localStorage, CSS-переменная, id элементов
+const SIZE_PANELS = [
+    {
+        storeKey: INV_SIZE_KEY,
+        cssVar: '--inventory-item-size',
+        panel: 'inventorySizePanel',
+        value: 'invSizeValue',
+        minus: 'invSizeMinus',
+        plus: 'invSizePlus',
+        save: 'invSizeSave',
+        close: 'invSizeClose',
+        title: 'invTitleBtn',
+        draft: ITEM_SIZE_DEFAULT,
+    },
+    {
+        storeKey: EQ_SIZE_KEY,
+        cssVar: '--equipment-item-size',
+        panel: 'equipmentSizePanel',
+        value: 'eqSizeValue',
+        minus: 'eqSizeMinus',
+        plus: 'eqSizePlus',
+        save: 'eqSizeSave',
+        close: 'eqSizeClose',
+        title: 'equipTitleBtn',
+        draft: ITEM_SIZE_DEFAULT,
+    },
+];
+
+function savedItemSize(storeKey) {
+    // Новый ключ → legacy-ключ р.77 → default 64
+    return localStorage.getItem(storeKey)
+        || localStorage.getItem(LEGACY_SIZE_KEY)
+        || String(ITEM_SIZE_DEFAULT);
 }
 
-function renderSizeValue() {
-    const label = document.getElementById('sizeValue');
+function applyPanelSize(cfg, value) {
+    cfg.draft = clampItemSize(value);
+    document.documentElement.style.setProperty(cfg.cssVar, cfg.draft + 'px');
+    const label = document.getElementById(cfg.value);
     if (label) {
-        label.textContent = itemSizeDraft + 'px';
+        label.textContent = cfg.draft + 'px';
     }
 }
 
-function openSizePanel() {
-    const panel = document.getElementById('sizePanel');
-    if (!panel) {
+function initItemSizes() {
+    // Загрузка при старте: сохранённые размеры или 64px по умолчанию
+    SIZE_PANELS.forEach((cfg) => {
+        applyPanelSize(cfg, savedItemSize(cfg.storeKey));
+        const titleBtn = document.getElementById(cfg.title);
+        if (titleBtn) {
+            titleBtn.addEventListener('click', () => {
+                document.getElementById(cfg.panel).classList.remove('hidden');
+            });
+        }
+        const minus = document.getElementById(cfg.minus);
+        const plus = document.getElementById(cfg.plus);
+        const save = document.getElementById(cfg.save);
+        const close = document.getElementById(cfg.close);
+        if (minus) {
+            minus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft - ITEM_SIZE_STEP));
+        }
+        if (plus) {
+            plus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft + ITEM_SIZE_STEP));
+        }
+        if (save) {
+            save.addEventListener('click', () => {
+                localStorage.setItem(cfg.storeKey, String(cfg.draft));
+                document.getElementById(cfg.panel).classList.add('hidden');
+                showToast('Размер иконок сохранён');
+            });
+        }
+        if (close) {
+            // «✕» — закрыть без сохранения, превью откатить к сохранённому
+            close.addEventListener('click', () => {
+                applyPanelSize(cfg, savedItemSize(cfg.storeKey));
+                document.getElementById(cfg.panel).classList.add('hidden');
+            });
+        }
+    });
+}
+
+// ---------- Синглтон-тултип предметов (раунд 78) ----------
+// Заменяет CSS-пузырь р.59 (::after на data-tooltip): тот жил внутри
+// скролл-контейнеров — растягивал родителя (ползунки у нижних плиток),
+// обрезался краем (левые плитки) и уходил за верх вьюпорта (верхние).
+// Синглтон живёт в body (position: fixed): на размеры родителей не влияет
+// и их краями не обрезается. Позиция — по getBoundingClientRect якоря,
+// с клампом по бокам и флипом вниз (по образцу showCraftTooltip из р.60).
+// Текст — через textContent, делегирование — одно на документ (перерендеры
+// сеток обработчиков не требуют). Только мышь: на таче — модалка по клику.
+let itemTooltipEl = null;
+let itemTooltipTimer = null;
+let itemTooltipAnchor = null;
+
+function getItemTooltipEl() {
+    if (!itemTooltipEl) {
+        itemTooltipEl = document.getElementById('itemTooltip');
+    }
+    return itemTooltipEl;
+}
+
+function scheduleItemTooltip(anchor) {
+    hideItemTooltip();
+    itemTooltipAnchor = anchor;
+    itemTooltipTimer = setTimeout(() => {
+        itemTooltipTimer = null;
+        showItemTooltip(anchor);
+    }, 200);
+}
+
+function showItemTooltip(anchor) {
+    const tip = getItemTooltipEl();
+    const text = anchor && anchor.dataset ? (anchor.dataset.tooltip || '') : '';
+    if (!tip || !text) {
         return;
     }
-    panel.classList.remove('hidden');
-    renderSizeValue();
+    tip.textContent = text;
+    // Замеряем невидимым, чтобы спозиционировать до показа
+    tip.classList.remove('hidden');
+    tip.style.visibility = 'hidden';
+    const tipWidth = tip.offsetWidth;
+    const tipHeight = tip.offsetHeight;
+    const rect = anchor.getBoundingClientRect();
+    // По центру над якорем, кламп по левому/правому краю вьюпорта
+    let left = rect.left + rect.width / 2 - tipWidth / 2;
+    left = Math.max(4, Math.min(left, window.innerWidth - tipWidth - 4));
+    let top = rect.top - tipHeight - 8;
+    // Сверху нет места (верхний ряд) — флип под якорь
+    if (top < 4) {
+        top = rect.bottom + 8;
+    }
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    tip.style.visibility = '';
 }
 
-function closeSizePanel(revert) {
-    const panel = document.getElementById('sizePanel');
-    if (!panel) {
+function hideItemTooltip() {
+    if (itemTooltipTimer) {
+        clearTimeout(itemTooltipTimer);
+        itemTooltipTimer = null;
+    }
+    itemTooltipAnchor = null;
+    if (itemTooltipEl) {
+        itemTooltipEl.classList.add('hidden');
+    }
+}
+
+function initItemTooltip() {
+    if (!window.matchMedia || !window.matchMedia('(hover: hover)').matches) {
         return;
     }
-    if (revert) {
-        const saved = localStorage.getItem(ITEM_SIZE_KEY) || String(ITEM_SIZE_DEFAULT);
-        itemSizeDraft = applyItemSize(saved);
-        renderSizeValue();
-    }
-    panel.classList.add('hidden');
-}
-
-function initItemSize() {
-    // Загрузка при старте: сохранённый размер или 64px по умолчанию
-    const saved = localStorage.getItem(ITEM_SIZE_KEY) || String(ITEM_SIZE_DEFAULT);
-    itemSizeDraft = applyItemSize(saved);
-    renderSizeValue();
-
-    const equipBtn = document.getElementById('equipTitleBtn');
-    const invBtn = document.getElementById('invTitleBtn');
-    if (equipBtn) {
-        equipBtn.addEventListener('click', openSizePanel);
-    }
-    if (invBtn) {
-        invBtn.addEventListener('click', openSizePanel);
-    }
-    const minus = document.getElementById('sizeMinus');
-    const plus = document.getElementById('sizePlus');
-    const save = document.getElementById('sizeSave');
-    const close = document.getElementById('sizeClose');
-    if (minus) {
-        minus.addEventListener('click', () => {
-            itemSizeDraft = applyItemSize(itemSizeDraft - ITEM_SIZE_STEP);
-            renderSizeValue();
-        });
-    }
-    if (plus) {
-        plus.addEventListener('click', () => {
-            itemSizeDraft = applyItemSize(itemSizeDraft + ITEM_SIZE_STEP);
-            renderSizeValue();
-        });
-    }
-    if (save) {
-        save.addEventListener('click', () => {
-            localStorage.setItem(ITEM_SIZE_KEY, String(itemSizeDraft));
-            closeSizePanel(false);
-            showToast('Размер иконок сохранён');
-        });
-    }
-    if (close) {
-        close.addEventListener('click', () => closeSizePanel(true));
-    }
+    document.addEventListener('mouseover', (event) => {
+        const anchor = event.target && event.target.closest
+            ? event.target.closest('[data-tooltip]') : null;
+        if (!anchor) {
+            return;
+        }
+        // Уже показан для этого якоря — не перезапускаем таймер
+        if (anchor === itemTooltipAnchor && itemTooltipEl
+                && !itemTooltipEl.classList.contains('hidden')) {
+            return;
+        }
+        scheduleItemTooltip(anchor);
+    });
+    document.addEventListener('mouseout', (event) => {
+        const anchor = event.target && event.target.closest
+            ? event.target.closest('[data-tooltip]') : null;
+        if (!anchor) {
+            return;
+        }
+        // Уход внутрь того же якоря — не прячем
+        if (event.relatedTarget && anchor.contains
+                && anchor.contains(event.relatedTarget)) {
+            return;
+        }
+        hideItemTooltip();
+    });
+    // Скролл/клик/ресайз — позиция протухла, прячем
+    document.addEventListener('scroll', hideItemTooltip, true);
+    document.addEventListener('click', hideItemTooltip, true);
+    window.addEventListener('resize', hideItemTooltip);
 }
 
 // ---------- Переключение вкладок ----------
@@ -2987,7 +3094,8 @@ function initTabs() {
 // ---------- Инициализация ----------
 function init() {
     initTabs();
-    initItemSize();
+    initItemSizes();
+    initItemTooltip();
 
     document.getElementById('btnRefresh').addEventListener('click', () => loadAll(true));
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));

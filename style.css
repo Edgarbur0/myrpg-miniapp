@@ -3953,3 +3953,56 @@ button.item.tile-gold {
 .card-title-btn:hover {
     color: var(--accent);
 }
+
+/* ================= РАУНД 78: JS-тултип + 2 размера =====================
+    Правки 1–3 — CSS-пузырь р.59 (::after/::before на data-tooltip) жил
+    внутри скролл-контейнеров: у нижних плиток он растягивал родителя
+    (ползунки), у крайних слева — обрезался краем, у верхних — уходил
+    за верх вьюпорта. Фикс: пузырь гасим вовсе, вместо него — синглтон
+    #itemTooltip в body (position: fixed, z-index 2000): он не влияет
+    на размер родителей и не обрезается ими; позицию с клампом по краям
+    и флипом вниз считает JS (initItemTooltip в app.js, по образцу
+    showCraftTooltip из р.60). Текст — через textContent (XSS-безопасно).
+    Правки 4–5 — у инвентаря и экипировки свои размеры: две переменные
+    и две панели (#inventorySizePanel / #equipmentSizePanel, стили
+    .size-panel переиспользованы из р.77). Переменные позже по файлу бьют
+    --item-size из р.77 каскадом там, где различаются. */
+:root {
+    --inventory-item-size: 64px;
+    --equipment-item-size: 64px;
+}
+.inventory-grid {
+    grid-template-columns: repeat(auto-fill, var(--inventory-item-size));
+}
+.equipment-slots .equip-slot {
+    max-width: var(--equipment-item-size);
+}
+#equipmentTechSlots .tech-slot {
+    max-width: var(--equipment-item-size);
+}
+
+/* Гасим CSS-пузырь р.59 везде (и мышь, и тач): показом ведает JS */
+[data-tooltip]::after,
+[data-tooltip]::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* Синглтон-тултип: фиксирован к вьюпорту, выше модалок крафта (1100) */
+.item-tooltip {
+    position: fixed;
+    width: max-content;
+    max-width: 200px;
+    padding: 6px 12px;
+    background: rgba(22, 33, 62, 0.95);
+    color: #ecf0f1;
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: center;
+    overflow-wrap: break-word;
+    pointer-events: none;
+    z-index: 2000;
+}
