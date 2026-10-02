@@ -2858,6 +2858,103 @@ async function claimQuest(code) {
     loadAll(false);
 }
 
+// ---------- Размер иконок (раунд 77) ----------
+// Хранится только в браузере игрока (localStorage, сервер не нужен).
+// Клик по заголовку «Экипировка»/«Инвентарь» открывает панель;
+// «+»/«−» меняют превью живьём (CSS-переменная), «Сохранить» пишет
+// в localStorage, «✕» закрывает без сохранения (откат к сохранённому).
+const ITEM_SIZE_KEY = 'myrpg_item_size';
+const ITEM_SIZE_MIN = 48;
+const ITEM_SIZE_MAX = 96;
+const ITEM_SIZE_STEP = 8;
+const ITEM_SIZE_DEFAULT = 64;
+let itemSizeDraft = ITEM_SIZE_DEFAULT;
+
+function clampItemSize(value) {
+    const num = parseInt(value, 10);
+    if (!Number.isFinite(num)) {
+        return ITEM_SIZE_DEFAULT;
+    }
+    return Math.max(ITEM_SIZE_MIN, Math.min(ITEM_SIZE_MAX, num));
+}
+
+function applyItemSize(value) {
+    const size = clampItemSize(value);
+    document.documentElement.style.setProperty('--item-size', size + 'px');
+    return size;
+}
+
+function renderSizeValue() {
+    const label = document.getElementById('sizeValue');
+    if (label) {
+        label.textContent = itemSizeDraft + 'px';
+    }
+}
+
+function openSizePanel() {
+    const panel = document.getElementById('sizePanel');
+    if (!panel) {
+        return;
+    }
+    panel.classList.remove('hidden');
+    renderSizeValue();
+}
+
+function closeSizePanel(revert) {
+    const panel = document.getElementById('sizePanel');
+    if (!panel) {
+        return;
+    }
+    if (revert) {
+        const saved = localStorage.getItem(ITEM_SIZE_KEY) || String(ITEM_SIZE_DEFAULT);
+        itemSizeDraft = applyItemSize(saved);
+        renderSizeValue();
+    }
+    panel.classList.add('hidden');
+}
+
+function initItemSize() {
+    // Загрузка при старте: сохранённый размер или 64px по умолчанию
+    const saved = localStorage.getItem(ITEM_SIZE_KEY) || String(ITEM_SIZE_DEFAULT);
+    itemSizeDraft = applyItemSize(saved);
+    renderSizeValue();
+
+    const equipBtn = document.getElementById('equipTitleBtn');
+    const invBtn = document.getElementById('invTitleBtn');
+    if (equipBtn) {
+        equipBtn.addEventListener('click', openSizePanel);
+    }
+    if (invBtn) {
+        invBtn.addEventListener('click', openSizePanel);
+    }
+    const minus = document.getElementById('sizeMinus');
+    const plus = document.getElementById('sizePlus');
+    const save = document.getElementById('sizeSave');
+    const close = document.getElementById('sizeClose');
+    if (minus) {
+        minus.addEventListener('click', () => {
+            itemSizeDraft = applyItemSize(itemSizeDraft - ITEM_SIZE_STEP);
+            renderSizeValue();
+        });
+    }
+    if (plus) {
+        plus.addEventListener('click', () => {
+            itemSizeDraft = applyItemSize(itemSizeDraft + ITEM_SIZE_STEP);
+            renderSizeValue();
+        });
+    }
+    if (save) {
+        save.addEventListener('click', () => {
+            localStorage.setItem(ITEM_SIZE_KEY, String(itemSizeDraft));
+            closeSizePanel(false);
+            showToast('Размер иконок сохранён');
+        });
+    }
+    if (close) {
+        close.addEventListener('click', () => closeSizePanel(true));
+    }
+}
+
 // ---------- Переключение вкладок ----------
 function initTabs() {
     document.querySelectorAll('.tab').forEach((button) => {
@@ -2890,6 +2987,7 @@ function initTabs() {
 // ---------- Инициализация ----------
 function init() {
     initTabs();
+    initItemSize();
 
     document.getElementById('btnRefresh').addEventListener('click', () => loadAll(true));
     document.getElementById('btnRetry').addEventListener('click', () => loadAll(true));

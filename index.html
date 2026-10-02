@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=79">
+    <link rel="stylesheet" href="style.css?v=80">
 </head>
 <body>
 
@@ -90,11 +90,21 @@
             <!-- Характеристики -->
             <div class="stats-grid" id="statsGrid"></div>
 
+            <!-- Панель размера иконок (раунд 77): открывается кликом
+                 по заголовку «Экипировка» / «Инвентарь», одна общая -->
+            <div id="sizePanel" class="size-panel hidden">
+                <button id="sizeMinus" class="size-btn" type="button" aria-label="Меньше">−</button>
+                <span id="sizeValue" class="size-value">64px</span>
+                <button id="sizePlus" class="size-btn" type="button" aria-label="Больше">+</button>
+                <button id="sizeSave" class="btn btn-primary size-save" type="button">Сохранить</button>
+                <button id="sizeClose" class="icon-btn size-close" type="button" aria-label="Закрыть">✕</button>
+            </div>
+
             <!-- Экипировка и инвентарь -->
             <div class="bottom-grid">
                 <div class="card">
                     <div class="card-title-row">
-                        <span class="card-title">Экипировка</span>
+                        <button class="card-title card-title-btn" id="equipTitleBtn" type="button" title="Настроить размер иконок">Экипировка</button>
                         <span id="equipBonuses" class="card-sub"></span>
                     </div>
                     <div class="equipment-slots" id="equipmentSlots"></div>
@@ -106,7 +116,7 @@
                 </div>
                 <div class="card">
                     <div class="card-title-row">
-                        <span class="card-title">Инвентарь</span>
+                        <button class="card-title card-title-btn" id="invTitleBtn" type="button" title="Настроить размер иконок">Инвентарь</button>
                         <span id="invEmpty" class="card-sub hidden">пусто</span>
                     </div>
                     <div class="inventory-grid" id="inventoryGrid">
@@ -379,5 +389,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=79"></script></body>
+    <script src="app.js?v=80"></script></body>
 </html>

@@ -3794,3 +3794,162 @@ button.item.tile-gold {
 .art-text .art-level {
     font-size: 13px;
 }
+
+/* ================= РАУНД 77: фикс-высота + размер иконок ==============
+    Правка 1 — страница без скролла (только десктоп ≥900px; на мобильном
+    оставляем естественный скролл страницы — экраны культивации/крафта
+    высокие, фиксировать их в 100dvh было бы тесно, решение по ТЗ 4.2).
+    Шапка фиксирована сверху, персонаж — липкий слева, статы — сверху
+    правой колонки, а скролл живут только внутри сеток экипировки
+    и инвентаря (.equipment-slots / #equipmentTechSlots / .inventory-grid).
+    dvh с fallback на vh (адресная строка Safari на мобильных, на десктопе
+    разницы нет, но правило безвредно).
+    Правка 2 — размер иконок через --item-size (default 64px, localStorage
+    'myrpg_item_size', управляется панелью #sizePanel из app.js).
+    Сетка инвентаря — repeat(auto-fill, var(--item-size)): колонки ровно
+    по размеру плитки, превью меняется живьём. Капы экипировки/книг 96px
+    из р.73 заменены на var(--item-size) — настройка действует везде. */
+:root {
+    --item-size: 64px;
+}
+.inventory-grid {
+    grid-template-columns: repeat(auto-fill, var(--item-size));
+    justify-content: start;
+}
+.equipment-slots .equip-slot {
+    max-width: var(--item-size);
+}
+#equipmentTechSlots .tech-slot {
+    max-width: var(--item-size);
+}
+@media (min-width: 900px) {
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+    }
+    @supports not (height: 100dvh) {
+        body {
+            height: 100vh;
+        }
+    }
+    .header {
+        flex: none;
+    }
+    .main {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        overflow: hidden;
+        padding-bottom: 16px;
+    }
+    #screen-character {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+    #screen-character.active {
+        display: grid;
+    }
+    .character-panel {
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .stats-panel {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .bottom-grid {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .bottom-grid > .card {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .inventory-grid,
+    .equipment-slots,
+    #equipmentTechSlots {
+        overflow-y: auto;
+        min-height: 0;
+        padding-right: 4px;
+    }
+    #equipmentTechSlots {
+        flex-wrap: wrap;
+    }
+}
+
+/* Панель настройки размера иконок (раунд 77): одна общая над секцией,
+    открывается кликом по заголовку «Экипировка» / «Инвентарь». */
+.size-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(22, 33, 62, 0.95);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+}
+.size-panel.hidden {
+    display: none;
+}
+.size-btn {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+.size-btn:hover {
+    background: var(--accent);
+    color: #1a1a2e;
+}
+.size-value {
+    min-width: 52px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+.size-save {
+    padding: 6px 14px;
+    font-size: 14px;
+}
+.size-close {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+}
+
+/* Заголовки «Экипировка» / «Инвентарь» — кликабельные (открывают панель) */
+.card-title-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    color: var(--muted);
+}
+.card-title-btn:hover {
+    color: var(--accent);
+}
