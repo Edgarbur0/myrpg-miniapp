@@ -4006,3 +4006,72 @@ button.item.tile-gold {
     pointer-events: none;
     z-index: 2000;
 }
+
+/* ================= РАУНД 79: скроллбары + размер слотов ================
+    Правка 1 — тонкий золотой скроллбар (вариант Б из ТЗ) у внутренних
+    скролл-контейнеров р.77 (.inventory-grid / .equipment-slots /
+    #equipmentTechSlots): системный ползунок заменён узким (6px)
+    в палитре; скролл работает как раньше. Firefox — через
+    scrollbar-width/scrollbar-color (webkit-псевдо он игнорирует).
+    Правка 2 — корень мелких слотов: сетка .equipment-slots делила
+    карточку на 4 доли (repeat(4, 1fr), база style.css:631), а плитки
+    тянулись width: 100% трека (р.73) — max-width лишь ограничивал
+    сверху, но не увеличивал: --equipment-item-size на слоты не влиял.
+    Книги при этом выглядели крупными (flex: 1 растягивал 2 книги
+    на полконтейнера до того же cap). Фикс: треки фиксированы под
+    переменную (minmax(0, var) — на узком экране ужмутся, не вылезут),
+    плитки — ровно трек (max-width: none снимает cap р.73/78, он равен
+    треку и больше не нужен); книги — flex: none + width/height var
+    (было flex: 1 — тянулись контейнером, а не настройкой).
+    Правка 3 — инвентарь в порядке: сетка repeat(auto-fill, var)
+    (р.78) сама перестраивает колонки под размер (48px — мельче
+    и больше колонок, 96px — крупнее и меньше); правило не тронуто. */
+.inventory-grid::-webkit-scrollbar,
+.equipment-slots::-webkit-scrollbar,
+#equipmentTechSlots::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.inventory-grid::-webkit-scrollbar-track,
+.equipment-slots::-webkit-scrollbar-track,
+#equipmentTechSlots::-webkit-scrollbar-track {
+    background: transparent;
+}
+.inventory-grid::-webkit-scrollbar-thumb,
+.equipment-slots::-webkit-scrollbar-thumb,
+#equipmentTechSlots::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.3);
+    border-radius: 3px;
+}
+.inventory-grid::-webkit-scrollbar-thumb:hover,
+.equipment-slots::-webkit-scrollbar-thumb:hover,
+#equipmentTechSlots::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.5);
+}
+.inventory-grid,
+.equipment-slots,
+#equipmentTechSlots {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.3) transparent;
+}
+
+.equipment-slots {
+    grid-template-columns: repeat(4, minmax(0, var(--equipment-item-size)));
+    justify-content: start;
+}
+.equipment-slots .equip-slot {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    aspect-ratio: 1;
+}
+#equipmentTechSlots {
+    flex-wrap: wrap;
+}
+#equipmentTechSlots .tech-slot {
+    flex: none;
+    width: var(--equipment-item-size);
+    height: var(--equipment-item-size);
+    max-width: none;
+    aspect-ratio: 1;
+}
