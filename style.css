@@ -3693,3 +3693,48 @@ button.item.tile-gold {
 .art-avatar-fallback {
     font-size: 32px;
 }
+
+/* ================= РАУНД 75: полоса персонажа — в одну группу ========
+   Регрессия р.74: в широком окне аватар/имя/уровень как три отдельных
+   flex-элемента «разъехались» по полосе (имя по центру, уровень справа).
+   Фикс (вариант Б): имя + уровень завёрнуты в .art-text (index.html) —
+   колонка из 2 строк сразу после аватара, всё прижато влево; остаток
+   полосы пустой (XP-бар уже есть в шапке — дублировать не стали).
+   База .art-name (16px) / .art-level (13px, золото) не тронута —
+   здесь только раскладка + чуть крупнее имя на десктопе и компакт
+   на мобильном (аватар 56px, имя 16px — влезает в 375px без переноса). */
+.character-art {
+    text-align: left;
+}
+.art-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.art-text .art-name {
+    font-size: 18px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.art-text .art-level {
+    font-size: 14px;
+}
+@media (max-width: 480px) {
+    .art-avatar {
+        width: 56px;
+        height: 56px;
+    }
+    .art-avatar-fallback {
+        font-size: 28px;
+    }
+    .art-text .art-name {
+        font-size: 16px;
+    }
+}
