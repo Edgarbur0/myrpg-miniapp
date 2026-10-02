@@ -172,6 +172,8 @@ async function ensureUserId() {
         } catch (error) {
             console.warn('VKWebAppInit:', error);
         }
+        // Широкий фрейм на десктопе (раунд 74) — после Init, параллельно
+        expandDesktopWindow();
         try {
             const info = await vkBridge.send('VKWebAppGetUserInfo');
             if (info && info.id) {
@@ -194,6 +196,31 @@ async function ensureUserId() {
     // Фолбэк для отладки вне VK
     userId = TEST_USER_ID;
     return userId;
+}
+
+// Широкий фрейм на десктопе (раунд 74): VK показывает мини-аппы в узкой
+// колонке ~600px; VKWebAppResizeWindow просит у клиента окно пошире.
+// Десктоп only (на мобильных событие игнорируется, но лишний вызов
+// не нужен — отсекаем по vk_platform). Высота — не меньше текущей,
+// чтобы не обрезать контент; итоговые значения всё равно клампит VK.
+// Всё в try/catch: моста может не быть (отладка вне VK), запрос могут
+// отклонить — игра обязана работать и в узком фрейме (резина р.73).
+function expandDesktopWindow() {
+    if (!window.vkBridge) {
+        return;
+    }
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const platform = params.get('vk_platform') || '';
+        if (platform && platform.indexOf('desktop') !== 0) {
+            return;
+        }
+        const height = Math.max(window.innerHeight || 0, 900);
+        vkBridge.send('VKWebAppResizeWindow', { width: 1000, height })
+            .catch((error) => console.warn('VKWebAppResizeWindow:', error));
+    } catch (error) {
+        console.warn('VKWebAppResizeWindow:', error);
+    }
 }
 
 // Отправка имени из ВК на сервер (один раз за сессию)

@@ -3643,3 +3643,53 @@ button.item.tile-gold {
         max-height: 72px;
     }
 }
+
+/* ================= РАУНД 74: широкий webview + персонаж сверху ========
+   Диагностика узкого десктопа: наш max-width 1200px при вьюпорте ~600px
+   не ограничивает ничего (600 < 1200 — ширина и так 100%). Жмёт фрейм
+   самого VK: на десктопе мини-аппы открываются в колонке ~600px.
+   Ширину у клиента просит expandDesktopWindow() (app.js) через
+   VKWebAppResizeWindow — десктоп only, значения клампит VK, отказ
+   безопасен (резина р.73 держит и узкий фрейм). Здесь — эффективное
+   использование ширины, когда фрейм расширился:
+   - двухколоночный экран персонажа (панель 300px слева, правило
+     `@media (min-width: 900px)`) выключаем: при широком фрейме левая
+     колонка съедала бы место у инвентаря. Персонаж — компактной
+     полосой сверху (как у конкурента), статы и сетки — на всю ширину,
+     вертикального скролла меньше;
+   - .character-art: горизонтальный ряд (аватар 64px слева, имя/уровень
+     справа), высокая карточка 260px ужата до полосы — на всех экранах,
+     не только десктопе;
+   - инвентарь: min 72px не трогаем (мобильные 4 колонки без изменений);
+     колонок добавляет сам широкий фрейм через auto-fill р.73. */
+@media (min-width: 900px) {
+    #screen-character {
+        grid-template-columns: none;
+    }
+    #screen-character.active {
+        display: block;
+    }
+    .character-panel,
+    .stats-panel {
+        margin-bottom: 16px;
+    }
+    .character-panel {
+        position: static;
+    }
+}
+.character-art {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 0;
+    padding: 12px 16px;
+}
+.art-avatar {
+    width: 64px;
+    height: 64px;
+    flex: none;
+}
+.art-avatar-fallback {
+    font-size: 32px;
+}
