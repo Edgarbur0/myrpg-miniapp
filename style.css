@@ -3573,3 +3573,73 @@ button.item.tile-gold {
     -webkit-appearance: none;
     appearance: none;
 }
+
+/* ================= РАУНД 73: адаптивная ширина =======================
+   Вариант В из ТЗ: контейнер — до 1200px по центру (читаемость строк),
+   внутри — резина. Шире 1200 не растём даже на 1440+ (иначе сетки
+   расползаются), мобильные — 100% ширины, как раньше.
+   - контейнер: .main/.header-top/.header-xp 1000px → 1200px, боковые
+     отступы через clamp(12px, 2vw, 24px) — 12 на телефоне, 24 на десктопе;
+   - инвентарь: 4 фикс-колонки → auto-fill minmax(72px, 1fr): 375px ≈ 4
+     колонки (~81px), 768px ≈ 8, десктоп-карточка ≈ 7–9; порядок плиток
+     задаёт inventory_order из API, перестройка сетки его не меняет;
+   - экипировка/книги: дизайн 4×2 из раунда 64 сохранён, но плитки стали
+     резиновыми (100% трека + aspect-ratio 1 + cap 96px, влево) вместо
+     фиксированных 64px раунда 61: телефон ~80px, десктоп 96px;
+   - картинки слотов: px-капы 58px оставлены (мелкие плитки не рвёт),
+     на ≥1024px подняты до 72px; процентные (.item-img 90%,
+     .craft-tile-icon 90%) масштабируются сами;
+   - модалка: 380px → 440px на ≥1024px, материалы крафта — auto-fill
+     minmax(72px, 1fr) вместо 5/6 фикс-колонок (правила р.60/64 ниже
+     по файлу, каскадом бьём их здесь);
+   - bottom-grid: 2 колонки как раньше (ТЗ 2.4), разделитель р.62/64
+     привязан к центру гэпа — при резине едет вместе с колонками;
+   - webview: только проценты (вьюпорт-единицы vw в webview ВК шире
+     окна — будет скролл), box-sizing уже border-box глобально, overflow-x hidden на html/body
+     с раунда 39 — не трогаем. */
+.main,
+.header-top,
+.header-xp {
+    max-width: 1200px;
+}
+.main {
+    padding-left: clamp(12px, 2vw, 24px);
+    padding-right: clamp(12px, 2vw, 24px);
+}
+.header-top {
+    padding-left: clamp(12px, 2vw, 24px);
+    padding-right: clamp(12px, 2vw, 24px);
+}
+.inventory-grid {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 6px;
+}
+.equipment-slots .equip-slot {
+    flex: none;
+    width: 100%;
+    max-width: 96px;
+    height: auto;
+    aspect-ratio: 1;
+    justify-self: start;
+}
+#equipmentTechSlots .tech-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 96px;
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+}
+.craft-material-list {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+@media (min-width: 1024px) {
+    .modal-content {
+        max-width: 440px;
+    }
+    .equipment-slots .equip-img,
+    #equipmentTechSlots .tech-img {
+        max-width: 72px;
+        max-height: 72px;
+    }
+}
