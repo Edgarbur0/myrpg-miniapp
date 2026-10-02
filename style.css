@@ -3738,3 +3738,59 @@ button.item.tile-gold {
         font-size: 16px;
     }
 }
+
+/* ================= РАУНД 76: возврат вертикальной панели слева =======
+   Откат полосы р.74/75: горизонтальный ряд в широком окне не зашёл —
+   возвращаем панель ПЕРСОНАЖ слева, как было до р.74. Блоки р.74/75
+   из истории не удаляем (конвенция — только добавления): исходные
+   правила (колонка, центрирование, аватар 96px, двухколоночник 300px
+   на ≥900px) остались выше по файлу нетронутыми, здесь отменяем только
+   их переопределения — этот блок позже, каскад на нашей стороне.
+   Обёртка .art-text из р.75 остаётся в разметке (id целы, JS не тронут):
+   в колонке она центрируется вместе с остальным. */
+@media (min-width: 900px) {
+    #screen-character {
+        grid-template-columns: 300px 1fr;
+    }
+    #screen-character.active {
+        display: grid;
+    }
+    .character-panel,
+    .stats-panel {
+        margin-bottom: 0;
+    }
+    .character-panel {
+        position: sticky;
+        top: 130px;
+    }
+}
+.character-art {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 260px;
+    padding: 24px;
+    text-align: center;
+}
+.art-avatar {
+    width: 96px;
+    height: 96px;
+    flex: none;
+}
+.art-avatar-fallback {
+    font-size: 46px;
+}
+.art-text {
+    align-items: center;
+    text-align: center;
+    flex: none;
+}
+.art-text .art-name {
+    font-size: 16px;
+    white-space: normal;
+    margin-bottom: 0;
+}
+.art-text .art-level {
+    font-size: 13px;
+}
