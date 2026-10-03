@@ -1155,6 +1155,25 @@ function renderInventoryPanel() {
     });
 }
 
+// Строка комбо в модалке предмета: название + описание + чипы эффектов
+// (раунд 101 — единая для крафтового и стихийного; у экземпляра их два,
+// стихийное крафтовое не перебивает).
+function itemComboRow(combo) {
+    if (!combo) {
+        return '';
+    }
+    return `
+        <div class="item-combo">
+            <div class="item-combo-title">✨ Комбо: ${esc(combo.name || '')}</div>
+            ${combo.description ? `<div class="item-combo-desc">${esc(combo.description)}</div>` : ''}
+            ${(combo.effects && combo.effects.length || combo.element) ? `
+                <div class="item-combo-chips">
+                    ${(combo.effects || []).map((effect) => `<span class="item-combo-chip">${esc(itemComboEffectLabel(effect))}</span>`).join('')}
+                    ${combo.element ? `<span class="item-combo-chip item-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
+                </div>` : ''}
+        </div>`;
+}
+
 function openItemModal(inventory, code, instanceId) {
     const item = inventory[code];
     if (!item) {
@@ -1222,18 +1241,11 @@ function openItemModal(inventory, code, instanceId) {
         disassembleRow = `<div><span class="muted">Разборка</span><span>${parts.join(', ')}</span></div>`;
     }
 
-    // Комбо экземпляра: название, описание и боевые эффекты (раунд 41)
+    // Комбо экземпляра (раунд 101): крафтовое и стихийное — два отдельных
+    // раздела; у старых экземпляров может быть только стихийное.
     const instCombo = (activeInst && activeInst.combo) || item.combo || null;
-    const comboRow = instCombo ? `
-        <div class="item-combo">
-            <div class="item-combo-title">✨ Комбо: ${esc(instCombo.name || '')}</div>
-            ${instCombo.description ? `<div class="item-combo-desc">${esc(instCombo.description)}</div>` : ''}
-            ${(instCombo.effects && instCombo.effects.length || instCombo.element) ? `
-                <div class="item-combo-chips">
-                    ${(instCombo.effects || []).map((effect) => `<span class="item-combo-chip">${esc(itemComboEffectLabel(effect))}</span>`).join('')}
-                    ${instCombo.element ? `<span class="item-combo-chip item-combo-element">${CRAFT_ELEMENT_LABELS[instCombo.element] || instCombo.element}</span>` : ''}
-                </div>` : ''}
-        </div>` : '';
+    const instCraftCombo = (activeInst && activeInst.craft_combo) || item.craft_combo || null;
+    const comboRow = itemComboRow(instCraftCombo) + itemComboRow(instCombo);
 
     // Свиток: какую технику он даёт и изучена ли она уже
     const learnedTech = (techniquesData && techniquesData.techniques || [])
@@ -1523,18 +1535,10 @@ function openEquippedModal(slot) {
     const slotMeta = ((data.slots && data.slots.length)
         ? data.slots : EQUIPMENT_SLOT_FALLBACK).find((s) => s.key === slot);
 
-    // Комбо надетого экземпляра (регенерация HP и т.п.)
+    // Комбо надетого экземпляра (раунд 101): крафтовое и стихийное отдельно
     const combo = equipped.combo || null;
-    const comboRow = combo ? `
-        <div class="item-combo">
-            <div class="item-combo-title">✨ Комбо: ${esc(combo.name || '')}</div>
-            ${combo.description ? `<div class="item-combo-desc">${esc(combo.description)}</div>` : ''}
-            ${(combo.effects && combo.effects.length || combo.element) ? `
-                <div class="item-combo-chips">
-                    ${(combo.effects || []).map((effect) => `<span class="item-combo-chip">${esc(itemComboEffectLabel(effect))}</span>`).join('')}
-                    ${combo.element ? `<span class="item-combo-chip item-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
-                </div>` : ''}
-        </div>` : '';
+    const craftComboEq = equipped.craft_combo || null;
+    const comboRow = itemComboRow(craftComboEq) + itemComboRow(combo);
 
     document.getElementById('modalTitle').textContent = equipped.name;
     document.getElementById('modalBody').innerHTML = `
@@ -2131,18 +2135,24 @@ function renderCraftDetail() {
     const sels = slotsDef.map((slot) => slot.sel);
     const selCodes = Object.keys(craftSelections).filter((key) => craftSelections[key]);
 
-    // Бонусы: базовые статы + суммарные статы ингредиентов + комбо
+    // Бонусы: базовые статы + суммарные статы ингредиентов + оба комбо.
+    // Крафтовое — имя предмета, стихийное — эффекты (раунд 101: отдельно,
+    // стихийное крафтовое не перебивает).
     const bonuses = computeCraftBonuses(recipe, ...sels);
-    const combo = bonuses.combo || null;
+    const craftCombo = bonuses.craftCombo || null;
+    const elementCombo = bonuses.elementCombo || null;
     // Название предмета: у «Ядра стихий» своё динамическое имя по набору ядер,
-    // у обычных рецептов — комбо (напр. «Магический меч») или имя по умолчанию
+    // у обычных рецептов — крафтовое комбо (напр. «Магический меч») или имя
+    // по материалам («Нагрудник из Травы ци и Камня»); стихийное в имя не идёт.
     const isElementCore = recipe.code === 'element_core';
     const shownName = isElementCore
         ? elementCoreDisplayName(sels.filter(Boolean))
-        : (combo && combo.name) || recipe.result_name || recipe.name;
-    // Описание тоже следует за комбо (раунд 96): при смене комбо меняются
-    // и название, и описание шапки — чипы бонусов остаются в баннере ниже.
-    const shownDesc = (combo && combo.description) || recipe.description || '';
+        : (craftCombo && craftCombo.name)
+        || craftFallbackName(recipe, sels.filter(Boolean))
+        || recipe.result_name || recipe.name;
+    // Описание следует за крафтовым комбо (раунд 101); стихийное живёт
+    // своим баннером ниже — у шапки и баннеров дублирующихся имён нет.
+    const shownDesc = (craftCombo && craftCombo.description) || recipe.description || '';
 
     const ready = slotsDef.filter((slot) => slot.required).every((slot) => !!slot.sel)
         && !(isElementCore && selCodes.length === 0);
@@ -2188,19 +2198,10 @@ function renderCraftDetail() {
         ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[bonuses.element] || bonuses.element}</b></div>`
         : '';
 
-    // Баннер комбо (раунд 96): только чипы бонусов — название и описание
-    // уже показаны в шапке (shownName/shownDesc следуют за комбо).
-    const comboHtml = combo ? `
-        <div class="craft-combo">
-            ${(Object.keys(combo.stats || {}).length || combo.element) ? `
-                <div class="craft-combo-chips">
-                    ${Object.entries(combo.stats || {}).map(([key, value]) => {
-                        const sign = value > 0 ? '+' : '';
-                        return `<span class="craft-combo-chip">${CRAFT_STAT_LABELS[key] || key} ${sign}${value}</span>`;
-                    }).join('')}
-                    ${combo.element ? `<span class="craft-combo-chip craft-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
-                </div>` : ''}
-        </div>` : '';
+    // Баннеры комбо (раунд 101): ДВА — крафтовый и стихийный, в каждом
+    // название бонуса и параметры (чипы). Раньше был один: стихийное
+    // перебивало крафтовое и в шапке, и в баннере.
+    const comboHtml = craftComboBanner(craftCombo) + craftComboBanner(elementCombo);
 
     const slotsHtml = slotsDef.map((slot) => {
         // Подписей над ячейками нет (раунд 97): что сюда можно добавить —
@@ -2376,18 +2377,64 @@ function computeCraftBonuses(recipe, ...materialArgs) {
         }
     }
 
-    // Комбо стихий по материалам всех слотов (мутирует stats)
+    // Комбо стихий по материалам всех слотов (мутирует stats).
+    // Возвращаем ОБА комбо отдельно (раунд 101, зеркало server
+    // get_craft_bonuses): крафтовое — имя предмета, стихийное — эффекты.
+    // Стихийное крафтовое не перебивает: бонусы обоих уже сложены в stats.
     const materials = materialArgs.filter(Boolean);
     const elementCombo = getCraftElementCombo(materials, stats, element);
     if (elementCombo) {
         if (elementCombo.element) {
             element = elementCombo.element;
         }
-        if (!combo) {
-            combo = elementCombo;
-        }
     }
-    return { stats, element, combo };
+    return { stats, element, combo, craftCombo: combo, elementCombo };
+}
+
+// Имя предмета без комбо — по материалам (раунд 101, зеркало server
+// _craft_display_name): «Нагрудник из Травы ци и Камня». Стихийное комбо
+// в имя не идёт — только крафтовое или материалы.
+function craftFallbackName(recipe, materialArgs) {
+    const base = recipe.result_name || recipe.name || '';
+    if (!base) {
+        return null;
+    }
+    const names = [];
+    (materialArgs || []).forEach((material) => {
+        const label = (material && material.name) || '';
+        if (label && names.indexOf(label) === -1) {
+            names.push(label);
+        }
+    });
+    if (!names.length) {
+        return null;
+    }
+    return `${base} из ${names.slice(0, 2).join(' и ')}`;
+}
+
+// Баннер комбо крафта/стихий: название бонуса + параметры (раунд 101).
+// Жёлтая рамка .craft-combo: заголовок — имя, чипы — статы и стихия.
+function craftComboBanner(combo) {
+    if (!combo) {
+        return '';
+    }
+    const chips = (Object.keys(combo.stats || {}).length || combo.element) ? `
+        <div class="craft-combo-chips">
+            ${Object.entries(combo.stats || {}).map(([key, value]) => {
+                const sign = value > 0 ? '+' : '';
+                return `<span class="craft-combo-chip">${CRAFT_STAT_LABELS[key] || key} ${sign}${value}</span>`;
+            }).join('')}
+            ${combo.element ? `<span class="craft-combo-chip craft-combo-element">${CRAFT_ELEMENT_LABELS[combo.element] || combo.element}</span>` : ''}
+        </div>` : '';
+    if (!chips && !combo.name) {
+        return '';
+    }
+    return `
+        <div class="craft-combo">
+            ${combo.name ? `<div class="craft-combo-title">✨ ${esc(combo.name)}</div>` : ''}
+            ${combo.description ? `<div class="craft-combo-desc">${esc(combo.description)}</div>` : ''}
+            ${chips}
+        </div>`;
 }
 
 // Комбо стихий по материалам слотов (зеркало game_logic.get_craft_element_combo):
