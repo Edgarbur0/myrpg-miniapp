@@ -2198,17 +2198,23 @@ function renderCraftDetail() {
                 </div>` : ''}
         </div>` : '';
 
-    const slotsHtml = slotsDef.map((slot) => `
+    const slotsHtml = slotsDef.map((slot) => {
+        // Подписей над ячейками нет (раунд 97): что сюда можно добавить —
+        // в тултипе (data-tooltip ловит #itemTooltip); у заполненной ячейки
+        // в тултипе сначала имя материала, затем слот и категории.
+        const tip = slot.sel
+            ? `${slot.sel.name} — ${slot.label}${slot.requiredMark} · ${craftCategoriesLabel(slot.cats)}`
+            : `${slot.label}${slot.requiredMark} · ${craftCategoriesLabel(slot.cats)}`;
+        return `
         <div class="craft-slot">
-            <div class="craft-slot-label">${slot.label}${slot.requiredMark} · ${esc(craftCategoriesLabel(slot.cats))}</div>
             <button class="craft-slot-btn${slot.sel ? ' craft-slot-filled' : ''}"
                     type="button" data-slot="${slot.key}" data-categories="${esc((slot.cats || []).join(','))}"
-                    data-tooltip="${esc(slot.sel ? slot.sel.name : slot.label)}">
+                    data-tooltip="${esc(tip)}">
                 ${slot.sel
                     ? `${renderMaterialCell(slot.sel)}`
                     : '<span class="craft-slot-placeholder">＋</span>'}
             </button>
-        </div>`).join('');
+        </div>`; }).join('');
 
     // Шапка описания (раунд 96): картинка рецепта из справочника, название
     // и описание следуют за комбо (shownName/shownDesc); фолбэк иконки —
