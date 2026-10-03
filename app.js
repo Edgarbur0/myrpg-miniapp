@@ -2056,16 +2056,19 @@ async function loadCrafts() {
 // Картинка рецепта крафта: иконка из справочника (crafts.image) → 🔨.
 // Пустого поля не боимся: рецептов мало, иконку заливает админ (раунд 61),
 // <img> рисуем только когда адрес есть — без чужой пустышки.
-function craftRecipeVisual(craft) {
+// Раунд 96: класс картинки параметром — в сетке рецептов та же плитка,
+// что в инвентаре (item-img 89%), в окне описания — компактная (craft-recipe-img).
+function craftRecipeVisual(craft, imgClass) {
     if (!craft || !craft.image) {
         return '🔨';
     }
     const src = esc(craft.image);
-    return `<img class="craft-recipe-img" src="${src}" alt="" loading="lazy"`
+    const cls = imgClass || 'craft-recipe-img';
+    return `<img class="${cls}" src="${src}" alt="" loading="lazy"`
         + ` onerror="this.outerHTML='🔨'">`;
 }
 
-// Список рецептов (левая колонка 50%)
+// Список рецептов: сетка плиток как в инвентаре (раунд 96, только картинка)
 function renderCrafts() {
     const box = document.getElementById('craftRecipes');
     const empty = document.getElementById('craftEmpty');
@@ -2078,16 +2081,12 @@ function renderCrafts() {
     }
 
     box.innerHTML = craftRecipes.map((craft) => `
-        <button class="craft-recipe${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
-                type="button" data-code="${esc(craft.code)}"
-                title="${esc(craft.description || '')}">
-            <span class="craft-recipe-icon">${craftRecipeVisual(craft)}</span>
-            <span class="craft-recipe-info">
-                <span class="craft-recipe-name">${esc(craft.name)}</span>
-            </span>
+        <button class="item craft-recipe-tile${craft.code === activeCraftCode ? ' craft-recipe-active' : ''}"
+                type="button" data-code="${esc(craft.code)}">
+            <span class="item-icon" data-tooltip="${esc(craft.name)}">${craftRecipeVisual(craft, 'item-img')}</span>
         </button>`).join('');
 
-    box.querySelectorAll('.craft-recipe').forEach((button) => {
+    box.querySelectorAll('.craft-recipe-tile').forEach((button) => {
         button.addEventListener('click', () => openCraft(button.dataset.code));
     });
 }
@@ -2137,6 +2136,9 @@ function renderCraftDetail() {
     const shownName = isElementCore
         ? elementCoreDisplayName(sels.filter(Boolean))
         : (combo && combo.name) || recipe.result_name || recipe.name;
+    // Описание тоже следует за комбо (раунд 96): при смене комбо меняются
+    // и название, и описание шапки — чипы бонусов остаются в баннере ниже.
+    const shownDesc = (combo && combo.description) || recipe.description || '';
 
     const ready = slotsDef.filter((slot) => slot.required).every((slot) => !!slot.sel)
         && !(isElementCore && selCodes.length === 0);
@@ -2182,11 +2184,10 @@ function renderCraftDetail() {
         ? `<div class="craft-element">Стихия: <b>${CRAFT_ELEMENT_LABELS[bonuses.element] || bonuses.element}</b></div>`
         : '';
 
-    // Баннер комбо: название, описание и бонусные характеристики
+    // Баннер комбо (раунд 96): только чипы бонусов — название и описание
+    // уже показаны в шапке (shownName/shownDesc следуют за комбо).
     const comboHtml = combo ? `
         <div class="craft-combo">
-            <div class="craft-combo-title">✨ ${esc(combo.name || 'Комбо!')}</div>
-            ${combo.description ? `<div class="craft-combo-desc">${esc(combo.description)}</div>` : ''}
             ${(Object.keys(combo.stats || {}).length || combo.element) ? `
                 <div class="craft-combo-chips">
                     ${Object.entries(combo.stats || {}).map(([key, value]) => {
@@ -2201,19 +2202,26 @@ function renderCraftDetail() {
         <div class="craft-slot">
             <div class="craft-slot-label">${slot.label}${slot.requiredMark} · ${esc(craftCategoriesLabel(slot.cats))}</div>
             <button class="craft-slot-btn${slot.sel ? ' craft-slot-filled' : ''}"
-                    type="button" data-slot="${slot.key}" data-categories="${esc((slot.cats || []).join(','))}">
+                    type="button" data-slot="${slot.key}" data-categories="${esc((slot.cats || []).join(','))}"
+                    data-tooltip="${esc(slot.sel ? slot.sel.name : slot.label)}">
                 ${slot.sel
                     ? `${renderMaterialCell(slot.sel)}`
-                    : '<span class="craft-slot-placeholder">Выбрать материал…</span>'}
+                    : '<span class="craft-slot-placeholder">＋</span>'}
             </button>
         </div>`).join('');
 
+    // Шапка описания (раунд 96): картинка рецепта из справочника, название
+    // и описание следуют за комбо (shownName/shownDesc); фолбэк иконки —
+    // эмодзи результата, как раньше.
+    const headerVisual = recipe.image
+        ? craftRecipeVisual(recipe)
+        : (recipe.result_icon || '🔨');
     detailBox.innerHTML = `
         <div class="craft-detail-header">
-            <span class="craft-detail-icon">${recipe.result_icon || '🔨'}</span>
+            <span class="craft-detail-icon">${headerVisual}</span>
             <div class="craft-detail-title">
                 <div class="craft-detail-name">${esc(shownName)}</div>
-                <div class="craft-detail-desc">${esc(recipe.description || '')}</div>
+                <div class="craft-detail-desc">${esc(shownDesc)}</div>
             </div>
         </div>
         <div class="craft-detail-slots">
@@ -2264,13 +2272,13 @@ function craftAggregateRequirements(...materialArgs) {
 }
 
 function renderMaterialCell(material) {
-    // Бейдж ⚠️ у материала с невыполненными требованиями (мягкий штраф)
+    // Квадратная ячейка (раунд 96): только картинка + счётчик, имя — в
+    // тултипе кнопки слота. Бейдж ⚠️ невыполненных требований оставлен.
     const badge = (material.requirements_met === false)
         ? ' <span class="tinkers-req-badge tinkers-req-badge-warn" title="Требования не выполнены — будет штраф">⚠️</span>'
         : '';
     return `
-        <span class="craft-material-icon">${itemVisual(material, 'craft-material-img')}</span>
-        <span class="craft-material-name">${esc(material.name)}${badge}</span>
+        <span class="craft-material-icon">${itemVisual(material, 'craft-material-img')}</span>${badge}
         <span class="craft-material-count">×${esc(material.count)}</span>`;
 }
 
