@@ -4351,3 +4351,42 @@ button.item.tile-gold {
         overflow-y: auto;
     }
 }
+
+/* ================= РАУНД 89: шире СТАТЫ, ниже по вертикали =============
+   По скриншоту: в ряду экипировки и справа в инвентаре много пустого
+   места (желоб ползунка р.88 + узкие колонки), левая панель ПЕРСОНАЖ
+   высокая с пустой подложкой. Сетки пакуются влево корректно (р.79/85) —
+   лечим шириной колонок, а не сетками. Только десктоп ≥900px, только
+   добавления:
+   - шире: боковые поля .main/.header-top/.header-xp 24px → 8px (шапка
+     в тон, чтобы не разъехалась), зазор колонок 16px → 8px — окно СТАТЫ
+     раздаётся влево и вправо, сеткам хватает места под ползунок,
+     в ряд экипировки влезает больше плиток;
+   - ниже: .character-art min-height 260px → 200px, padding 24px → 16px;
+     .character-panel padding 16px → 12px; .stats-grid margin-bottom
+     16px → 8px; .stat padding 10px 12px → 8px 10px — панели короче,
+     приложение ближе к горизонтальному прямоугольнику. */
+@media (min-width: 900px) {
+    .main,
+    .header-top,
+    .header-xp {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+    #screen-character {
+        gap: 8px;
+    }
+    .character-art {
+        min-height: 200px;
+        padding: 16px;
+    }
+    .character-panel {
+        padding: 12px;
+    }
+    .stats-grid {
+        margin-bottom: 8px;
+    }
+    .stat {
+        padding: 8px 10px;
+    }
+}
