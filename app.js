@@ -2865,28 +2865,38 @@ async function claimQuest(code) {
     loadAll(false);
 }
 
-// ---------- Размеры иконок (раунд 77–78) ----------
+// ---------- Размеры иконок (раунд 77–78, ступени с раунда 94) ----------
 // Хранятся только в браузере игрока (localStorage, сервер не нужен).
 // Раунд 78: у инвентаря и экипировки свои размеры и свои панели.
 // Старый общий ключ 'myrpg_item_size' (р.77) используется как фолбэк
 // при первом запуске, чтобы не сбрасывать настройку игрока.
+// Раунд 94: вместо шага 8px — три ступени (1 → 56px, 2 → 72px, 3 → 96px),
+// метка панели показывает номер ступени. В localStorage лежат px (ключи
+// те же), старые значения маппятся на ближайшую ступень — настройки
+// игроков не слетят; дефолт — ступень 2 (72px).
 const INV_SIZE_KEY = 'myrpg_inventory_item_size';
 const EQ_SIZE_KEY = 'myrpg_equipment_item_size';
 const LEGACY_SIZE_KEY = 'myrpg_item_size';
-const ITEM_SIZE_MIN = 48;
-const ITEM_SIZE_MAX = 96;
-const ITEM_SIZE_STEP = 8;
-const ITEM_SIZE_DEFAULT = 64;
+const SIZE_LEVELS = [56, 72, 96];
+const ITEM_SIZE_DEFAULT = 72;
 
-function clampItemSize(value) {
+function sizeLevelIndex(value) {
+    // Ближайшая ступень к значению px; ties — вверх (64 → 72, а не 56).
     const num = parseInt(value, 10);
     if (!Number.isFinite(num)) {
-        return ITEM_SIZE_DEFAULT;
+        return SIZE_LEVELS.indexOf(ITEM_SIZE_DEFAULT);
     }
-    return Math.max(ITEM_SIZE_MIN, Math.min(ITEM_SIZE_MAX, num));
+    let best = 0;
+    for (let i = 1; i < SIZE_LEVELS.length; i++) {
+        if (Math.abs(SIZE_LEVELS[i] - num) <= Math.abs(SIZE_LEVELS[best] - num)) {
+            best = i;
+        }
+    }
+    return best;
 }
 
-// Конфиг двух панелей: ключ localStorage, CSS-переменная, id элементов
+// Конфиг двух панелей: ключ localStorage, CSS-переменная, id элементов.
+// draft — индекс ступени (0-based), в CSS-переменную и localStorage идут px.
 const SIZE_PANELS = [
     {
         storeKey: INV_SIZE_KEY,
@@ -2898,7 +2908,7 @@ const SIZE_PANELS = [
         save: 'invSizeSave',
         close: 'invSizeClose',
         title: 'invTitleBtn',
-        draft: ITEM_SIZE_DEFAULT,
+        draft: 1,
     },
     {
         storeKey: EQ_SIZE_KEY,
@@ -2910,30 +2920,31 @@ const SIZE_PANELS = [
         save: 'eqSizeSave',
         close: 'eqSizeClose',
         title: 'equipTitleBtn',
-        draft: ITEM_SIZE_DEFAULT,
+        draft: 1,
     },
 ];
 
 function savedItemSize(storeKey) {
-    // Новый ключ → legacy-ключ р.77 → default 64
+    // Новый ключ → legacy-ключ р.77 → дефолт 72px
     return localStorage.getItem(storeKey)
         || localStorage.getItem(LEGACY_SIZE_KEY)
         || String(ITEM_SIZE_DEFAULT);
 }
 
-function applyPanelSize(cfg, value) {
-    cfg.draft = clampItemSize(value);
-    document.documentElement.style.setProperty(cfg.cssVar, cfg.draft + 'px');
+function applyPanelSize(cfg, levelIndex) {
+    const idx = Math.max(0, Math.min(SIZE_LEVELS.length - 1, levelIndex | 0));
+    cfg.draft = idx;
+    document.documentElement.style.setProperty(cfg.cssVar, SIZE_LEVELS[idx] + 'px');
     const label = document.getElementById(cfg.value);
     if (label) {
-        label.textContent = cfg.draft + 'px';
+        label.textContent = String(idx + 1);
     }
 }
 
 function initItemSizes() {
-    // Загрузка при старте: сохранённые размеры или 64px по умолчанию
+    // Загрузка при старте: сохранённые размеры (ступенью) или 72px
     SIZE_PANELS.forEach((cfg) => {
-        applyPanelSize(cfg, savedItemSize(cfg.storeKey));
+        applyPanelSize(cfg, sizeLevelIndex(savedItemSize(cfg.storeKey)));
         const titleBtn = document.getElementById(cfg.title);
         if (titleBtn) {
             titleBtn.addEventListener('click', () => {
@@ -2945,14 +2956,14 @@ function initItemSizes() {
         const save = document.getElementById(cfg.save);
         const close = document.getElementById(cfg.close);
         if (minus) {
-            minus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft - ITEM_SIZE_STEP));
+            minus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft - 1));
         }
         if (plus) {
-            plus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft + ITEM_SIZE_STEP));
+            plus.addEventListener('click', () => applyPanelSize(cfg, cfg.draft + 1));
         }
         if (save) {
             save.addEventListener('click', () => {
-                localStorage.setItem(cfg.storeKey, String(cfg.draft));
+                localStorage.setItem(cfg.storeKey, String(SIZE_LEVELS[cfg.draft]));
                 document.getElementById(cfg.panel).classList.add('hidden');
                 showToast('Размер иконок сохранён');
             });
@@ -2960,7 +2971,7 @@ function initItemSizes() {
         if (close) {
             // «✕» — закрыть без сохранения, превью откатить к сохранённому
             close.addEventListener('click', () => {
-                applyPanelSize(cfg, savedItemSize(cfg.storeKey));
+                applyPanelSize(cfg, sizeLevelIndex(savedItemSize(cfg.storeKey)));
                 document.getElementById(cfg.panel).classList.add('hidden');
             });
         }

@@ -3967,9 +3967,14 @@ button.item.tile-gold {
     и две панели (#inventorySizePanel / #equipmentSizePanel, стили
     .size-panel переиспользованы из р.77). Переменные позже по файлу бьют
     --item-size из р.77 каскадом там, где различаются. */
+/* ================= РАУНД 94: ступени размера 56/72/96 =====================
+   Три ступени вместо шага 8px (метка панели — номер 1/2/3, px скрыты).
+   Сам механизм в app.js (SIZE_LEVELS, дефолт ступень 2 = 72px); здесь
+   только дефолтные переменные 64px → 72px, чтобы до старта JS не было
+   рассинхрона превью. */
 :root {
-    --inventory-item-size: 64px;
-    --equipment-item-size: 64px;
+    --inventory-item-size: 72px;
+    --equipment-item-size: 72px;
 }
 .inventory-grid {
     grid-template-columns: repeat(auto-fill, var(--inventory-item-size));
