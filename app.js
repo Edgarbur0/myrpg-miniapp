@@ -1071,11 +1071,19 @@ function renderInventoryPanel() {
         // от старого API.
         if (item.instances && item.instances.length) {
             item.instances.filter((inst) => !inst.equipped).forEach((inst) => {
+                // Раунд 95: у экземпляра своя картинка по комбо стихий
+                // (Каменная кожа, Регенерация...) и своё имя (display_name) —
+                // иначе все нагрудники выглядят одинаково (каталожная иконка).
+                const instView = Object.assign({}, item, {
+                    name: inst.display_name || item.name,
+                    image: ((inst.combo || {}).image) || item.image,
+                });
+                const instTip = inst.display_name || item.name;
                 tiles.push(`
                     <button class="item item-equip"
                             data-code="${esc(code)}" data-instance-id="${inst.id}"
                             type="button">
-                        <span class="item-icon" data-tooltip="${esc(item.name)}">${itemVisual(item, 'item-img')}</span>
+                        <span class="item-icon" data-tooltip="${esc(instTip)}">${itemVisual(instView, 'item-img')}</span>
                     </button>`);
             });
             return;
@@ -1238,10 +1246,19 @@ function openItemModal(inventory, code, instanceId) {
         }</span></div>`
         : '';
 
-    document.getElementById('modalTitle').textContent = item.name;
+    document.getElementById('modalTitle').textContent =
+        (activeInst && activeInst.display_name) || item.name;
+    // Раунд 95: модалка экземпляра — его картинка по комбо и его имя,
+    // иначе все нагрудники выглядят одинаково (каталожная иконка).
+    const modalView = activeInst
+        ? Object.assign({}, item, {
+            name: activeInst.display_name || item.name,
+            image: ((activeInst.combo || {}).image) || item.image,
+        })
+        : item;
     document.getElementById('modalBody').innerHTML = `
-        <div class="modal-icon">${itemVisual(item, 'modal-icon-img')}</div>
-        <div class="modal-title">${esc(item.name)}</div>
+        <div class="modal-icon">${itemVisual(modalView, 'modal-icon-img')}</div>
+        <div class="modal-title">${esc(modalView.name)}</div>
         <div class="modal-desc">
             <div><span class="muted">Тип</span><span>${esc(ITEM_TYPE_LABELS[item.type] || 'Предмет')}</span></div>
             ${countLine}
