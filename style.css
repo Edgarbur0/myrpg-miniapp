@@ -4599,3 +4599,18 @@ body {
 .craft-detail .craft-slot-label {
     display: none;
 }
+
+/* РАУНД 98: зеркало сетки экипировки (только добавления).
+   Карточка экипировки — левая в .bottom-grid, разделитель справа от неё:
+   сетка пакуется к разделителю (вправо), ползунок — слева (снаружи).
+   Средство — direction: rtl на скролл-контейнере: вертикальный ползунок
+   уезжает налево, а grid-auto-flow и justify-content: start начинают ряд
+   справа; плиткам возвращаем direction: ltr, чтобы содержимое не mirrored.
+   Инвентарь (.inventory-grid) и остальные сетки не тронуты. */
+.equipment-slots {
+    direction: rtl;
+}
+
+.equipment-slots .item {
+    direction: ltr;
+}
