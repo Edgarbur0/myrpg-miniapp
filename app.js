@@ -1470,7 +1470,11 @@ function renderEquipment() {
                 <span class="item-icon" data-tooltip="${esc(bookTip)}">${techVisual(book, 'item-img')}</span>
             </button>`);
     });
-    box.innerHTML = tiles.join('');
+    // Внутренний враппер сетки (раунд 99): сам #equipmentSlots — RTL-скроллер
+    // (ползунок слева, раунд 98), а поток плиток — LTR (порядок 1→2→3).
+    // Направление потока и сторону ползунка в CSS не разделить, поэтому
+    // сетка живёт во внутреннем div (pack вправо — к разделителю — задаёт CSS).
+    box.innerHTML = '<div class="equipment-slots-grid">' + tiles.join('') + '</div>';
 
     // Клик по надетому слоту — модалка со «Снять»
     box.querySelectorAll('.item-equip').forEach((cell) => {

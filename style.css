@@ -4614,3 +4614,25 @@ body {
 .equipment-slots .item {
     direction: ltr;
 }
+
+/* РАУНД 99: порядок 1→2→3 при левом ползунке (только добавления).
+   Проблема раунда 98: direction: rtl на скроллере переворачивает и порядок
+   раскладки — ряд читался 3→2→1; разворот DOM не годится (ломает выравнивание
+   неполных рядов). Решение — внутренний враппер: скроллер остаётся RTL
+   (ползунок слева), а сетка внутри — LTR (поток слева направо) с пакованием
+   вправо (justify-content: end — к разделителю). Правила сетки (колонки
+   auto-fill по переменной р.91/р.79, зазор 6px р.90, ряды сверху р.93)
+   продублированы на враппер — сам скроллер сеткой больше не является.
+   Плитки (.equipment-slots .item) и остальное находят его как потомка. */
+.equipment-slots {
+    display: block;
+}
+
+.equipment-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--equipment-item-size));
+    gap: 6px;
+    justify-content: end;
+    align-content: start;
+    direction: ltr;
+}
