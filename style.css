@@ -4424,3 +4424,50 @@ button.item.tile-gold {
 .equipment-slots {
     grid-template-columns: repeat(auto-fill, var(--equipment-item-size));
 }
+
+/* ================= РАУНД 92: окно фиксировано по вертикали ================
+   Задача: приложение — фиксированный прямоугольник без скролла страницы
+   на любой ширине (раньше фикс-высота р.77 работала только ≥900px, уже
+   окна скроллили страницу целиком). Конструкция безопасна: активен всегда
+   только один .screen (остальные display: none), поэтому фиксируем окно,
+   а скролл отдаём внутрь активного экрана:
+   - html/body: высота 100% + overflow hidden, body — flex-колонка 100dvh
+     (fallback 100vh) — шапка фиксирована, .main тянется;
+   - .main: flex: 1 + min-height: 0 + overflow hidden, нижний отступ снят
+     (базовые 40px давали мёртвую зону; боковые поля не тронуты);
+   - .screen.active: высота 100% + скролл внутри — длинные экраны
+     (культивация/крафт/магазин) скроллятся сами, страница стоит;
+   - экран персонажа на мобильном скроллится целиком (как раньше страницей,
+     но внутри окна — шапка на месте); на десктопе ≥900px работает прежняя
+     цепочка р.77/88 (сетки скроллятся внутри, панели фиксированы). */
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+}
+@supports not (height: 100dvh) {
+    body {
+        height: 100vh;
+    }
+}
+.header {
+    flex: none;
+}
+.main {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+.screen.active {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
