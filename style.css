@@ -4275,3 +4275,79 @@ button.item.tile-gold {
         left: calc(50% - 2px);
     }
 }
+
+/* ================= РАУНД 88: стабильный ползунок + добивка фикс-высоты ==
+   Правка 1 — предметы не прыгают при появлении ползунка: классика
+   overflow-y: auto сужает контент-бокс под скроллбар, и auto-fill сетка
+   перестраивается (скриншоты 1–2). scrollbar-gutter: stable резервирует
+   место под ползунок заранее — сетка стабильна, есть скролл или нет
+   (пустой желоб справа в этом случае — плата, а не баг). Фолбэк для
+   старых браузеров: всегда видимый скролл — место тоже стабильно.
+   Скоуп — десктоп ≥900px, где сетки скролл-контейнеры (р.77).
+   Правка 2 — фикс-высота: аудит git diff 9a9a871..HEAD показал, что
+   правила р.77 никто не перебивал (после р.77 менялись только комментарии
+   и высоты плиток); скролл всей страницы — это вьюпорт <900px, где фикс
+   выключен осознанно (р.77), или старый CSS в кэше webview. Добиваем тем же
+   набором (позже по файлу = сильнее каскадом) + ?v=89 вытягивает свежий
+   CSS; заодно снят padding-bottom: 16px у .main (р.77) — контент до низа.
+   Селекторы — реальные (.inventory-grid/.equipment-slots, body/.main):
+   #app/.main-content/.inventory-list из ТЗ в разметке отсутствуют. */
+@media (min-width: 900px) {
+    .inventory-grid,
+    .equipment-slots,
+    #equipmentTechSlots {
+        scrollbar-gutter: stable;
+    }
+    @supports not (scrollbar-gutter: stable) {
+        .inventory-grid,
+        .equipment-slots,
+        #equipmentTechSlots {
+            overflow-y: scroll;
+        }
+    }
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+    }
+    .main {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        padding-bottom: 0;
+    }
+    #screen-character {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .stats-panel {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .bottom-grid {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .bottom-grid > .card {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .inventory-grid,
+    .equipment-slots,
+    #equipmentTechSlots {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+}
