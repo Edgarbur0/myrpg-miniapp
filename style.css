@@ -5298,3 +5298,92 @@ body.scene-mode main.main {
 }
 .home-scroll[data-scroll="left"] { left: 8px; }
 .home-scroll[data-scroll="right"] { right: 8px; }
+
+/* РАУНД 110 (дом, часть 2: нативный скролл, стены 62%, мягкий ковёр,
+   drag мебели, картинки из админки). Только добавления.
+   - Скролл: нативный у обёртки (колёсико + свайп + кнопки через scrollBy).
+     Урок: transform-кадры р.109 не давали колёсика; нативный скролл
+     честно скроллится везде, кнопки остались для точности.
+   - Стены 62% вместо 40%: верх — мебель настенная, низ — напольная. */
+#screen-world .home-room-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+#screen-world .home-room {
+    /* transform-кадры р.109 больше не ездят: позицию задаёт скролл */
+    transition: none;
+    scroll-snap-align: start;
+}
+#screen-world .home-scene {
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 240, 210, 0.05) 0 14px, transparent 14px 56px),
+        linear-gradient(180deg, rgba(120, 72, 40, 0.55) 0 62%, transparent 62%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.08) 0 3px, transparent 3px 30px),
+        linear-gradient(180deg, #6b4a2f 0%, #7d5a38 60%, #5d3f27 100%);
+}
+#screen-world .home-scene::before {
+    top: 62%;
+}
+/* Ковёр мягкий (раунд 110): был полосатый «баг», стал тёплым пятном.
+   Позиция/размер — как было (под маршрутом чиби). */
+#screen-world .home-carpet {
+    background: radial-gradient(ellipse at center,
+        rgba(150, 60, 50, 0.55) 0%, rgba(110, 40, 38, 0.5) 55%,
+        rgba(110, 40, 38, 0) 78%);
+    border: 2px solid rgba(212, 175, 55, 0.35);
+}
+/* Режим расстановки (раунд 110): мебель таскается, чиби и кнопки — нет.
+   touch-action:none только у мебели в режиме, чтобы свайп скролла
+   работал везде, кроме перетаскиваемого предмета. */
+#screen-world .home-room.editing .home-furniture {
+    cursor: move;
+    touch-action: none;
+    outline: 2px dashed rgba(212, 175, 55, 0.8);
+    outline-offset: 2px;
+}
+#screen-world .home-room.editing .home-furniture.dragged {
+    outline-style: solid;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7));
+    z-index: 6;
+}
+/* Картинка мебели/декора из админки (раунд 110): подменяет эмодзи,
+   подпись в span остаётся. Нет картинки — остаётся эмодзи. */
+.home-furniture .furn-img,
+.home-decor .furn-img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    pointer-events: none;
+}
+.home-furniture .furn-emoji,
+.home-decor .furn-emoji {
+    display: none;
+}
+/* Круглая иконка с картинкой (чиби/NPC, раунд 110): фон-cover поверх
+   градиента, эмодзи прячем только после успешной загрузки. */
+.chibi-round.has-photo,
+.village-npc.has-photo {
+    background-size: cover;
+    background-position: center;
+}
+.chibi-round.has-photo .furn-emoji,
+.village-npc.has-photo .furn-emoji {
+    display: none;
+}
+/* Огонь картинкой из админки (раунд 110): CSS-пламя гаснет,
+   вместо него статичная картинка. Нет картинки — CSS-огонь как был. */
+.camp-fire.has-image .camp-fire-flame,
+.camp-fire.has-image .camp-fire-log {
+    display: none;
+}
+.camp-fire.has-image .furn-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}

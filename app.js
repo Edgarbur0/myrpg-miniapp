@@ -780,6 +780,9 @@ function renderCamp() {
     });
     // Низ (экипировка + инвентарь) с раунда 106 всегда виден под сценой —
     // отдельная кнопка 🎒 не нужна, проводка р.105 удалена.
+
+    // Картинки чиби/костра из админки (раунд 110, с фолбэками)
+    ensureHomeAssets().then(applyCampVisuals);
 }
 
 function isVillageScene() {
@@ -795,7 +798,9 @@ function renderChibi(el) {
         return;
     }
     el.classList.add('chibi-round');
-    if (!el.textContent) {
+    // Фото из админки не затираем эмодзи (раунд 110): has-photo означает,
+    // что картинка уже загружена и текст очищен осознанно.
+    if (!el.textContent && !el.classList.contains('has-photo')) {
         el.textContent = '🧙';
     }
 }
@@ -904,22 +909,40 @@ function renderHome() {
         }
     });
 
-    // Кнопки панорамы ⬅/➡ (раунд 109)
+    // Кнопки панорамы ⬅/➡ (раунд 109–110: нативный scrollBy)
     document.querySelectorAll('#homeBlock [data-scroll]').forEach((button) => {
         button.onclick = () => scrollHome(button.dataset.scroll);
     });
+
+    // Расстановка мебели из localStorage + drag (раунд 110)
+    loadHomeLayout();
+    initHomeDrag();
+    armHomeClickGuard();
+    const editBtn = document.getElementById('homeEditBtn');
+    if (editBtn) {
+        editBtn.onclick = toggleHomeEdit;
+    }
+    const resetBtn = document.getElementById('homeResetBtn');
+    if (resetBtn) {
+        resetBtn.onclick = resetHomeLayout;
+    }
+    syncHomeEditButtons();
+
+    // Картинки мебели/фона/чиби из админки (раунд 110, с фолбэками)
+    ensureHomeAssets().then(applyHomeVisuals);
 }
 
-// Панорама дома (раунд 109): комната 200%, сдвиг transform 0 | -50%.
-// Два фиксированных кадра вместо свободного свайпа — на мобильном тапы
-// по мебели не конфликтуют с прокруткой. Только transform — 60fps.
-let homeOffset = 0;
+// Панорама дома (раунд 109–110): нативный скролл обёртки.
+// Раунд 110: колёсико мыши и свайп работают сами (overflow-x + touch),
+// кнопки ⬅/➡ — scrollBy на пол-экрана для точности. transform-кадры
+// р.109 удалены: нативный скролл честно скроллится везде.
 function scrollHome(dir) {
-    homeOffset = dir === 'left' ? 0 : -50;
-    const room = document.getElementById('homeRoom');
-    if (room) {
-        room.style.transform = `translateX(${homeOffset}%)`;
+    const wrapper = document.getElementById('homeRoomWrapper');
+    if (!wrapper) {
+        return;
     }
+    const delta = wrapper.clientWidth * 0.5;
+    wrapper.scrollBy({ left: dir === 'left' ? -delta : delta, behavior: 'smooth' });
 }
 
 // Кровать: сон — полное восстановление HP (POST /api/player/<id>/home/sleep).
@@ -970,6 +993,316 @@ function homeChest() {
     showToast('🧰 Сундук — твои вещи внизу');
 }
 
+// Сундук: вещи и так видны в низу экрана — подсвечиваем его прокруткой.
+function homeChest() {
+    const bar = document.querySelector('#screen-world .bottom-bar');
+    if (bar) {
+        bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    showToast('🧰 Сундук — твои вещи внизу');
+}
+
+// ---------- Дом, часть 2 (раунд 110): расстановка мебели ----------
+// Мебель двигается только в режиме редактирования (кнопка ✏️) — иначе
+// тапы честно открывают сон/крафт. Позиции — в % от комнаты, живут
+// в localStorage myrpg_home_layout. Клик после перетаскивания глушится,
+// чтобы дроп не открывал действие мебели.
+let homeEditMode = false;
+let homeDragEl = null;
+let homeDragMoved = false;
+let homeSuppressClick = false;
+let homeClickGuardArmed = false;
+
+function toggleHomeEdit() {
+    homeEditMode = !homeEditMode;
+    const room = document.getElementById('homeRoom');
+    if (room) {
+        room.classList.toggle('editing', homeEditMode);
+    }
+    syncHomeEditButtons();
+    showToast(homeEditMode
+        ? '✏️ Таскай мебель, клики выключены'
+        : 'Готово, расстановка сохранена');
+}
+
+function syncHomeEditButtons() {
+    const editBtn = document.getElementById('homeEditBtn');
+    if (editBtn) {
+        editBtn.textContent = homeEditMode ? '✅' : '✏️';
+    }
+    const resetBtn = document.getElementById('homeResetBtn');
+    if (resetBtn) {
+        resetBtn.classList.toggle('hidden', !homeEditMode);
+    }
+}
+
+function saveHomeLayout() {
+    const layout = {};
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        const x = parseFloat(el.style.left);
+        const y = parseFloat(el.style.top);
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+            layout[el.dataset.furniture] = { x: x, y: y };
+        }
+    });
+    try {
+        localStorage.setItem('myrpg_home_layout', JSON.stringify(layout));
+    } catch (e) { /* localStorage может быть недоступен */ }
+}
+
+function loadHomeLayout() {
+    let layout = null;
+    try {
+        layout = JSON.parse(localStorage.getItem('myrpg_home_layout') || 'null');
+    } catch (e) { /* битый JSON — как нет сохранений */ }
+    if (!layout || typeof layout !== 'object') {
+        return;
+    }
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        const pos = layout[el.dataset.furniture];
+        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
+                && pos.x >= 0 && pos.x <= 100 && pos.y >= 0 && pos.y <= 100) {
+            el.style.left = pos.x + '%';
+            el.style.top = pos.y + '%';
+        }
+    });
+}
+
+function resetHomeLayout() {
+    try {
+        localStorage.removeItem('myrpg_home_layout');
+    } catch (e) { /* localStorage может быть недоступен */ }
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        el.style.left = '';
+        el.style.top = '';
+    });
+    showToast('↺ Мебель вернулась на места');
+}
+
+function initHomeDrag() {
+    const room = document.getElementById('homeRoom');
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        el.onpointerdown = (e) => {
+            if (!homeEditMode) {
+                return;
+            }
+            homeDragEl = el;
+            homeDragMoved = false;
+            try {
+                el.setPointerCapture(e.pointerId);
+            } catch (err) { /* capture не везде поддерживается */ }
+        };
+        el.onpointermove = (e) => {
+            if (!homeEditMode || homeDragEl !== el || !room) {
+                return;
+            }
+            const rect = room.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) {
+                return;
+            }
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            el.style.left = Math.min(95, Math.max(0, x)).toFixed(1) + '%';
+            el.style.top = Math.min(92, Math.max(0, y)).toFixed(1) + '%';
+            homeDragMoved = true;
+            el.classList.add('dragged');
+        };
+        const finish = () => {
+            if (homeDragEl !== el) {
+                return;
+            }
+            el.classList.remove('dragged');
+            if (homeDragMoved) {
+                saveHomeLayout();
+                // Клик прилетит сразу за pointerup — глушим один раз,
+                // чтобы дроп не открыл сон/крафт/техники
+                homeSuppressClick = true;
+                setTimeout(() => { homeSuppressClick = false; }, 50);
+            }
+            homeDragEl = null;
+            homeDragMoved = false;
+        };
+        el.onpointerup = finish;
+        el.onpointercancel = finish;
+    });
+}
+
+function armHomeClickGuard() {
+    // Один раз на сессию: перехватываем клик после перетаскивания.
+    // Кнопки ⬅/➡ живут вне комнаты — их не задевает.
+    if (homeClickGuardArmed) {
+        return;
+    }
+    const room = document.getElementById('homeRoom');
+    if (!room) {
+        return;
+    }
+    room.addEventListener('click', (e) => {
+        if (homeSuppressClick) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
+    homeClickGuardArmed = true;
+}
+
+// ---------- Дом, часть 3 (раунд 110): картинки из админки ----------
+// Грузим один раз за сессию (homeAssetsCache), дальше — из памяти.
+// Нет картинки или не загрузилась = остаётся эмодзи/CSS (фолбэк молча).
+let homeAssetsCache = null;
+
+async function ensureHomeAssets() {
+    if (homeAssetsCache !== null) {
+        return homeAssetsCache;
+    }
+    homeAssetsCache = { furniture: {}, assets: {} };
+    try {
+        const [furn, assets] = await Promise.all([
+            apiFetch('/home_furniture').catch(() => null),
+            apiFetch('/game_assets').catch(() => null),
+        ]);
+        for (const rec of ((furn && furn.furniture) || [])) {
+            if (rec && rec.key) {
+                homeAssetsCache.furniture[rec.key] = rec;
+            }
+        }
+        for (const rec of ((assets && assets.assets) || [])) {
+            if (rec && rec.key) {
+                homeAssetsCache.assets[rec.key] = rec;
+            }
+        }
+    } catch (e) { /* фолбэк — эмодзи, молча */ }
+    return homeAssetsCache;
+}
+
+function probeImage(url, onload) {
+    const probe = new Image();
+    probe.onload = onload;
+    probe.onerror = () => {};
+    probe.src = url;
+}
+
+// Подмена эмодзи картинкой (раунд 110): эмодзи прячем ТОЛЬКО после
+// успешной загрузки — иначе при битой картинке останется дырка.
+function applyFurnitureImage(el, url) {
+    if (!el || !url) {
+        return;
+    }
+    const cur = el.querySelector('img.furn-img');
+    if (cur && cur.dataset.src === url) {
+        return;
+    }
+    probeImage(url, () => {
+        if (!el.isConnected) {
+            return;
+        }
+        let img = el.querySelector('img.furn-img');
+        if (!img) {
+            img = document.createElement('img');
+            img.className = 'furn-img';
+            img.alt = '';
+            el.prepend(img);
+            const node = img.nextSibling;
+            if (node && node.nodeType === 3 && node.textContent.trim()) {
+                const em = document.createElement('span');
+                em.className = 'furn-emoji';
+                em.textContent = node.textContent;
+                el.replaceChild(em, node);
+            }
+        }
+        img.dataset.src = url;
+        img.src = url;
+    });
+}
+
+// Круглая иконка картинкой (чиби/NPC, раунд 110): фон-cover поверх
+// градиента, текст чистим только после успешной загрузки.
+function applyChibiImage(el, url) {
+    if (!el || !url || el.classList.contains('has-photo')) {
+        return;
+    }
+    probeImage(url, () => {
+        if (!el.isConnected) {
+            return;
+        }
+        el.style.backgroundImage = `url("${cssUrl(url)}")`;
+        el.classList.add('has-photo');
+        el.textContent = '';
+    });
+}
+
+// Огонь картинкой из админки (раунд 110): CSS-пламя гаснет классом,
+// вместо него статичная картинка. Нет картинки — CSS-огонь как был.
+function applyCampFire(url) {
+    const fire = document.querySelector('#campBlock .camp-fire');
+    if (!fire || !url || fire.classList.contains('has-image')) {
+        return;
+    }
+    probeImage(url, () => {
+        if (!fire.isConnected) {
+            return;
+        }
+        fire.classList.add('has-image');
+        const img = document.createElement('img');
+        img.className = 'furn-img';
+        img.alt = '';
+        img.src = url;
+        fire.append(img);
+    });
+}
+
+function applyHomeVisuals() {
+    const cache = homeAssetsCache || { furniture: {}, assets: {} };
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        const rec = cache.furniture[el.dataset.furniture];
+        if (rec && rec.image) {
+            applyFurnitureImage(el, rec.image);
+        }
+    });
+    const bg = (cache.assets.home_background || {}).image;
+    if (bg) {
+        const scene = document.getElementById('homeScene');
+        probeImage(bg, () => {
+            if (scene && scene.isConnected) {
+                scene.style.backgroundImage = `url("${cssUrl(bg)}")`;
+                scene.style.backgroundSize = 'cover';
+                scene.style.backgroundPosition = 'center';
+            }
+        });
+    }
+    const chibi = (cache.assets.chibi_player || {}).image;
+    if (chibi) {
+        applyChibiImage(document.getElementById('homeChibi'), chibi);
+    }
+}
+
+function applyVillageVisuals() {
+    const cache = homeAssetsCache || { furniture: {}, assets: {} };
+    document.querySelectorAll('#villageBlock .village-npc').forEach((el) => {
+        const key = el.dataset.npc ? 'npc_' + el.dataset.npc : '';
+        const rec = key && cache.assets[key];
+        if (rec && rec.image) {
+            applyChibiImage(el, rec.image);
+        }
+    });
+    const chibi = (cache.assets.chibi_player || {}).image;
+    if (chibi) {
+        applyChibiImage(document.getElementById('villageChibi'), chibi);
+    }
+}
+
+function applyCampVisuals() {
+    const cache = homeAssetsCache || { furniture: {}, assets: {} };
+    const chibi = (cache.assets.chibi_player || {}).image;
+    if (chibi) {
+        applyChibiImage(document.getElementById('campChibi'), chibi);
+    }
+    const fire = (cache.assets.campfire || {}).image;
+    if (fire) {
+        applyCampFire(fire);
+    }
+}
+
 function renderVillage() {
     const player = playerData || {};
     const location = player.location || null;
@@ -1003,6 +1336,9 @@ function renderVillage() {
     // Персонаж на маршруте — круглая иконка (раунд 105)
     renderChibi(document.getElementById('villageChibi'));
     // Низ с раунда 106 всегда виден — проводка кнопки 🎒 р.105 удалена.
+
+    // Картинки NPC/чиби из админки (раунд 110, с фолбэками)
+    ensureHomeAssets().then(applyVillageVisuals);
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------

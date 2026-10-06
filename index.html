@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=111">
+    <link rel="stylesheet" href="style.css?v=112">
 </head>
 <body>
 
@@ -150,11 +150,11 @@
                 <button class="village-house" type="button" data-house="exit" data-note="exit" title="Выход из деревни">🚪<span>Выход</span></button>
                 <!-- NPC: круглые аватарки, каждый ходит по своему маршруту.
                      TODO: заменить эмодзи на PNG 64×64 -->
-                <div class="village-npc walk-a" title="Староста">👴</div>
-                <div class="village-npc walk-b" title="Торговка">👩</div>
-                <div class="village-npc walk-c" title="Кузнец">🧔</div>
-                <div class="village-npc walk-d" title="Девочка">👧</div>
-                <div class="village-npc walk-e" title="Пёс">🐕</div>
+                <div class="village-npc walk-a" data-npc="elder" title="Староста">👴</div>
+                <div class="village-npc walk-b" data-npc="trader" title="Торговка">👩</div>
+                <div class="village-npc walk-c" data-npc="blacksmith" title="Кузнец">🧔</div>
+                <div class="village-npc walk-d" data-npc="girl" title="Девочка">👧</div>
+                <div class="village-npc walk-e" data-npc="dog" title="Пёс">🐕</div>
                 <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
                      эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
                 <div class="village-chibi" id="villageChibi" title="Ты"></div>
@@ -170,9 +170,10 @@
              действия, камин/стеллаж — экраны, дверь — назад в деревню. -->
         <div class="home hidden" id="homeBlock">
             <div class="home-scene" id="homeScene">
-                <!-- Панорама 200% (раунд 109): комната шире экрана, панорама
-                     кнопками ⬅/➡ (transform, без нативного скролла — чтобы
-                     тапы по мебели не конфликтовали со свайпом) -->
+                <!-- Панорама 200% (раунд 109–110): комната шире экрана.
+                     Раунд 110: нативный скролл обёртки (колёсико + свайп +
+                     кнопки через scrollBy), transform-кадры р.109 удалены. -->
+                <div class="home-room-wrapper" id="homeRoomWrapper">
                 <div class="home-room" id="homeRoom">
                 <!-- Мебель: позиции задаёт CSS по data-furniture (% от комнаты) -->
                 <button class="home-furniture" type="button" data-furniture="bed" data-action="sleep" title="Кровать — сон">🛏️<span>Кровать</span></button>
@@ -189,12 +190,16 @@
                      эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
                 <div class="village-chibi home-chibi" id="homeChibi" title="Ты"></div>
                 </div>
+                </div>
                 <button class="home-scroll" type="button" data-scroll="left" title="Комната: влево">⬅</button>
                 <button class="home-scroll" type="button" data-scroll="right" title="Комната: вправо">➡</button>
             </div>
             <div class="village-info">
                 <span class="camp-loc" id="homeLocName">📍 —</span>
-                <span class="camp-status">🏠 Дом</span>
+                <span class="camp-status">🏠 Жилище</span>
+                <!-- Режим расстановки мебели (раунд 110): двигать / сброс -->
+                <button class="icon-btn" id="homeEditBtn" type="button" aria-label="Расставить мебель" title="Расставить мебель">✏️</button>
+                <button class="icon-btn hidden" id="homeResetBtn" type="button" aria-label="Вернуть мебель" title="Вернуть мебель">↺</button>
             </div>
         </div>
         <!-- НИЗ (раунд 106–107): экипировка + инвентарь всегда видны под сценой.
@@ -505,5 +510,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=111"></script></body>
+    <script src="app.js?v=112"></script></body>
 </html>
