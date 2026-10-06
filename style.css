@@ -4942,3 +4942,84 @@ body {
     gap: 8px;
     margin-top: 6px;
 }
+
+/* РАУНД 105 (тамагочи-стиль: круглый персонаж, сцена без панелей,
+   компактная шапка). Только добавления — старые блоки не трогаем. */
+
+/* Правка 1: персонаж — круглая иконка как у NPC (эмодзи ставит
+   renderChibi; TODO: PNG 64×64/96×96 ляжет в тот же круг).
+   Псевдо-фигурки р.103–104 гасятся, маршрут чиби (transform) цел. */
+.village-chibi.chibi-round,
+.camp-chibi.chibi-round {
+    width: 64px;
+    height: 64px;
+    font-size: 40px;
+    line-height: 64px;
+    text-align: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a4a6b, #232c47);
+    border: 2px solid rgba(212, 175, 55, 0.6);
+}
+.village-chibi.chibi-round::before,
+.village-chibi.chibi-round::after,
+.camp-chibi.chibi-round::before,
+.camp-chibi.chibi-round::after {
+    content: none;
+}
+@media (min-width: 900px) {
+    .village-chibi.chibi-round,
+    .camp-chibi.chibi-round {
+        width: 96px;
+        height: 96px;
+        font-size: 60px;
+        line-height: 96px;
+    }
+}
+
+/* Правка 2: дома всегда кликабельны — поверх ходячих NPC/чиби
+   (NPC z-index 2, чиби 3; ходоки проходят «за домами», как в top-down) */
+.village-house {
+    z-index: 4;
+}
+
+/* Правки 3–5: тамагочи-режим на экране персонажа.
+   Панель ПЕРСОНАЖ скрыта (уровень/HP/опыт уже в шапке, статы ниже сцены),
+   сцены выше. Табы скрыты только в деревне — навигация через дома и 🎒. */
+body.scene-mode #screen-character .character-panel {
+    display: none;
+}
+body.scene-mode .camp-scene {
+    aspect-ratio: 16 / 10;
+}
+body.scene-mode .village-scene {
+    aspect-ratio: 16 / 11;
+}
+body.scene-village .tabs {
+    display: none;
+}
+
+/* Правка 6: компактная верхняя панель (тамагочи-стиль).
+   Аватар 40px, имя меньше, отступы и шкала опыта ужаты. */
+.header-top {
+    padding: 8px 12px 6px;
+}
+.avatar {
+    width: 40px;
+    height: 40px;
+}
+.avatar-fallback {
+    font-size: 20px;
+}
+.player-name h1 {
+    font-size: 16px;
+}
+.header-xp {
+    padding: 0 12px 8px;
+}
+.experience-bar {
+    gap: 8px;
+}
+.exp-label,
+.exp-value {
+    font-size: 12px;
+}

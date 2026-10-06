@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=106">
+    <link rel="stylesheet" href="style.css?v=107">
 </head>
 <body>
 
@@ -31,6 +31,9 @@
 
         <nav class="tabs">
             <button class="tab active" type="button" data-screen="screen-character">Персонаж</button>
+            <!-- Раунд 105 (тамагочи-стиль): экипировка/инвентарь живут на
+                 отдельном экране, а не под сценой — не обрезаются -->
+            <button class="tab" type="button" data-screen="screen-backpack">🎒 Рюкзак</button>
             <button class="tab" type="button" data-screen="screen-cultivation">Культивация</button>
             <button class="tab" type="button" data-screen="screen-craft">Крафт</button>
             <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
@@ -82,7 +85,8 @@
                  ниже — та же, сворачивается кнопкой ⬅/➡ -->
             <div class="camp" id="campBlock">
                 <div class="camp-scene" id="campScene">
-                    <!-- Чиби-персонаж: CSS-заглушка (TODO: заменить на PNG-спрайт) -->
+                    <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
+                         эмодзи ставит renderChibi. TODO: PNG-спрайт -->
                     <div class="camp-chibi" id="campChibi" title="Ты"></div>
                     <!-- Костёр: чистый CSS (div-пламя + @keyframes fire) -->
                     <div class="camp-fire" id="campFire" aria-hidden="true">
@@ -98,7 +102,7 @@
                 <div class="camp-info">
                     <span class="camp-loc" id="campLocName">📍 —</span>
                     <span class="camp-status" id="campStatus">🏕️ Привал</span>
-                    <button class="icon-btn" id="campCollapseBtn" type="button" aria-label="Свернуть панель" title="Свернуть панель">➡</button>
+                    <button class="icon-btn" id="campBackpackBtn" type="button" aria-label="Открыть рюкзак" title="Рюкзак">🎒</button>
                 </div>
                 <!-- Панель боя: скрыта, пока нет живого боя (бой — в чате ВК).
                      Кнопки честно ведут в чат: показывают тост-подсказку. -->
@@ -126,7 +130,7 @@
                     <button class="village-house" type="button" data-house="trader" data-open-screen="screen-shop" title="Торговец — магазин">🏪<span>Торговец</span></button>
                     <button class="village-house" type="button" data-house="elder" data-open-screen="screen-quests" title="Староста — квесты">🏯<span>Староста</span></button>
                     <button class="village-house" type="button" data-house="fisher" data-note="fisher" title="Рыбак">🎣<span>Рыбак</span></button>
-                    <button class="village-house" type="button" data-house="home" data-note="home" title="Дом игрока">🏠<span>Дом</span></button>
+                    <button class="village-house" type="button" data-house="home" title="Дом игрока">🏠<span>Дом</span></button>
                     <button class="village-house" type="button" data-house="exit" data-note="exit" title="Выход из деревни">🚪<span>Выход</span></button>
                     <!-- NPC: круглые аватарки, каждый ходит по своему маршруту.
                          TODO: заменить эмодзи на PNG 64×64 -->
@@ -135,14 +139,14 @@
                     <div class="village-npc walk-c" title="Кузнец">🧔</div>
                     <div class="village-npc walk-d" title="Девочка">👧</div>
                     <div class="village-npc walk-e" title="Пёс">🐕</div>
-                    <!-- Чиби-персонаж: CSS-заглушка (как в лагере),
-                         ходит по маршруту сам. TODO: PNG walk-анимация -->
+                    <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
+                         эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
                     <div class="village-chibi" id="villageChibi" title="Ты"></div>
                 </div>
                 <div class="village-info">
                     <span class="camp-loc" id="villageLocName">📍 —</span>
                     <span class="camp-status">🏘️ Поселение</span>
-                    <button class="icon-btn" id="villageCollapseBtn" type="button" aria-label="Свернуть панель" title="Свернуть панель">➡</button>
+                    <button class="icon-btn" id="villageBackpackBtn" type="button" aria-label="Открыть рюкзак" title="Рюкзак">🎒</button>
                 </div>
             </div>
             <div class="panel-title-row">
@@ -157,7 +161,18 @@
 
             <!-- Характеристики -->
             <div class="stats-grid" id="statsGrid"></div>
+        </div>
+    </section>
 
+    <!-- ЭКРАН: РЮКЗАК (раунд 105, тамагочи-стиль): экипировка + инвентарь
+         отдельным экраном — под сценой не обрезаются. Сюда же ведут
+         кнопки 🎒 из сцен лагеря/деревни. Разметка сеток без изменений
+         (id те же — renderInventoryPanel/renderEquipment не тронуты). -->
+    <section id="screen-backpack" class="screen">
+        <div class="stats-panel">
+            <div class="panel-title-row">
+                <h2 class="panel-title">🎒 Рюкзак</h2>
+            </div>
             <!-- Экипировка и инвентарь -->
             <div class="bottom-grid">
                 <div class="card">
@@ -465,5 +480,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=106"></script></body>
+    <script src="app.js?v=107"></script></body>
 </html>

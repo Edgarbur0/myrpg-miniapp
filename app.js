@@ -747,6 +747,9 @@ function renderCamp() {
     if (locName) {
         locName.textContent = '📍 ' + ((location && location.name) || '—');
     }
+
+    // Персонаж у костра — круглая иконка (раунд 105)
+    renderChibi(document.getElementById('campChibi'));
     const status = document.getElementById('campStatus');
     if (status) {
         status.textContent = camp.in_battle
@@ -776,68 +779,30 @@ function renderCamp() {
         button.onclick = () => showToast('Бой идёт в чате ВК — команды там же');
     });
 
-    // Сворачивание панели (идемпотентно через onclick)
-    const collapseBtn = document.getElementById('campCollapseBtn');
-    if (collapseBtn) {
-        collapseBtn.onclick = toggleCampPanel;
+    // Кнопка 🎒 ведёт на отдельный экран рюкзака (раунд 105):
+    // экипировка/инвентарь больше не живут под сценой и не обрезаются
+    const backpackBtn = document.getElementById('campBackpackBtn');
+    if (backpackBtn) {
+        backpackBtn.onclick = () => openScreen('screen-backpack');
     }
-    syncCampPanel();
 }
 
-function isCampMobile() {
-    return window.matchMedia
-        ? window.matchMedia('(max-width: 899px)').matches
-        : false;
+function isVillageScene() {
+    const camp = (playerData && playerData.camp) || {};
+    return camp.scene === 'village';
 }
 
-function toggleCampPanel() {
-    const panel = document.getElementById('characterStatsPanel');
-    if (!panel) {
+// Раунд 105 (тамагочи-стиль): персонаж — круглая иконка как у NPC.
+// Пока ассета нет — эмодзи 🧙 (как фолбэк аватара в шапке).
+// TODO: PNG 64×64/96×96, класс .chibi-round уже ждёт картинку.
+function renderChibi(el) {
+    if (!el) {
         return;
     }
-    if (isCampMobile()) {
-        panel.classList.toggle('camp-drawer-open');
-        try {
-            localStorage.setItem(
-                'myrpg_camp_drawer',
-                panel.classList.contains('camp-drawer-open') ? '1' : '0'
-            );
-        } catch (e) { /* localStorage может быть недоступен */ }
-    } else {
-        panel.classList.toggle('camp-collapsed');
-        try {
-            localStorage.setItem(
-                'myrpg_camp_collapsed',
-                panel.classList.contains('camp-collapsed') ? '1' : '0'
-            );
-        } catch (e) { /* localStorage может быть недоступен */ }
+    el.classList.add('chibi-round');
+    if (!el.textContent) {
+        el.textContent = '🧙';
     }
-    syncCampPanel();
-}
-
-function syncCampPanel() {
-    const panel = document.getElementById('characterStatsPanel');
-    if (!panel) {
-        return;
-    }
-    let collapsed = false;
-    let drawer = false;
-    try {
-        collapsed = localStorage.getItem('myrpg_camp_collapsed') === '1';
-        drawer = localStorage.getItem('myrpg_camp_drawer') === '1';
-    } catch (e) { /* localStorage может быть недоступен */ }
-    panel.classList.toggle('camp-collapsed', collapsed);
-    panel.classList.toggle('camp-drawer-open', drawer);
-    const open = isCampMobile() ? drawer : !collapsed;
-    // Кнопка сворачивания есть в обеих сценах (лагерь + деревня)
-    ['campCollapseBtn', 'villageCollapseBtn'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (!btn) {
-            return;
-        }
-        btn.textContent = open ? '➡' : '⬅';
-        btn.setAttribute('aria-label', open ? 'Свернуть панель' : 'Развернуть панель');
-    });
 }
 
 // ---------- Деревня (раунд 104, этап 2 тамагочи-переработки) ----------
@@ -856,11 +821,19 @@ function renderScene() {
     if (villageBlock) {
         villageBlock.classList.toggle('hidden', !isVillage);
     }
+    // Тамагочи-режим шапки/табов (раунд 105) — по активной сцене
+    syncSceneMode('screen-character');
     if (isVillage) {
         renderVillage();
     } else {
         renderCamp();
     }
+}
+
+// Раунд 105: вход в дом игрока. Сцены дома ещё нет (этап 3),
+// поэтому честный тост вместо мёртвого клика.
+function renderHome() {
+    showToast('🏠 Дом откроется на этапе 3');
 }
 
 function renderVillage() {
@@ -876,10 +849,10 @@ function renderVillage() {
         locName.textContent = '📍 ' + ((location && location.name) || '—');
     }
 
-    // Клики по домам (идемпотентно через onclick)
+    // Клики по домам (идемпотентно через onclick).
+    // Дом игрока ведёт в renderHome (задел под этап 3).
     const notes = {
         fisher: 'Мини-игра с рыбалкой — на этапе 4',
-        home: 'Дом откроется на этапе 3',
         exit: 'Переходы между локациями — в чате ВК',
     };
     document.querySelectorAll('#villageBlock [data-open-screen]').forEach((button) => {
@@ -888,13 +861,19 @@ function renderVillage() {
     document.querySelectorAll('#villageBlock [data-note]').forEach((button) => {
         button.onclick = () => showToast(notes[button.dataset.note] || 'Скоро');
     });
-
-    // Сворачивание панели — то же, что в лагере (кнопка своя, логика общая)
-    const collapseBtn = document.getElementById('villageCollapseBtn');
-    if (collapseBtn) {
-        collapseBtn.onclick = toggleCampPanel;
+    const homeBtn = document.querySelector('#villageBlock [data-house="home"]');
+    if (homeBtn) {
+        homeBtn.onclick = renderHome;
     }
-    syncCampPanel();
+
+    // Персонаж на маршруте — круглая иконка (раунд 105)
+    renderChibi(document.getElementById('villageChibi'));
+
+    // Кнопка 🎒 ведёт на отдельный экран рюкзака (раунд 105)
+    const backpackBtn = document.getElementById('villageBackpackBtn');
+    if (backpackBtn) {
+        backpackBtn.onclick = () => openScreen('screen-backpack');
+    }
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
@@ -3335,6 +3314,16 @@ function initItemTooltip() {
     window.addEventListener('resize', hideItemTooltip);
 }
 
+// ---------- Тамагочи-режим (раунд 105) ----------
+// На экране персонажа: сцена большая (панель ПЕРСОНАЖ скрыта CSS),
+// табы скрыты только в деревне (в лагере/лесу остаются).
+// На конкретных экранах (крафт/рюкзак/...) табы всегда видны.
+function syncSceneMode(activeScreen) {
+    const onCharacter = !activeScreen || activeScreen === 'screen-character';
+    document.body.classList.toggle('scene-mode', onCharacter);
+    document.body.classList.toggle('scene-village', onCharacter && isVillageScene());
+}
+
 // ---------- Переключение вкладок ----------
 function openScreen(screenId) {
     document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
@@ -3346,6 +3335,10 @@ function openScreen(screenId) {
     }
     document.getElementById(screenId).classList.add('active');
     window.scrollTo({ top: 0 });
+
+    // Тамагочи-режим: табы видны только на конкретных экранах (раунд 105).
+    // На сцене деревни они скрыты — навигация идёт через дома и кнопку 🎒.
+    syncSceneMode(screenId);
 
     // Свежие данные при открытии вкладок (как при клике по табам)
     if (screenId === 'screen-cultivation') {
