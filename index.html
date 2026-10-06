@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=109">
+    <link rel="stylesheet" href="style.css?v=110">
 </head>
 <body>
 
@@ -162,6 +162,30 @@
             <div class="village-info">
                 <span class="camp-loc" id="villageLocName">📍 —</span>
                 <span class="camp-status">🏘️ Поселение</span>
+            </div>
+        </div>
+        <!-- ДОМ (раунд 108, этап 3): top-down комната игрока. Видна только
+             при клиентском оверрайде сцены 'home' (localStorage myrpg_scene),
+             пока игрок в деревне. Мебель кликабельна: кровать/сундук/стол —
+             действия, камин/стеллаж — экраны, дверь — назад в деревню. -->
+        <div class="home hidden" id="homeBlock">
+            <div class="home-scene" id="homeScene">
+                <!-- Мебель: позиции задаёт CSS по data-furniture -->
+                <button class="home-furniture" type="button" data-furniture="bed" data-action="sleep" title="Кровать — сон">🛏️<span>Кровать</span></button>
+                <button class="home-furniture" type="button" data-furniture="chest" data-action="chest" title="Сундук — вещи">🧰<span>Сундук</span></button>
+                <button class="home-furniture" type="button" data-furniture="table" data-action="eat" title="Стол — перекус">🍲<span>Стол</span></button>
+                <button class="home-furniture" type="button" data-furniture="fireplace" data-open-screen="screen-craft" title="Камин — крафт">🔥<span>Камин</span></button>
+                <button class="home-furniture" type="button" data-furniture="shelf" data-open-screen="screen-techniques" title="Стеллаж — техники">📚<span>Стеллаж</span></button>
+                <button class="home-furniture" type="button" data-furniture="door" data-action="door" title="Дверь — в деревню">🚪<span>Выход</span></button>
+                <!-- Декор без действий: растение (TODO: PNG-набор мебели) -->
+                <div class="home-decor" data-decor="plant" title="Растение">🪴</div>
+                <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
+                     эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
+                <div class="village-chibi home-chibi" id="homeChibi" title="Ты"></div>
+            </div>
+            <div class="village-info">
+                <span class="camp-loc" id="homeLocName">📍 —</span>
+                <span class="camp-status">🏠 Дом</span>
             </div>
         </div>
         <!-- НИЗ (раунд 106–107): экипировка + инвентарь всегда видны под сценой.
@@ -472,5 +496,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=109"></script></body>
+    <script src="app.js?v=110"></script></body>
 </html>

@@ -5128,3 +5128,91 @@ body.scene-mode main.main {
     padding: 4px 12px;
     font-size: 12px;
 }
+
+/* РАУНД 108 (этап 3 тамагочи-переработки): top-down комната игрока
+   (только добавления). Всё CSS-only: пол — деревянные доски
+   (повторяющийся градиент), стены — тёплая полоса сверху, мебель —
+   эмодзи-кнопки как дома деревни (р.104). Чиби ходит по маршруту
+   chibi-route (transform — 60fps в webview). TODO: PNG-набор мебели. */
+#screen-world .home {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+#screen-world .home-scene {
+    flex: 1 1 0;
+    min-height: 160px;
+    aspect-ratio: auto;
+    width: 100%;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    /* Стены сверху, деревянный пол снизу — повторяющимися градиентами */
+    background:
+        linear-gradient(180deg, rgba(120, 72, 40, 0.55) 0 18%, transparent 18%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.08) 0 3px, transparent 3px 30px),
+        linear-gradient(180deg, #6b4a2f 0%, #7d5a38 60%, #5d3f27 100%);
+    background-color: #6b4a2f;
+}
+/* Мебель: кликабельные кнопки поверх сцены (как дома деревни, р.104) */
+.home-furniture {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 34px;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+    padding: 2px;
+    z-index: 4;
+}
+.home-furniture span {
+    font-size: 11px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    margin-top: 2px;
+}
+.home-furniture[data-furniture="bed"] { left: 4%; top: 8%; }
+.home-furniture[data-furniture="chest"] { left: 40%; top: 5%; }
+.home-furniture[data-furniture="table"] { left: 72%; top: 8%; }
+.home-furniture[data-furniture="fireplace"] { left: 6%; top: 58%; }
+.home-furniture[data-furniture="shelf"] { left: 74%; top: 55%; }
+.home-furniture[data-furniture="door"] { left: 42%; top: 76%; }
+/* Декор без действий */
+.home-decor {
+    position: absolute;
+    font-size: 30px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+    z-index: 1;
+}
+.home-decor[data-decor="plant"] { left: 86%; top: 70%; }
+/* Чиби дома: та же круглая иконка, что в лагере/деревне (р.105) */
+.home-chibi {
+    position: absolute;
+    left: 30%;
+    top: 44%;
+    width: 64px;
+    height: 64px;
+    font-size: 40px;
+    line-height: 64px;
+    text-align: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a4a6b, #232c47);
+    border: 2px solid rgba(212, 175, 55, 0.6);
+    z-index: 3;
+    animation: chibi-route 16s linear infinite;
+}
+@media (min-width: 900px) {
+    .home-chibi {
+        width: 96px;
+        height: 96px;
+        font-size: 60px;
+        line-height: 96px;
+    }
+}

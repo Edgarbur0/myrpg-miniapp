@@ -804,32 +804,153 @@ function renderChibi(el) {
 // Top-down сцена мирного поселения: дома, ходячие NPC, чиби по маршруту.
 // Кузнец/торговец/староста открывают свои экраны, остальное — декорация.
 // Диспетчер renderScene показывает деревню при camp.scene == 'village',
-// иначе — лагерь (р.103). При переходе лес ↔ деревня сцена меняется сама.
-function renderScene() {
+// дом — при клиентском оверрайде 'home' (раунд 108), иначе — лагерь (р.103).
+// При переходе лес ↔ деревня сцена меняется сама.
+function getSceneOverride() {
+    // Клиентский оверрайд сцены (раунд 108, этап 3): только 'home'.
+    // Деревня/лагерь берутся с сервера, в localStorage не дублируются.
+    try {
+        return localStorage.getItem('myrpg_scene') === 'home' ? 'home' : null;
+    } catch (e) { /* localStorage может быть недоступен */ }
+    return null;
+}
+
+function setScene(scene) {
+    // Вход/выход из дома (раунд 108): пишем оверрайд и перерисовываемся
+    // через loadAll(false) — заодно подтянем свежее HP после сна/перекуса.
+    // Других значений, кроме 'home', не храним: 'village' означает
+    // «без оверрайда», деревню/лагерь решает сервер (resolveScene).
+    try {
+        if (scene === 'home') {
+            localStorage.setItem('myrpg_scene', 'home');
+        } else {
+            localStorage.removeItem('myrpg_scene');
+        }
+    } catch (e) { /* localStorage может быть недоступен */ }
+    loadAll(false);
+}
+
+function resolveScene() {
+    // Приоритет сцен (раунд 108): лес всегда лагерь (оверрайд сбрасывается),
+    // иначе клиентский 'home', иначе — сцена с сервера.
+    const locType = ((playerData && playerData.location) || {}).type || '';
+    if (locType === 'wild') {
+        try {
+            localStorage.removeItem('myrpg_scene');
+        } catch (e) { /* localStorage может быть недоступен */ }
+        return 'camp';
+    }
+    if (getSceneOverride() === 'home') {
+        return 'home';
+    }
     const camp = (playerData && playerData.camp) || {};
-    const isVillage = camp.scene === 'village';
+    return camp.scene === 'village' ? 'village' : 'camp';
+}
+
+function renderScene() {
+    const scene = resolveScene();
     const campBlock = document.getElementById('campBlock');
     const villageBlock = document.getElementById('villageBlock');
+    const homeBlock = document.getElementById('homeBlock');
     if (campBlock) {
-        campBlock.classList.toggle('hidden', isVillage);
+        campBlock.classList.toggle('hidden', scene !== 'camp');
     }
     if (villageBlock) {
-        villageBlock.classList.toggle('hidden', !isVillage);
+        villageBlock.classList.toggle('hidden', scene !== 'village');
+    }
+    if (homeBlock) {
+        homeBlock.classList.toggle('hidden', scene !== 'home');
     }
     // Тамагочи-режим шапки/табов (раунд 105) — по активной сцене.
     // Сцены живут на экране мира (раунд 106), персонаж — отдельно.
     syncSceneMode('screen-world');
-    if (isVillage) {
+    if (scene === 'village') {
         renderVillage();
+    } else if (scene === 'home') {
+        renderHome();
     } else {
         renderCamp();
     }
 }
 
-// Раунд 105: вход в дом игрока. Сцены дома ещё нет (этап 3),
-// поэтому честный тост вместо мёртвого клика.
+// Раунд 108 (этап 3): top-down комната игрока. Чиби ходит по маршруту,
+// мебель кликабельна: кровать/сундук/стол — действия, камин/стеллаж —
+// экраны, дверь — назад в деревню (сброс оверрайда через setScene).
 function renderHome() {
-    showToast('🏠 Дом откроется на этапе 3');
+    const locName = document.getElementById('homeLocName');
+    if (locName) {
+        locName.textContent = '📍 Дом';
+    }
+
+    // Чиби дома — круглая иконка (раунд 105)
+    renderChibi(document.getElementById('homeChibi'));
+
+    // Камин/стеллаж открывают свои экраны (как дома деревни)
+    document.querySelectorAll('#homeBlock [data-open-screen]').forEach((button) => {
+        button.onclick = () => openScreen(button.dataset.openScreen);
+    });
+
+    // Мебель с действиями (идемпотентно через onclick)
+    document.querySelectorAll('#homeBlock [data-action]').forEach((button) => {
+        const action = button.dataset.action;
+        if (action === 'sleep') {
+            button.onclick = homeSleep;
+        } else if (action === 'eat') {
+            button.onclick = homeEat;
+        } else if (action === 'chest') {
+            button.onclick = homeChest;
+        } else if (action === 'door') {
+            button.onclick = () => setScene('village');
+        }
+    });
+}
+
+// Кровать: сон — полное восстановление HP (POST /api/player/<id>/home/sleep).
+// Обновляем данные на месте, как зелье (usePotion): без перезагрузки.
+async function homeSleep() {
+    try {
+        const data = await apiFetch(`/player/${userId}/home/sleep`, { method: 'POST' });
+        if (data.success) {
+            playerData.hp = data.hp;
+            playerData.max_hp = data.max_hp;
+            renderHeader();
+            showToast(`😴 Выспался! +${data.healed} HP 💚`);
+        }
+    } catch (error) {
+        const messages = {
+            full_hp: 'Здоровье уже полное',
+            'player not found': 'Игрок не найден',
+        };
+        showToast(messages[error.code] || 'Не удалось поспать');
+    }
+}
+
+// Стол: перекус — +5 HP (POST /api/player/<id>/home/eat, MVP без еды).
+async function homeEat() {
+    try {
+        const data = await apiFetch(`/player/${userId}/home/eat`, { method: 'POST' });
+        if (data.success) {
+            playerData.hp = data.hp;
+            playerData.max_hp = data.max_hp;
+            renderHeader();
+            showToast(`🍲 Перекусил! +${data.healed} HP 💚`);
+        }
+    } catch (error) {
+        const messages = {
+            full_hp: 'Здоровье уже полное',
+            'player not found': 'Игрок не найден',
+        };
+        showToast(messages[error.code] || 'Не удалось перекусить');
+    }
+}
+
+// Сундук: вещи и так видны в низу экрана — подсвечиваем его прокруткой.
+function homeChest() {
+    const bar = document.querySelector('#screen-world .bottom-bar');
+    if (bar) {
+        bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    showToast('🧰 Сундук — твои вещи внизу');
 }
 
 function renderVillage() {
@@ -846,7 +967,7 @@ function renderVillage() {
     }
 
     // Клики по домам (идемпотентно через onclick).
-    // Дом игрока ведёт в renderHome (задел под этап 3).
+    // Дом игрока ведёт в сцену дома через setScene (раунд 108, этап 3).
     const notes = {
         fisher: 'Мини-игра с рыбалкой — на этапе 4',
         exit: 'Переходы между локациями — в чате ВК',
@@ -859,7 +980,7 @@ function renderVillage() {
     });
     const homeBtn = document.querySelector('#villageBlock [data-house="home"]');
     if (homeBtn) {
-        homeBtn.onclick = renderHome;
+        homeBtn.onclick = () => setScene('home');
     }
 
     // Персонаж на маршруте — круглая иконка (раунд 105)
