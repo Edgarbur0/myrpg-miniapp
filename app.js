@@ -751,7 +751,7 @@ function renderCamp() {
     if (status) {
         status.textContent = camp.in_battle
             ? '⚔️ Бой!'
-            : (camp.is_combat ? '🏕️ Привал' : '🏘️ Деревня');
+            : (camp.is_combat ? '🏕️ Привал' : '🏘️ Поселение');
     }
 
     // Враг и панель боя — только при живом бое (этап 3)
@@ -859,7 +859,7 @@ function renderScene() {
     if (isVillage) {
         renderVillage();
     } else {
-    renderScene();
+        renderCamp();
     }
 }
 
@@ -3070,7 +3070,7 @@ async function loadAll(showLoadingIndicator = true) {
 function renderAll() {
     renderHeader();
     renderCharacter();
-    renderCamp();
+    renderScene();
     renderCultivation();
     renderTechniques();
 }
