@@ -5085,3 +5085,46 @@ body.scene-mode main.main {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* РАУНД 107 (низ на всю ширину + тёмная подложка). Корень бага: .bottom-bar
+   на >=480px — 2 колонки при одном ребёнке (.bottom-grid), поэтому низ
+   сжимался в левые 50%, а правая половина пустовала. Прослойка убрана из
+   разметки, карточки лежат напрямую. Только добавления, старые не трогаем. */
+#screen-world .bottom-bar {
+    width: 100%;
+    align-self: stretch;
+    box-sizing: border-box;
+    grid-template-columns: 1fr;
+    padding: 8px 12px;
+    background: rgba(26, 26, 46, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+#screen-world .bottom-bar > .card {
+    min-width: 0;
+}
+@media (min-width: 480px) {
+    #screen-world .bottom-bar {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+/* Сетки врастяжку по ширине колонки (scoped to world). Внимание: реальная
+   сетка экипировки — .equipment-slots-grid (р.99), а .equipment-slots —
+   block-скроллер (р.98–99), его не трогаем. Инвентарь уже auto-fill, формулу
+   ТЗ фиксируем scoped-повтором, чтобы пережила правки базы. */
+#screen-world .equipment-slots-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 6px;
+}
+#screen-world .inventory-grid {
+    grid-template-columns: repeat(auto-fill, minmax(var(--inventory-item-size), 1fr));
+    gap: 6px;
+}
+/* Строка статуса локации: остаётся над низом (как сейчас), лёгкая подложка. */
+#screen-world .camp-info,
+#screen-world .village-info {
+    background: rgba(26, 26, 46, 0.5);
+    padding: 4px 12px;
+    font-size: 12px;
+}

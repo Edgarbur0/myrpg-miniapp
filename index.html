@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=108">
+    <link rel="stylesheet" href="style.css?v=109">
 </head>
 <body>
 
@@ -164,10 +164,10 @@
                 <span class="camp-status">🏘️ Поселение</span>
             </div>
         </div>
-        <!-- НИЗ (раунд 106): экипировка + инвентарь всегда видны под сценой -->
+        <!-- НИЗ (раунд 106–107): экипировка + инвентарь всегда видны под сценой.
+             С раунда 107 карточки лежат напрямую в bottom-bar, без прослойки
+             bottom-grid — она сжимала низ в левую колонку на широких экранах. -->
         <div class="bottom-bar">
-            <!-- Экипировка и инвентарь -->
-            <div class="bottom-grid">
                 <div class="card">
                     <div class="card-title-row card-title-row-tight">
                         <button class="card-title card-title-btn" id="equipTitleBtn" type="button" title="Настроить размер иконок">Экипировка</button>
@@ -203,7 +203,6 @@
                         <div class="item tile-empty"></div>
                     </div>
                 </div>
-            </div>
         </div>
     </section>
 
@@ -473,5 +472,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=108"></script></body>
+    <script src="app.js?v=109"></script></body>
 </html>
