@@ -5023,3 +5023,65 @@ body.scene-village .tabs {
 .exp-value {
     font-size: 12px;
 }
+
+/* РАУНД 106 (раскладка «сцена + низ»: экран мира flex-колонкой —
+   сцена забирает всё свободное место, низ фиксирован 30–40% со скроллом.
+   Только добавления — старые блоки не трогаем. */
+body.scene-mode {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+}
+body.scene-mode header.header {
+    flex: none;
+}
+body.scene-mode main.main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+/* Экран мира: flex-колонка на всё место под шапкой.
+   Остальные экраны — обычный блочный поток, ничего не меняется. */
+#screen-world.active {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+/* Сцены лагеря/деревни тянутся на всё свободное место.
+   aspect-ratio из р.103–105 гасится — размер задаёт flex. */
+#screen-world .camp,
+#screen-world .village {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+#screen-world .camp-scene,
+#screen-world .village-scene {
+    flex: 1 1 0;
+    min-height: 160px;
+    aspect-ratio: auto;
+    width: 100%;
+}
+/* Низ: экипировка + инвентарь всегда видны, скролл внутри.
+   1 колонка на узких, 2 — как у .bottom-grid (от 480px). */
+#screen-world .bottom-bar {
+    flex: none;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr;
+    max-height: 38dvh;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+@media (min-width: 480px) {
+    #screen-world .bottom-bar {
+        grid-template-columns: 1fr 1fr;
+    }
+}

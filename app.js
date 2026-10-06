@@ -778,13 +778,8 @@ function renderCamp() {
     block.querySelectorAll('[data-battle]').forEach((button) => {
         button.onclick = () => showToast('Бой идёт в чате ВК — команды там же');
     });
-
-    // Кнопка 🎒 ведёт на отдельный экран рюкзака (раунд 105):
-    // экипировка/инвентарь больше не живут под сценой и не обрезаются
-    const backpackBtn = document.getElementById('campBackpackBtn');
-    if (backpackBtn) {
-        backpackBtn.onclick = () => openScreen('screen-backpack');
-    }
+    // Низ (экипировка + инвентарь) с раунда 106 всегда виден под сценой —
+    // отдельная кнопка 🎒 не нужна, проводка р.105 удалена.
 }
 
 function isVillageScene() {
@@ -821,8 +816,9 @@ function renderScene() {
     if (villageBlock) {
         villageBlock.classList.toggle('hidden', !isVillage);
     }
-    // Тамагочи-режим шапки/табов (раунд 105) — по активной сцене
-    syncSceneMode('screen-character');
+    // Тамагочи-режим шапки/табов (раунд 105) — по активной сцене.
+    // Сцены живут на экране мира (раунд 106), персонаж — отдельно.
+    syncSceneMode('screen-world');
     if (isVillage) {
         renderVillage();
     } else {
@@ -868,12 +864,7 @@ function renderVillage() {
 
     // Персонаж на маршруте — круглая иконка (раунд 105)
     renderChibi(document.getElementById('villageChibi'));
-
-    // Кнопка 🎒 ведёт на отдельный экран рюкзака (раунд 105)
-    const backpackBtn = document.getElementById('villageBackpackBtn');
-    if (backpackBtn) {
-        backpackBtn.onclick = () => openScreen('screen-backpack');
-    }
+    // Низ с раунда 106 всегда виден — проводка кнопки 🎒 р.105 удалена.
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
@@ -3314,14 +3305,14 @@ function initItemTooltip() {
     window.addEventListener('resize', hideItemTooltip);
 }
 
-// ---------- Тамагочи-режим (раунд 105) ----------
-// На экране персонажа: сцена большая (панель ПЕРСОНАЖ скрыта CSS),
-// табы скрыты только в деревне (в лагере/лесу остаются).
-// На конкретных экранах (крафт/рюкзак/...) табы всегда видны.
+// ---------- Тамагочи-режим (раунд 105, экран мира с раунда 106) ----------
+// На экране мира: сцена большая, низ всегда виден, панель ПЕРСОНАЖ
+// осталась на экране персонажа. Табы скрыты только в деревне.
+// На конкретных экранах (крафт/персонаж/...) табы всегда видны.
 function syncSceneMode(activeScreen) {
-    const onCharacter = !activeScreen || activeScreen === 'screen-character';
-    document.body.classList.toggle('scene-mode', onCharacter);
-    document.body.classList.toggle('scene-village', onCharacter && isVillageScene());
+    const onWorld = !activeScreen || activeScreen === 'screen-world';
+    document.body.classList.toggle('scene-mode', onWorld);
+    document.body.classList.toggle('scene-village', onWorld && isVillageScene());
 }
 
 // ---------- Переключение вкладок ----------
@@ -3337,7 +3328,8 @@ function openScreen(screenId) {
     window.scrollTo({ top: 0 });
 
     // Тамагочи-режим: табы видны только на конкретных экранах (раунд 105).
-    // На сцене деревни они скрыты — навигация идёт через дома и кнопку 🎒.
+    // На сцене деревни они скрыты — навигация идёт через дома,
+    // низ (экипировка + инвентарь) виден всегда (раунд 106).
     syncSceneMode(screenId);
 
     // Свежие данные при открытии вкладок (как при клике по табам)

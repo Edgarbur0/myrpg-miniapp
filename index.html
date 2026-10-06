@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=107">
+    <link rel="stylesheet" href="style.css?v=108">
 </head>
 <body>
 
@@ -30,10 +30,8 @@
         </div>
 
         <nav class="tabs">
-            <button class="tab active" type="button" data-screen="screen-character">Персонаж</button>
-            <!-- Раунд 105 (тамагочи-стиль): экипировка/инвентарь живут на
-                 отдельном экране, а не под сценой — не обрезаются -->
-            <button class="tab" type="button" data-screen="screen-backpack">🎒 Рюкзак</button>
+            <button class="tab active" type="button" data-screen="screen-world">🗺 Мир</button>
+            <button class="tab" type="button" data-screen="screen-character">Персонаж</button>
             <button class="tab" type="button" data-screen="screen-cultivation">Культивация</button>
             <button class="tab" type="button" data-screen="screen-craft">Крафт</button>
             <button class="tab" type="button" data-screen="screen-shop">Магазин</button>
@@ -62,7 +60,7 @@
 <main class="main">
 
     <!-- ЭКРАН: ПЕРСОНАЖ -->
-    <section id="screen-character" class="screen active">
+    <section id="screen-character" class="screen">
         <div class="character-panel">
             <div class="panel-title-row">
                 <h2 class="panel-title">Персонаж</h2>
@@ -79,76 +77,7 @@
             </div>
         </div>
 
-        <div class="stats-panel" id="characterStatsPanel">
-            <!-- ЛАГЕРЬ (раунд 103, этап 1): сцена боевой локации —
-                 фон + костёр + чиби-персонаж. Сетка экипировки/инвентаря
-                 ниже — та же, сворачивается кнопкой ⬅/➡ -->
-            <div class="camp" id="campBlock">
-                <div class="camp-scene" id="campScene">
-                    <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
-                         эмодзи ставит renderChibi. TODO: PNG-спрайт -->
-                    <div class="camp-chibi" id="campChibi" title="Ты"></div>
-                    <!-- Костёр: чистый CSS (div-пламя + @keyframes fire) -->
-                    <div class="camp-fire" id="campFire" aria-hidden="true">
-                        <div class="camp-fire-flame flame-outer"></div>
-                        <div class="camp-fire-flame flame-middle"></div>
-                        <div class="camp-fire-flame flame-inner"></div>
-                        <div class="camp-fire-log log-left"></div>
-                        <div class="camp-fire-log log-right"></div>
-                    </div>
-                    <!-- Враг: скрыт, пока camp.in_battle=false (этап 3) -->
-                    <div class="camp-enemy hidden" id="campEnemy" title="Враг">👹</div>
-                </div>
-                <div class="camp-info">
-                    <span class="camp-loc" id="campLocName">📍 —</span>
-                    <span class="camp-status" id="campStatus">🏕️ Привал</span>
-                    <button class="icon-btn" id="campBackpackBtn" type="button" aria-label="Открыть рюкзак" title="Рюкзак">🎒</button>
-                </div>
-                <!-- Панель боя: скрыта, пока нет живого боя (бой — в чате ВК).
-                     Кнопки честно ведут в чат: показывают тост-подсказку. -->
-                <div class="camp-battle hidden" id="campBattle">
-                    <div class="camp-hp-row">
-                        <span class="camp-hp" id="campPlayerHp">❤️ —</span>
-                        <span class="camp-hp camp-hp-enemy" id="campEnemyHp">👹 —</span>
-                    </div>
-                    <div class="camp-actions">
-                        <button class="btn btn-outline" type="button" data-battle="attack">⚔️ Атаковать</button>
-                        <button class="btn btn-outline" type="button" data-battle="potion">🧪 Зелье</button>
-                        <button class="btn btn-outline" type="button" data-battle="skill">⚡ Техника</button>
-                        <button class="btn btn-outline" type="button" data-battle="flee">🏃 Сбежать</button>
-                    </div>
-                </div>
-            </div>
-            <!-- ДЕРЕВНЯ (раунд 104, этап 2): top-down сцена мирного поселения.
-                 Видна только когда camp.scene == 'village'; иначе — лагерь.
-                 Дома кликабельны: кузнец/торговец/староста открывают свои
-                 экраны, остальное — декорация с тостом (этапы 3–4). -->
-            <div class="village hidden" id="villageBlock">
-                <div class="village-scene" id="villageScene">
-                    <!-- Дома: позиции задаёт CSS по data-house -->
-                    <button class="village-house" type="button" data-house="smith" data-open-screen="screen-craft" title="Кузнец — крафт">⚒️<span>Кузнец</span></button>
-                    <button class="village-house" type="button" data-house="trader" data-open-screen="screen-shop" title="Торговец — магазин">🏪<span>Торговец</span></button>
-                    <button class="village-house" type="button" data-house="elder" data-open-screen="screen-quests" title="Староста — квесты">🏯<span>Староста</span></button>
-                    <button class="village-house" type="button" data-house="fisher" data-note="fisher" title="Рыбак">🎣<span>Рыбак</span></button>
-                    <button class="village-house" type="button" data-house="home" title="Дом игрока">🏠<span>Дом</span></button>
-                    <button class="village-house" type="button" data-house="exit" data-note="exit" title="Выход из деревни">🚪<span>Выход</span></button>
-                    <!-- NPC: круглые аватарки, каждый ходит по своему маршруту.
-                         TODO: заменить эмодзи на PNG 64×64 -->
-                    <div class="village-npc walk-a" title="Староста">👴</div>
-                    <div class="village-npc walk-b" title="Торговка">👩</div>
-                    <div class="village-npc walk-c" title="Кузнец">🧔</div>
-                    <div class="village-npc walk-d" title="Девочка">👧</div>
-                    <div class="village-npc walk-e" title="Пёс">🐕</div>
-                    <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
-                         эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
-                    <div class="village-chibi" id="villageChibi" title="Ты"></div>
-                </div>
-                <div class="village-info">
-                    <span class="camp-loc" id="villageLocName">📍 —</span>
-                    <span class="camp-status">🏘️ Поселение</span>
-                    <button class="icon-btn" id="villageBackpackBtn" type="button" aria-label="Открыть рюкзак" title="Рюкзак">🎒</button>
-                </div>
-            </div>
+        <div class="stats-panel">
             <div class="panel-title-row">
                 <h2 class="panel-title">Статы</h2>
                 <span id="bpCounter" class="bp-counter" title="Боевые Поинты">💠 0</span>
@@ -164,15 +93,79 @@
         </div>
     </section>
 
-    <!-- ЭКРАН: РЮКЗАК (раунд 105, тамагочи-стиль): экипировка + инвентарь
-         отдельным экраном — под сценой не обрезаются. Сюда же ведут
-         кнопки 🎒 из сцен лагеря/деревни. Разметка сеток без изменений
-         (id те же — renderInventoryPanel/renderEquipment не тронуты). -->
-    <section id="screen-backpack" class="screen">
-        <div class="stats-panel">
-            <div class="panel-title-row">
-                <h2 class="panel-title">🎒 Рюкзак</h2>
+    <!-- ЭКРАН: МИР (раунд 106): сцена на всё место + низ.
+         Сцены лагеря/деревни переехали из screen-character, сетки
+         экипировки/инвентаря — из screen-backpack (id те же,
+         renderInventoryPanel/renderEquipment не тронуты). -->
+    <section id="screen-world" class="screen active">
+        <!-- ЛАГЕРЬ (раунд 103): сцена боевой локации — фон + костёр + чиби.
+             Видна когда camp.scene != 'village' (диспетчер renderScene). -->
+        <div class="camp" id="campBlock">
+            <div class="camp-scene" id="campScene">
+                <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
+                     эмодзи ставит renderChibi. TODO: PNG-спрайт -->
+                <div class="camp-chibi" id="campChibi" title="Ты"></div>
+                <!-- Костёр: чистый CSS (div-пламя + @keyframes fire) -->
+                <div class="camp-fire" id="campFire" aria-hidden="true">
+                    <div class="camp-fire-flame flame-outer"></div>
+                    <div class="camp-fire-flame flame-middle"></div>
+                    <div class="camp-fire-flame flame-inner"></div>
+                    <div class="camp-fire-log log-left"></div>
+                    <div class="camp-fire-log log-right"></div>
+                </div>
+                <!-- Враг: скрыт, пока camp.in_battle=false (этап 3) -->
+                <div class="camp-enemy hidden" id="campEnemy" title="Враг">👹</div>
             </div>
+            <div class="camp-info">
+                <span class="camp-loc" id="campLocName">📍 —</span>
+                <span class="camp-status" id="campStatus">🏕️ Привал</span>
+            </div>
+            <!-- Панель боя: скрыта, пока нет живого боя (бой — в чате ВК).
+                 Кнопки честно ведут в чат: показывают тост-подсказку. -->
+            <div class="camp-battle hidden" id="campBattle">
+                <div class="camp-hp-row">
+                    <span class="camp-hp" id="campPlayerHp">❤️ —</span>
+                    <span class="camp-hp camp-hp-enemy" id="campEnemyHp">👹 —</span>
+                </div>
+                <div class="camp-actions">
+                    <button class="btn btn-outline" type="button" data-battle="attack">⚔️ Атаковать</button>
+                    <button class="btn btn-outline" type="button" data-battle="potion">🧪 Зелье</button>
+                    <button class="btn btn-outline" type="button" data-battle="skill">⚡ Техника</button>
+                    <button class="btn btn-outline" type="button" data-battle="flee">🏃 Сбежать</button>
+                </div>
+            </div>
+        </div>
+        <!-- ДЕРЕВНЯ (раунд 104): top-down сцена мирного поселения.
+             Видна только когда camp.scene == 'village'; иначе — лагерь.
+             Дома кликабельны: кузнец/торговец/староста открывают свои
+             экраны, остальное — декорация с тостом (этапы 3–4). -->
+        <div class="village hidden" id="villageBlock">
+            <div class="village-scene" id="villageScene">
+                <!-- Дома: позиции задаёт CSS по data-house -->
+                <button class="village-house" type="button" data-house="smith" data-open-screen="screen-craft" title="Кузнец — крафт">⚒️<span>Кузнец</span></button>
+                <button class="village-house" type="button" data-house="trader" data-open-screen="screen-shop" title="Торговец — магазин">🏪<span>Торговец</span></button>
+                <button class="village-house" type="button" data-house="elder" data-open-screen="screen-quests" title="Староста — квесты">🏯<span>Староста</span></button>
+                <button class="village-house" type="button" data-house="fisher" data-note="fisher" title="Рыбак">🎣<span>Рыбак</span></button>
+                <button class="village-house" type="button" data-house="home" title="Дом игрока">🏠<span>Дом</span></button>
+                <button class="village-house" type="button" data-house="exit" data-note="exit" title="Выход из деревни">🚪<span>Выход</span></button>
+                <!-- NPC: круглые аватарки, каждый ходит по своему маршруту.
+                     TODO: заменить эмодзи на PNG 64×64 -->
+                <div class="village-npc walk-a" title="Староста">👴</div>
+                <div class="village-npc walk-b" title="Торговка">👩</div>
+                <div class="village-npc walk-c" title="Кузнец">🧔</div>
+                <div class="village-npc walk-d" title="Девочка">👧</div>
+                <div class="village-npc walk-e" title="Пёс">🐕</div>
+                <!-- Чиби-персонаж: круглая иконка как у NPC (раунд 105),
+                     эмодзи ставит renderChibi. TODO: PNG 64×64/96×96 -->
+                <div class="village-chibi" id="villageChibi" title="Ты"></div>
+            </div>
+            <div class="village-info">
+                <span class="camp-loc" id="villageLocName">📍 —</span>
+                <span class="camp-status">🏘️ Поселение</span>
+            </div>
+        </div>
+        <!-- НИЗ (раунд 106): экипировка + инвентарь всегда видны под сценой -->
+        <div class="bottom-bar">
             <!-- Экипировка и инвентарь -->
             <div class="bottom-grid">
                 <div class="card">
@@ -480,5 +473,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=107"></script></body>
+    <script src="app.js?v=108"></script></body>
 </html>
