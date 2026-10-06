@@ -903,6 +903,23 @@ function renderHome() {
             button.onclick = () => setScene('village');
         }
     });
+
+    // Кнопки панорамы ⬅/➡ (раунд 109)
+    document.querySelectorAll('#homeBlock [data-scroll]').forEach((button) => {
+        button.onclick = () => scrollHome(button.dataset.scroll);
+    });
+}
+
+// Панорама дома (раунд 109): комната 200%, сдвиг transform 0 | -50%.
+// Два фиксированных кадра вместо свободного свайпа — на мобильном тапы
+// по мебели не конфликтуют с прокруткой. Только transform — 60fps.
+let homeOffset = 0;
+function scrollHome(dir) {
+    homeOffset = dir === 'left' ? 0 : -50;
+    const room = document.getElementById('homeRoom');
+    if (room) {
+        room.style.transform = `translateX(${homeOffset}%)`;
+    }
 }
 
 // Кровать: сон — полное восстановление HP (POST /api/player/<id>/home/sleep).

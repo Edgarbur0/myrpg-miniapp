@@ -5216,3 +5216,85 @@ body.scene-mode main.main {
         line-height: 96px;
     }
 }
+
+/* РАУНД 109 (дом-панорама: комната 200% + кнопки ⬅/➡, свой маршрут чиби,
+   детальная комната, мебель по всей комнате). Только добавления.
+   Панорама — transform (без нативного скролла): тапы по мебели не
+   конфликтуют со свайпом, 60fps в webview. TODO: PNG-фон от нейросети. */
+#screen-world .home-room {
+    width: 200%;
+    height: 100%;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+/* Комната детальнее: обои в полоску + стена 40% + доски (поверх р.108) */
+#screen-world .home-scene {
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 240, 210, 0.05) 0 14px, transparent 14px 56px),
+        linear-gradient(180deg, rgba(120, 72, 40, 0.55) 0 40%, transparent 40%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.08) 0 3px, transparent 3px 30px),
+        linear-gradient(180deg, #6b4a2f 0%, #7d5a38 60%, #5d3f27 100%);
+    background-color: #6b4a2f;
+}
+#screen-world .home-scene::before {
+    /* Плинтус на стыке стены и пола */
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40%;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+/* Мебель распределена по комнате (% от ширины панорамы 200%) */
+.home-furniture[data-furniture="bed"] { left: 3%; top: 10%; }
+.home-furniture[data-furniture="shelf"] { left: 19%; top: 8%; }
+.home-furniture[data-furniture="table"] { left: 52%; top: 12%; }
+.home-furniture[data-furniture="chest"] { left: 6%; top: 60%; }
+.home-furniture[data-furniture="fireplace"] { left: 82%; top: 52%; }
+.home-furniture[data-furniture="door"] { left: 44%; top: 74%; }
+.home-decor[data-decor="plant"] { left: 68%; top: 10%; }
+.home-decor[data-decor="window"] { left: 36%; top: 4%; font-size: 40px; }
+/* Ковёр: полосатый прямоугольник под маршрутом чиби */
+.home-carpet {
+    position: absolute;
+    left: 30%;
+    top: 55%;
+    width: 32%;
+    height: 28%;
+    border-radius: 12px;
+    background: repeating-linear-gradient(45deg, rgba(140, 30, 30, 0.55) 0 10px, rgba(90, 20, 20, 0.55) 10px 20px);
+    border: 2px solid rgba(212, 175, 55, 0.35);
+    z-index: 1;
+}
+/* Свой маршрут чиби по комнате: тур мимо кровати, стола и камина.
+   Отдельные кейфреймы (не общие chibi-route): у панорамы свой масштаб. */
+@keyframes home-route {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(200px, 0); }
+    50% { transform: translate(200px, 70px); }
+    75% { transform: translate(0, 70px); }
+    100% { transform: translate(0, 0); }
+}
+.home-chibi {
+    left: 14%;
+    top: 42%;
+    animation: home-route 20s linear infinite;
+}
+/* Кнопки панорамы: поверх сцены, вне прокручиваемой комнаты */
+.home-scroll {
+    position: absolute;
+    bottom: 10px;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(212, 175, 55, 0.6);
+    background: rgba(26, 26, 46, 0.75);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+}
+.home-scroll[data-scroll="left"] { left: 8px; }
+.home-scroll[data-scroll="right"] { right: 8px; }
