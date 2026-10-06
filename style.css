@@ -4819,3 +4819,126 @@ body {
         box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
     }
 }
+
+/* РАУНД 104 (этап 2 тамагочи-переработки): top-down сцена деревни
+   (только добавления). Всё CSS-only: фон — слоистые градиенты
+   (небо/трава/дорожки), дома — эмодзи-кнопки, NPC — круглые аватарки.
+   Ходьба — только transform в @keyframes (60fps в webview).
+   TODO: фон 1920×1080 + PNG NPC 64×64 + PNG чиби walk-анимация. */
+.village {
+    margin-bottom: 8px;
+}
+.village-scene {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    border-radius: 12px;
+    overflow: hidden;
+    /* Небо сверху, трава снизу, дорожки — повторяющимся градиентом */
+    background:
+        linear-gradient(180deg, rgba(135, 206, 235, 0.25) 0 22%, transparent 22%),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 26px),
+        linear-gradient(180deg, #2d5a3d 0%, #3a7048 55%, #2a5238 100%);
+    background-color: #2d5a3d;
+}
+/* Дома: кликабельные кнопки поверх сцены */
+.village-house {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 34px;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+    padding: 2px;
+}
+.village-house span {
+    font-size: 11px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    margin-top: 2px;
+}
+.village-house[data-house="smith"] { left: 4%; top: 6%; }
+.village-house[data-house="trader"] { left: 38%; top: 3%; }
+.village-house[data-house="elder"] { left: 70%; top: 6%; }
+.village-house[data-house="fisher"] { left: 6%; top: 52%; }
+.village-house[data-house="home"] { left: 40%; top: 55%; }
+.village-house[data-house="exit"] { left: 72%; top: 52%; }
+/* NPC: круглые аватарки поверх домов */
+.village-npc {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    font-size: 24px;
+    line-height: 34px;
+    text-align: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3a4a6b, #232c47);
+    border: 2px solid rgba(212, 175, 55, 0.6);
+    z-index: 2;
+}
+/* Маршруты NPC: только transform (не трогаем layout) */
+.village-npc.walk-a { left: 20%; top: 38%; animation: npc-walk-a 9s ease-in-out infinite alternate; }
+.village-npc.walk-b { left: 55%; top: 35%; animation: npc-walk-b 11s ease-in-out infinite alternate; }
+.village-npc.walk-c { left: 12%; top: 70%; animation: npc-walk-c 8s ease-in-out infinite alternate; }
+.village-npc.walk-d { left: 62%; top: 72%; animation: npc-walk-d 10s ease-in-out infinite alternate; }
+.village-npc.walk-e { left: 42%; top: 82%; animation: npc-walk-e 7s ease-in-out infinite alternate; }
+@keyframes npc-walk-a { from { transform: translate(0, 0); } to { transform: translate(46px, 10px); } }
+@keyframes npc-walk-b { from { transform: translate(0, 0); } to { transform: translate(-52px, 8px); } }
+@keyframes npc-walk-c { from { transform: translate(0, 0); } to { transform: translate(40px, -8px); } }
+@keyframes npc-walk-d { from { transform: translate(0, 0); } to { transform: translate(-44px, -10px); } }
+@keyframes npc-walk-e { from { transform: translate(0, 0); } to { transform: translate(56px, 0); } }
+/* Чиби игрока: тот же человечек, что в лагере (р.103), ходит по кругу */
+.village-chibi {
+    position: absolute;
+    left: 30%;
+    top: 44%;
+    width: 44px;
+    height: 64px;
+    z-index: 3;
+    animation: chibi-route 16s linear infinite;
+}
+.village-chibi::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    margin-left: -15px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffe0b8, #e0a878);
+}
+.village-chibi::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 26px;
+    height: 30px;
+    margin-left: -13px;
+    border-radius: 10px 10px 6px 6px;
+    background: linear-gradient(180deg, #4a6fa5, #2c3e60);
+    /* Покачивание при ходьбе (TODO: заменить на PNG-кадры) */
+    animation: chibi-bob 0.5s ease-in-out infinite alternate;
+}
+@keyframes chibi-route {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(120px, 0); }
+    50% { transform: translate(120px, 60px); }
+    75% { transform: translate(0, 60px); }
+    100% { transform: translate(0, 0); }
+}
+@keyframes chibi-bob {
+    from { transform: translateY(0); }
+    to { transform: translateY(-3px); }
+}
+.village-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}

@@ -817,8 +817,7 @@ function toggleCampPanel() {
 
 function syncCampPanel() {
     const panel = document.getElementById('characterStatsPanel');
-    const btn = document.getElementById('campCollapseBtn');
-    if (!panel || !btn) {
+    if (!panel) {
         return;
     }
     let collapsed = false;
@@ -830,8 +829,72 @@ function syncCampPanel() {
     panel.classList.toggle('camp-collapsed', collapsed);
     panel.classList.toggle('camp-drawer-open', drawer);
     const open = isCampMobile() ? drawer : !collapsed;
-    btn.textContent = open ? '➡' : '⬅';
-    btn.setAttribute('aria-label', open ? 'Свернуть панель' : 'Развернуть панель');
+    // Кнопка сворачивания есть в обеих сценах (лагерь + деревня)
+    ['campCollapseBtn', 'villageCollapseBtn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn) {
+            return;
+        }
+        btn.textContent = open ? '➡' : '⬅';
+        btn.setAttribute('aria-label', open ? 'Свернуть панель' : 'Развернуть панель');
+    });
+}
+
+// ---------- Деревня (раунд 104, этап 2 тамагочи-переработки) ----------
+// Top-down сцена мирного поселения: дома, ходячие NPC, чиби по маршруту.
+// Кузнец/торговец/староста открывают свои экраны, остальное — декорация.
+// Диспетчер renderScene показывает деревню при camp.scene == 'village',
+// иначе — лагерь (р.103). При переходе лес ↔ деревня сцена меняется сама.
+function renderScene() {
+    const camp = (playerData && playerData.camp) || {};
+    const isVillage = camp.scene === 'village';
+    const campBlock = document.getElementById('campBlock');
+    const villageBlock = document.getElementById('villageBlock');
+    if (campBlock) {
+        campBlock.classList.toggle('hidden', isVillage);
+    }
+    if (villageBlock) {
+        villageBlock.classList.toggle('hidden', !isVillage);
+    }
+    if (isVillage) {
+        renderVillage();
+    } else {
+    renderScene();
+    }
+}
+
+function renderVillage() {
+    const player = playerData || {};
+    const location = player.location || null;
+
+    // Фон: картинка деревни из locations.image (если залита в админке),
+    // иначе CSS-градиенты сцены. Тот же механизм onload-пробы, что в лагере.
+    applyLocationBackground(document.getElementById('villageScene'), location);
+
+    const locName = document.getElementById('villageLocName');
+    if (locName) {
+        locName.textContent = '📍 ' + ((location && location.name) || '—');
+    }
+
+    // Клики по домам (идемпотентно через onclick)
+    const notes = {
+        fisher: 'Мини-игра с рыбалкой — на этапе 4',
+        home: 'Дом откроется на этапе 3',
+        exit: 'Переходы между локациями — в чате ВК',
+    };
+    document.querySelectorAll('#villageBlock [data-open-screen]').forEach((button) => {
+        button.onclick = () => openScreen(button.dataset.openScreen);
+    });
+    document.querySelectorAll('#villageBlock [data-note]').forEach((button) => {
+        button.onclick = () => showToast(notes[button.dataset.note] || 'Скоро');
+    });
+
+    // Сворачивание панели — то же, что в лагере (кнопка своя, логика общая)
+    const collapseBtn = document.getElementById('villageCollapseBtn');
+    if (collapseBtn) {
+        collapseBtn.onclick = toggleCampPanel;
+    }
+    syncCampPanel();
 }
 
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
@@ -3273,31 +3336,32 @@ function initItemTooltip() {
 }
 
 // ---------- Переключение вкладок ----------
+function openScreen(screenId) {
+    document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+
+    const tab = document.querySelector(`.tab[data-screen="${screenId}"]`);
+    if (tab) {
+        tab.classList.add('active');
+    }
+    document.getElementById(screenId).classList.add('active');
+    window.scrollTo({ top: 0 });
+
+    // Свежие данные при открытии вкладок (как при клике по табам)
+    if (screenId === 'screen-cultivation') {
+        loadBreakthroughForecast();
+    }
+    if (screenId === 'screen-craft') {
+        loadCrafts();
+    }
+    if (screenId === 'screen-quests') {
+        loadQuests();
+    }
+}
+
 function initTabs() {
     document.querySelectorAll('.tab').forEach((button) => {
-        button.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
-            document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
-
-            button.classList.add('active');
-            document.getElementById(button.dataset.screen).classList.add('active');
-            window.scrollTo({ top: 0 });
-
-            // Свежий прогноз при открытии вкладки «Культивация»
-            if (button.dataset.screen === 'screen-cultivation') {
-                loadBreakthroughForecast();
-            }
-
-            // Свежий список рецептов при открытии вкладки «Крафт»
-            if (button.dataset.screen === 'screen-craft') {
-                loadCrafts();
-            }
-
-            // Квесты при открытии вкладки «Квесты»
-            if (button.dataset.screen === 'screen-quests') {
-                loadQuests();
-            }
-        });
+        button.addEventListener('click', () => openScreen(button.dataset.screen));
     });
 }
 
