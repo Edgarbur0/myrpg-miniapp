@@ -725,6 +725,115 @@ function renderCurrentLocation() {
             : `<div class="cult-location-chips"><span class="cult-chip">Бонусов нет</span></div>`);
 }
 
+// ---------- Лагерь боевой локации (раунд 103, этап 1 тамагочи-переработки) ----------
+// Сцена: фон локации + костёр + чиби-персонаж. Враг и панель боя скрыты,
+// пока API отдаёт camp.in_battle=false (бой живёт в чате ВК — этап 3).
+// Кнопка ⬅/➡ сворачивает сетки экипировки/инвентаря (десктоп) или
+// открывает их выдвижным drawer снизу (мобильный).
+function renderCamp() {
+    const block = document.getElementById('campBlock');
+    if (!block) {
+        return;
+    }
+    const player = playerData || {};
+    const location = player.location || null;
+    const camp = player.camp || {};
+
+    // Фон сцены — тот же механизм, что у карточки локации (р.48):
+    // градиент по биому сразу, картинка — после onload-пробы
+    applyLocationBackground(document.getElementById('campScene'), location);
+
+    const locName = document.getElementById('campLocName');
+    if (locName) {
+        locName.textContent = '📍 ' + ((location && location.name) || '—');
+    }
+    const status = document.getElementById('campStatus');
+    if (status) {
+        status.textContent = camp.in_battle
+            ? '⚔️ Бой!'
+            : (camp.is_combat ? '🏕️ Привал' : '🏘️ Деревня');
+    }
+
+    // Враг и панель боя — только при живом бое (этап 3)
+    const inBattle = !!camp.in_battle;
+    const enemy = document.getElementById('campEnemy');
+    if (enemy) {
+        enemy.classList.toggle('hidden', !inBattle);
+    }
+    const battle = document.getElementById('campBattle');
+    if (battle) {
+        battle.classList.toggle('hidden', !inBattle);
+    }
+    if (inBattle) {
+        const playerHp = document.getElementById('campPlayerHp');
+        if (playerHp) {
+            playerHp.textContent = `❤️ ${player.hp || 0} / ${player.max_hp || 0}`;
+        }
+    }
+
+    // Кнопки боя честно ведут в чат: Mini App боем не управляет
+    block.querySelectorAll('[data-battle]').forEach((button) => {
+        button.onclick = () => showToast('Бой идёт в чате ВК — команды там же');
+    });
+
+    // Сворачивание панели (идемпотентно через onclick)
+    const collapseBtn = document.getElementById('campCollapseBtn');
+    if (collapseBtn) {
+        collapseBtn.onclick = toggleCampPanel;
+    }
+    syncCampPanel();
+}
+
+function isCampMobile() {
+    return window.matchMedia
+        ? window.matchMedia('(max-width: 899px)').matches
+        : false;
+}
+
+function toggleCampPanel() {
+    const panel = document.getElementById('characterStatsPanel');
+    if (!panel) {
+        return;
+    }
+    if (isCampMobile()) {
+        panel.classList.toggle('camp-drawer-open');
+        try {
+            localStorage.setItem(
+                'myrpg_camp_drawer',
+                panel.classList.contains('camp-drawer-open') ? '1' : '0'
+            );
+        } catch (e) { /* localStorage может быть недоступен */ }
+    } else {
+        panel.classList.toggle('camp-collapsed');
+        try {
+            localStorage.setItem(
+                'myrpg_camp_collapsed',
+                panel.classList.contains('camp-collapsed') ? '1' : '0'
+            );
+        } catch (e) { /* localStorage может быть недоступен */ }
+    }
+    syncCampPanel();
+}
+
+function syncCampPanel() {
+    const panel = document.getElementById('characterStatsPanel');
+    const btn = document.getElementById('campCollapseBtn');
+    if (!panel || !btn) {
+        return;
+    }
+    let collapsed = false;
+    let drawer = false;
+    try {
+        collapsed = localStorage.getItem('myrpg_camp_collapsed') === '1';
+        drawer = localStorage.getItem('myrpg_camp_drawer') === '1';
+    } catch (e) { /* localStorage может быть недоступен */ }
+    panel.classList.toggle('camp-collapsed', collapsed);
+    panel.classList.toggle('camp-drawer-open', drawer);
+    const open = isCampMobile() ? drawer : !collapsed;
+    btn.textContent = open ? '➡' : '⬅';
+    btn.setAttribute('aria-label', open ? 'Свернуть панель' : 'Развернуть панель');
+}
+
 // ---------- Прорыв: подготовка к каре (Mini App) ----------
 // Понятные сообщения об ошибках подготовки (код API → текст для игрока)
 const PREP_ERRORS = {
@@ -2898,6 +3007,7 @@ async function loadAll(showLoadingIndicator = true) {
 function renderAll() {
     renderHeader();
     renderCharacter();
+    renderCamp();
     renderCultivation();
     renderTechniques();
 }

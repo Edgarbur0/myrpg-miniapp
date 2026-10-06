@@ -4647,3 +4647,175 @@ body {
     justify-content: flex-start;
     gap: 0.25em;
 }
+
+/* РАУНД 103 (этап 1 тамагочи-переработки): сцена лагеря боевой локации
+   (только добавления). Фон — из locations.image_url (вешает JS после onload,
+   иначе биомный градиент --loc-bg). Костёр — чистый CSS: три слоя пламени
+   (transform/opacity в @keyframes fire — 60fps в webview), поленья — div.
+   Чиби — CSS-заглушка (TODO: заменить на PNG-спрайт ~120-150px).
+   Сворачивание: .camp-collapsed на #characterStatsPanel прячет .bottom-grid.
+   Мобильный (<900px): сцена сверху, bottom-grid — выдвижной drawer снизу. */
+.camp {
+    margin-bottom: 8px;
+}
+.camp-scene {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--loc-bg, linear-gradient(180deg, #1a2a4a, #0f0f1e));
+    background-size: cover;
+    background-position: center;
+}
+.camp-scene.has-image {
+    background-size: cover;
+}
+/* Чиби-заглушка: круглоголовый человечек у костра (TODO: PNG-спрайт) */
+.camp-chibi {
+    position: absolute;
+    left: 18%;
+    bottom: 12%;
+    width: 44px;
+    height: 64px;
+}
+.camp-chibi::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    margin-left: -15px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffe0b8, #e0a878);
+}
+.camp-chibi::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 26px;
+    height: 30px;
+    margin-left: -13px;
+    border-radius: 10px 10px 6px 6px;
+    background: linear-gradient(180deg, #4a6fa5, #2c3e60);
+}
+/* Костёр: стоит справа от чиби */
+.camp-fire {
+    position: absolute;
+    left: 38%;
+    bottom: 10%;
+    width: 56px;
+    height: 64px;
+}
+.camp-fire-log {
+    position: absolute;
+    bottom: 0;
+    width: 52px;
+    height: 9px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #6b4226, #3e2412);
+}
+.camp-fire-log.log-left {
+    transform: rotate(12deg);
+}
+.camp-fire-log.log-right {
+    transform: rotate(-12deg);
+}
+.camp-fire-flame {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    transform-origin: 50% 100%;
+    animation: fire 0.6s ease-in-out infinite alternate;
+    filter: blur(1px);
+}
+.camp-fire-flame.flame-outer {
+    width: 34px;
+    height: 44px;
+    margin-left: -17px;
+    background: radial-gradient(circle at 50% 80%, #ffdd55, #ff8800 70%, transparent 72%);
+    animation-delay: 0s;
+}
+.camp-fire-flame.flame-middle {
+    width: 24px;
+    height: 32px;
+    margin-left: -12px;
+    background: radial-gradient(circle at 50% 80%, #fff3a0, #ffaa00 70%, transparent 72%);
+    animation-delay: 0.15s;
+}
+.camp-fire-flame.flame-inner {
+    width: 14px;
+    height: 20px;
+    margin-left: -7px;
+    background: radial-gradient(circle at 50% 80%, #ffffff, #ffdd55 70%, transparent 72%);
+    animation-delay: 0.3s;
+}
+@keyframes fire {
+    from {
+        transform: scaleY(1) scaleX(1);
+        opacity: 0.9;
+    }
+    to {
+        transform: scaleY(1.15) scaleX(0.94);
+        opacity: 1;
+    }
+}
+/* Враг (этап 3): справа от костра, пока скрыт */
+.camp-enemy {
+    position: absolute;
+    right: 16%;
+    bottom: 12%;
+    font-size: 56px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+.camp-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+.camp-loc {
+    font-weight: 700;
+}
+.camp-status {
+    flex: 1;
+    color: var(--muted, #9aa0b0);
+}
+.camp-battle {
+    margin-top: 6px;
+}
+.camp-hp-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.camp-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+/* Свернутая панель: сетки экипировки/инвентаря скрыты */
+#characterStatsPanel.camp-collapsed .bottom-grid {
+    display: none;
+}
+/* Мобильный: инвентарная часть — выдвижной drawer снизу */
+@media (max-width: 899px) {
+    #characterStatsPanel.camp-drawer-open .bottom-grid {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 900;
+        max-height: 70dvh;
+        overflow-y: auto;
+        background: var(--card, #1a1a2e);
+        border-radius: 16px 16px 0 0;
+        padding: 12px;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+    }
+}
