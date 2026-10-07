@@ -3788,7 +3788,23 @@ function syncSceneMode(activeScreen) {
 // Полоска иконок 👤/🪑 + выдвижная панель translateY. Повторный тап
 // по активной иконке закрывает панель, тап по другой — переключает.
 // Позиции мебели — localStorage myrpg_home_placed (в доме / в каталоге).
+// Раунд 113: иконки — поверх сцены и едут вместе с меню: при открытом
+// меню поднимаются на высоту панели (bottom: var(--panel-height)),
+// меню выезжает снизу под ними. Закрытие — с анимацией (hidden прячем
+// после transition, иначе панель исчезнет рывком без уезжания).
 let activeBottomTab = null;
+
+function syncPanelHeight() {
+    // Высоту меряем по раскрытой панели: transform на offsetHeight
+    // не влияет, а display:none — да, поэтому зовём только когда
+    // hidden уже снят (сразу после показа и при ресайзе/переключении).
+    const panel = document.getElementById('bottom-panel');
+    if (!panel || panel.classList.contains('hidden')) {
+        return;
+    }
+    document.documentElement.style.setProperty(
+        '--panel-height', panel.offsetHeight + 'px');
+}
 
 function toggleBottomTab(tab) {
     const panel = document.getElementById('bottom-panel');
@@ -3798,7 +3814,13 @@ function toggleBottomTab(tab) {
     if (activeBottomTab === tab) {
         activeBottomTab = null;
         panel.classList.remove('open');
-        panel.classList.add('hidden');
+        document.body.classList.remove('panel-open');
+        // hidden — после анимации уезжания (0.35s), иначе закроется рывком
+        setTimeout(() => {
+            if (!activeBottomTab) {
+                panel.classList.add('hidden');
+            }
+        }, 380);
     } else {
         activeBottomTab = tab;
         panel.classList.remove('hidden');
@@ -3817,6 +3839,8 @@ function toggleBottomTab(tab) {
         // Форсируем кадр, чтобы transition translateY отыграл
         void panel.offsetWidth;
         panel.classList.add('open');
+        document.body.classList.add('panel-open');
+        syncPanelHeight();
     }
     document.querySelectorAll('#bottomTabs .bottom-tab').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.tab === activeBottomTab);
@@ -3895,6 +3919,13 @@ function initBottomTabs() {
         btn.addEventListener('click', () => toggleBottomTab(btn.dataset.tab));
     });
     syncHomeFurnitureVisibility();
+    // Высота панели плывёт от ширины (сетки auto-fill) — при ресайзе
+    // открытого меню пересчитываем подъём иконок (раунд 113)
+    window.addEventListener('resize', () => {
+        if (activeBottomTab) {
+            syncPanelHeight();
+        }
+    });
 }
 
 // ---------- Переключение вкладок ----------

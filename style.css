@@ -5543,3 +5543,67 @@ body.scene-mode main.main {
 .home-room:not(.editing) .home-furniture {
     outline: none;
 }
+
+/* ================= РАУНД 113: комната-основа, слои поверх ================
+   Жалоба + скрины: вокруг комнаты три отдельные полосы (шапка/сцена/низ),
+   а при открытом меню иконки перекрыты панелью. Теперь комната — основа
+   на всю зону, а шапка/статус/иконки — полупрозрачные слои поверх; при
+   открытии меню иконки поднимаются на высоту панели и остаются видимыми
+   НАД меню. Только добавления, позже по файлу = сильнее каскадом.
+   - Якорь: #screen-world становится positioned — absolute-табы и панель
+     привязываются к экрану мира, а не к вьюпорту (старый якорь).
+   - Шапка: поверх комнаты только на экране мира (body.scene-mode ставит
+     syncSceneMode) — на остальных экранах остаётся sticky в потоке.
+   - Табы: absolute снизу (z выше панели); body.panel-open поднимает их
+     на var(--panel-height) — высоту ставит JS по факту (syncPanelHeight),
+     фолбэк 300px; transition bottom — плавный подъём/спуск.
+   - Панель: снизу от нуля (табы уехали вверх — место свободно), z ниже
+     табов. max-height/translateY из р.111 не тронуты.
+   - Статус и кнопки ⬅/➡ едут на 68px вверх — над 60px-полосой иконок
+     (раньше лежали на 8–10px и оказались бы под табами).
+   - Модалки/тост/поповер статов поднимаем выше всех слоёв сцены (были
+     z 50–100 — оказались бы под табами z 200 и панелью z 150). */
+#screen-world.active {
+    position: relative;
+}
+body.scene-mode .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(26, 26, 46, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+#screen-world .bottom-tabs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.panel-open #screen-world .bottom-tabs {
+    bottom: var(--panel-height, 300px);
+}
+#screen-world .bottom-panel {
+    bottom: 0;
+    z-index: 150;
+}
+#homeBlock .village-info {
+    bottom: 68px;
+}
+#screen-world .home-scroll {
+    bottom: 68px;
+}
+.modal,
+.trib-modal {
+    z-index: 300;
+}
+.stat-popover {
+    z-index: 300;
+}
+.toast {
+    z-index: 300;
+}
