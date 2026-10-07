@@ -3824,11 +3824,14 @@ function toggleBottomTab(tab) {
 }
 
 function getPlacedFurniture() {
-    // Изначально вся мебель в доме; игрок может снимать/ставить
+    // Изначально вся мебель в доме; игрок может снимать/ставить.
+    // Раунд 112: мусорные ключи (не из DOM/API) отбрасываем — иначе
+    // битый localStorage может «потерять» мебель без видимой причины.
+    const known = ['bed', 'chest', 'table', 'fireplace', 'shelf', 'plant', 'door'];
     try {
         const raw = JSON.parse(localStorage.getItem('myrpg_home_placed') || 'null');
         if (Array.isArray(raw)) {
-            return raw;
+            return raw.filter((key) => known.includes(key));
         }
     } catch (e) { /* битый JSON — как нет сохранений */ }
     return ['bed', 'chest', 'table', 'fireplace', 'shelf', 'door'];
