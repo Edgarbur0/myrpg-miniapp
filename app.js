@@ -916,6 +916,7 @@ function renderHome() {
 
     // Расстановка мебели из localStorage + drag (раунд 110)
     loadHomeLayout();
+    syncHomeFurnitureVisibility();
     initHomeDrag();
     armHomeClickGuard();
     const editBtn = document.getElementById('homeEditBtn');
@@ -984,21 +985,15 @@ async function homeEat() {
     }
 }
 
-// Сундук: вещи и так видны в низу экрана — подсвечиваем его прокруткой.
+// Сундук: вещи живут в выдвижной панели (раунд 111) — открываем её.
 function homeChest() {
-    const bar = document.querySelector('#screen-world .bottom-bar');
-    if (bar) {
-        bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    toggleBottomTab('character');
     showToast('🧰 Сундук — твои вещи внизу');
 }
 
-// Сундук: вещи и так видны в низу экрана — подсвечиваем его прокруткой.
+// Сундук: вещи живут в выдвижной панели (раунд 111) — открываем её.
 function homeChest() {
-    const bar = document.querySelector('#screen-world .bottom-bar');
-    if (bar) {
-        bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    toggleBottomTab('character');
     showToast('🧰 Сундук — твои вещи внизу');
 }
 
@@ -3789,6 +3784,116 @@ function syncSceneMode(activeScreen) {
     document.body.classList.toggle('scene-village', onWorld && isVillageScene());
 }
 
+// ---------- Нижняя панель (раунд 111, тамагочи-стиль) ----------
+// Полоска иконок 👤/🪑 + выдвижная панель translateY. Повторный тап
+// по активной иконке закрывает панель, тап по другой — переключает.
+// Позиции мебели — localStorage myrpg_home_placed (в доме / в каталоге).
+let activeBottomTab = null;
+
+function toggleBottomTab(tab) {
+    const panel = document.getElementById('bottom-panel');
+    if (!panel) {
+        return;
+    }
+    if (activeBottomTab === tab) {
+        activeBottomTab = null;
+        panel.classList.remove('open');
+        panel.classList.add('hidden');
+    } else {
+        activeBottomTab = tab;
+        panel.classList.remove('hidden');
+        // Переключение вкладок внутри панели
+        const charBox = document.getElementById('characterPanel');
+        const furnBox = document.getElementById('furniturePanel');
+        if (charBox) {
+            charBox.classList.toggle('hidden', tab !== 'character');
+        }
+        if (furnBox) {
+            furnBox.classList.toggle('hidden', tab !== 'furniture');
+        }
+        if (tab === 'furniture') {
+            renderFurniturePanel();
+        }
+        // Форсируем кадр, чтобы transition translateY отыграл
+        void panel.offsetWidth;
+        panel.classList.add('open');
+    }
+    document.querySelectorAll('#bottomTabs .bottom-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === activeBottomTab);
+    });
+}
+
+function getPlacedFurniture() {
+    // Изначально вся мебель в доме; игрок может снимать/ставить
+    try {
+        const raw = JSON.parse(localStorage.getItem('myrpg_home_placed') || 'null');
+        if (Array.isArray(raw)) {
+            return raw;
+        }
+    } catch (e) { /* битый JSON — как нет сохранений */ }
+    return ['bed', 'chest', 'table', 'fireplace', 'shelf', 'door'];
+}
+
+function setPlacedFurniture(list) {
+    try {
+        localStorage.setItem('myrpg_home_placed', JSON.stringify(list));
+    } catch (e) { /* localStorage может быть недоступен */ }
+}
+
+function toggleFurniture(key) {
+    const placed = getPlacedFurniture();
+    const idx = placed.indexOf(key);
+    if (idx === -1) {
+        placed.push(key);
+        showToast('🪑 Мебель поставлена в дом');
+    } else {
+        placed.splice(idx, 1);
+        showToast('🪑 Мебель снята в каталог');
+    }
+    setPlacedFurniture(placed);
+    syncHomeFurnitureVisibility();
+    renderFurniturePanel();
+}
+
+function syncHomeFurnitureVisibility() {
+    const placed = getPlacedFurniture();
+    document.querySelectorAll('#homeBlock .home-furniture').forEach((el) => {
+        el.style.display = placed.includes(el.dataset.furniture) ? '' : 'none';
+    });
+}
+
+function renderFurniturePanel() {
+    const box = document.getElementById('furnitureList');
+    if (!box) {
+        return;
+    }
+    const cache = homeAssetsCache || { furniture: {} };
+    const placed = getPlacedFurniture();
+    const keys = Object.keys(cache.furniture || {});
+    const all = keys.length ? keys : ['bed', 'chest', 'table', 'fireplace', 'shelf', 'door'];
+    const emoji = { bed: '🛏️', chest: '🧰', table: '🍲', fireplace: '🔥', shelf: '📚', door: '🚪' };
+    box.innerHTML = all.map((key) => {
+        const rec = (cache.furniture || {})[key] || {};
+        const inHome = placed.includes(key);
+        const face = rec.image
+            ? `<img class="item-img" src="${esc(rec.image)}" alt="" loading="lazy">`
+            : (emoji[key] || '🪑');
+        return `<button class="item furniture-tile" data-furniture-key="${esc(key)}" type="button">`
+            + `<span class="item-icon" data-tooltip="${esc(rec.name || key)}">${face}</span>`
+            + `<span class="item-count">${inHome ? 'в доме' : 'каталог'}</span></button>`;
+    }).join('');
+    box.querySelectorAll('[data-furniture-key]').forEach((btn) => {
+        btn.onclick = () => toggleFurniture(btn.dataset.furnitureKey);
+    });
+}
+
+function initBottomTabs() {
+    document.querySelectorAll('#bottomTabs .bottom-tab').forEach((btn) => {
+        btn.addEventListener('click', () => toggleBottomTab(btn.dataset.tab));
+    });
+    syncHomeFurnitureVisibility();
+}
+
 // ---------- Переключение вкладок ----------
 function openScreen(screenId) {
     document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
@@ -3827,6 +3932,7 @@ function initTabs() {
 // ---------- Инициализация ----------
 function init() {
     initTabs();
+    initBottomTabs();
     initItemSizes();
     initItemTooltip();
 

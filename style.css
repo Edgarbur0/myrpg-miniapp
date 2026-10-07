@@ -5387,3 +5387,107 @@ body.scene-mode main.main {
     object-fit: contain;
     pointer-events: none;
 }
+
+/* РАУНД 111 (тамагочи-стиль: полоска иконок + выдвижная панель).
+   Только добавления. Сцена — основная зона (~70%), внизу — полоска
+   60px; большие панели (Персонаж/Мебель) выезжают снизу по тапу.
+   Старый .bottom-bar р.106–107 больше не рисуется (заглушка hidden),
+   карточки живут в #bottom-panel с теми же id сеток. */
+/* Экран мира: шапка / сцена / полоска иконок; панель — поверх низа */
+#screen-world.active {
+    gap: 0;
+}
+#screen-world .camp,
+#screen-world .village,
+#screen-world .home {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+/* Полоска иконок: 60px, две круглые кнопки 44px + подпись 10px */
+.bottom-tabs {
+    flex: none;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 60px;
+    min-height: 60px;
+    padding: 8px;
+    background: rgba(26, 26, 46, 0.9);
+    border-top: 1px solid rgba(212, 175, 55, 0.3);
+}
+.bottom-tabs .bottom-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    width: 44px;
+    min-width: 44px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.bottom-tabs .bottom-tab span {
+    font-size: 10px;
+    color: var(--muted);
+}
+.bottom-tabs .bottom-tab.active {
+    color: #d4af37;
+    transform: scale(1.1);
+}
+.bottom-tabs .bottom-tab.active span {
+    color: #d4af37;
+}
+/* Выдвижная панель: скрыта translateY(100%), показана translateY(0) */
+.bottom-panel {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    right: 0;
+    max-height: 60dvh;
+    overflow-y: auto;
+    padding: 8px 12px 12px;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(212, 175, 55, 0.3);
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 30;
+}
+.bottom-panel.open {
+    transform: translateY(0);
+}
+.bottom-panel-inner > .card + .card {
+    margin-top: 8px;
+}
+/* Содержимое панели появляется с fade-in */
+.bottom-panel.open .bottom-panel-inner,
+.bottom-panel.open .furniture-panel {
+    animation: bottom-fade 0.25s ease;
+}
+@keyframes bottom-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* Каталог мебели: плитки как в инвентаре */
+.furniture-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 6px;
+}
+.furniture-tile {
+    position: relative;
+}
+/* Ковёр уменьшен (раунд 111): был 32%x28% красным пятном справа,
+   стал компактным 18%x14% мягким пятном под маршрутом чиби */
+.home-carpet {
+    left: 36%;
+    top: 60%;
+    width: 18%;
+    height: 14%;
+}
