@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=117">
+    <link rel="stylesheet" href="style.css?v=118">
 </head>
 <body>
 
@@ -204,7 +204,7 @@
              снизу по тапу (translateY). Содержимое — те же id сеток
              (equipmentSlots/inventoryGrid), render-функции не тронуты. -->
         <div class="bottom-tabs" id="bottomTabs">
-            <button class="bottom-tab" type="button" data-tab="character">👤<span>Персонаж</span></button>
+            <button class="bottom-tab" type="button" data-tab="character">👤<span>Персонаж</span><span class="tab-badge hidden" id="bpBadge"></span></button>
             <button class="bottom-tab" type="button" data-tab="furniture">🪑<span>Мебель</span></button>
         </div>
         <div id="bottom-panel" class="bottom-panel hidden">
@@ -531,5 +531,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=117"></script></body>
+    <script src="app.js?v=118"></script></body>
 </html>

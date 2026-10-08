@@ -375,34 +375,20 @@ function renderCharacter() {
     // (трата 1 БП); остальные (Урон/Удача/Броня) — ниже, только «!».
     const bp = player.battle_points || 0;
     const hasBp = bp >= 1;
-    const trainable = ['strength', 'agility', 'endurance'];
     const others = ['damage', 'luck', 'armor'];
 
     // Счётчик БП у заголовка «Статы»
     const bpEl = document.getElementById('bpCounter');
     if (bpEl) bpEl.textContent = `💠 ${bp}`;
-
-    const statRow = (stats) => stats.map((stat) => {
-        const detail = STAT_DETAILS[stat.key];
-        const canUpgrade = trainable.includes(stat.key);
-        const bpBtn = canUpgrade
-            ? `<button class="stat-bp-btn" data-stat="${stat.key}" type="button" aria-label="Рост ${detail.label} (1 БП)" ${hasBp ? '' : 'disabled'}>+</button>`
-            : '';
-        const infoBtn = `<button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>`;
-        return `
-        <div class="stat">
-            <span class="stat-name">${detail.label}</span>
-            <b class="stat-value">${esc(player[stat.key])}</b>
-            <span class="stat-actions">${bpBtn}${infoBtn}</span>
-        </div>`;
-    }).join('');
+    updateBpBadge(bp);
 
     document.getElementById('statsGrid').innerHTML =
-        statRow(STATS.filter((s) => trainable.includes(s.key))) +
-        statRow(STATS.filter((s) => others.includes(s.key)));
+        STATS.filter((s) => TRAINABLE_STATS.includes(s.key)).map((s) => statTileHtml(player, s, hasBp)).join('') +
+        STATS.filter((s) => others.includes(s.key)).map((s) => statTileHtml(player, s, hasBp)).join('');
 
-    // Клик по «+» — трата 1 БП на стат
-    document.querySelectorAll('.stat-bp-btn').forEach((button) => {
+    // Клик по «+» — трата 1 БП на стат (скоуп — сетка экрана персонажа;
+    // у полоски панели свой делегированный обработчик, иначе задвоится)
+    document.getElementById('statsGrid').querySelectorAll('.stat-bp-btn').forEach((button) => {
         button.addEventListener('click', (event) => {
             event.stopPropagation();
             spendBattlePoint(button.dataset.stat, button);
@@ -410,7 +396,7 @@ function renderCharacter() {
     });
 
     // Клик по ℹ️ — popover с деталями стата или HP
-    document.querySelectorAll('.stat-info-btn').forEach((button) => {
+    document.getElementById('statsGrid').querySelectorAll('.stat-info-btn').forEach((button) => {
         button.addEventListener('click', (event) => {
             event.stopPropagation();
             showStatInfo(button.dataset.stat, button);
@@ -422,19 +408,47 @@ function renderCharacter() {
     renderEquipment();
 }
 
-// Полоска статов вкладки «Персонаж» (раунд 115): read-only дубликат
-// #statsGrid — те же 6 характеристик из STATS, без кнопок «+»/«!»
-// (прокачка за БП и подсказки живут на экране персонажа).
+// Прокачиваемые за БП характеристики (раунд 116): вынесено на уровень
+// модуля — единый источник для экрана персонажа и вкладки панели.
+const TRAINABLE_STATS = ['strength', 'agility', 'endurance'];
+
+// Плитка стата с кнопками (раунд 116): единый источник разметки для
+// #statsGrid (экран персонажа) и #panelStatsRow (вкладка панели) —
+// раньше полоска панели была read-only и кнопки «потерялись» в р.115.
+function statTileHtml(player, stat, hasBp) {
+    const detail = STAT_DETAILS[stat.key];
+    const bpBtn = TRAINABLE_STATS.includes(stat.key)
+        ? `<button class="stat-bp-btn" data-stat="${stat.key}" type="button" aria-label="Рост ${detail.label} (1 БП)" ${hasBp ? '' : 'disabled'}>+</button>`
+        : '';
+    const infoBtn = `<button class="stat-info-btn" data-stat="${stat.key}" type="button" aria-label="${detail.label}">!</button>`;
+    return `
+        <div class="stat">
+            <span class="stat-name">${detail.label}</span>
+            <b class="stat-value">${esc(player[stat.key])}</b>
+            <span class="stat-actions">${bpBtn}${infoBtn}</span>
+        </div>`;
+}
+
+// Полоска статов вкладки «Персонаж» (раунд 115: read-only дубликат;
+// раунд 116: те же плитки с кнопками «+»/«!», что на экране персонажа).
 function renderPanelStats() {
     const box = document.getElementById('panelStatsRow');
     if (!box || !playerData) {
         return;
     }
-    box.innerHTML = STATS.map((stat) => `
-        <div class="panel-stat">
-            <span>${STAT_DETAILS[stat.key].label}</span>
-            <b>${esc(playerData[stat.key] ?? 0)}</b>
-        </div>`).join('');
+    const hasBp = (playerData.battle_points || 0) >= 1;
+    box.innerHTML = STATS.map((stat) => statTileHtml(playerData, stat, hasBp)).join('');
+}
+
+// Бейдж БП на иконке «Персонаж» (раунд 116): число боевых поинтов,
+// при нуле — скрыт. Обновляется вместе с экраном персонажа.
+function updateBpBadge(bp) {
+    const badge = document.getElementById('bpBadge');
+    if (!badge) {
+        return;
+    }
+    badge.textContent = bp;
+    badge.classList.toggle('hidden', !(bp > 0));
 }
 
 // ---------- Трата БП на стат ----------
@@ -3911,6 +3925,25 @@ function initBottomTabs() {
         btn.addEventListener('click', () => toggleBottomTab(btn.dataset.tab));
     });
     syncHomeFurnitureVisibility();
+    // Клики по «+»/«!» в полоске статов панели (раунд 116): делегирование —
+    // плитки пересоздаются при каждом рендере, вешать заново не нужно;
+    // обработчики те же (spendBattlePoint/showStatInfo), он же перерисует всё
+    const panelStats = document.getElementById('panelStatsRow');
+    if (panelStats) {
+        panelStats.addEventListener('click', (event) => {
+            const bpBtn = event.target.closest('.stat-bp-btn');
+            if (bpBtn) {
+                event.stopPropagation();
+                spendBattlePoint(bpBtn.dataset.stat, bpBtn);
+                return;
+            }
+            const infoBtn = event.target.closest('.stat-info-btn');
+            if (infoBtn) {
+                event.stopPropagation();
+                showStatInfo(infoBtn.dataset.stat, infoBtn);
+            }
+        });
+    }
     // Сброс расстановки — кнопка ↺ в шапке вкладки «Мебель» (раунд 114:
     // замена кнопки из удалённой строки статуса)
     const furnReset = document.getElementById('furnitureResetBtn');

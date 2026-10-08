@@ -5703,3 +5703,42 @@ body.scene-mode .header {
         grid-template-columns: 1fr 1fr;
     }
 }
+
+/* ================= РАУНД 116: возврат +/!/БП ==============================
+   В р.115 полоска статов панели стала read-only и потеряла кнопки — здесь
+   те же плитки .stat с кнопками, что на экране персонажа (разметку даёт
+   общий statTileHtml). Только добавления.
+   - Плитки в полоске: flex-ряд с переносом (полные 6 в линию не влезут
+     вместе с кнопками — компромисс с р.115 осознанный).
+   - Бейдж БП: фиолетовый кружок поверх иконки 👤 (как в скриншоте ТЗ);
+     селектор с тремя классами — правило подписей
+     `.bottom-tabs .bottom-tab span` (р.111) иначе задавило бы шрифт/цвет.
+   - Кнопки +/! переиспользуют базовые стили (.stat-bp-btn/.stat-info-btn),
+     отдельных правил не нужно. */
+#panelStatsRow .stat {
+    flex: 1 1 140px;
+    min-width: 140px;
+}
+.bottom-tabs .bottom-tab {
+    position: relative;
+}
+.bottom-tabs .bottom-tab .tab-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #9b59b6;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #1a1a2e;
+}
+.bottom-tabs .bottom-tab .tab-badge.hidden {
+    display: none;
+}
