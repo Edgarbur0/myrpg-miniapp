@@ -882,11 +882,6 @@ function renderScene() {
 // мебель кликабельна: кровать/сундук/стол — действия, камин/стеллаж —
 // экраны, дверь — назад в деревню (сброс оверрайда через setScene).
 function renderHome() {
-    const locName = document.getElementById('homeLocName');
-    if (locName) {
-        locName.textContent = '📍 Дом';
-    }
-
     // Чиби дома — круглая иконка (раунд 105)
     renderChibi(document.getElementById('homeChibi'));
 
@@ -909,24 +904,11 @@ function renderHome() {
         }
     });
 
-    // Кнопки панорамы ⬅/➡ (раунд 109–110: нативный scrollBy)
-    document.querySelectorAll('#homeBlock [data-scroll]').forEach((button) => {
-        button.onclick = () => scrollHome(button.dataset.scroll);
-    });
-
     // Расстановка мебели из localStorage + drag (раунд 110)
     loadHomeLayout();
     syncHomeFurnitureVisibility();
     initHomeDrag();
     armHomeClickGuard();
-    const editBtn = document.getElementById('homeEditBtn');
-    if (editBtn) {
-        editBtn.onclick = toggleHomeEdit;
-    }
-    const resetBtn = document.getElementById('homeResetBtn');
-    if (resetBtn) {
-        resetBtn.onclick = resetHomeLayout;
-    }
     syncHomeEditButtons();
 
     // Картинки мебели/фона/чиби из админки (раунд 110, с фолбэками)
@@ -934,17 +916,8 @@ function renderHome() {
 }
 
 // Панорама дома (раунд 109–110): нативный скролл обёртки.
-// Раунд 110: колёсико мыши и свайп работают сами (overflow-x + touch),
-// кнопки ⬅/➡ — scrollBy на пол-экрана для точности. transform-кадры
-// р.109 удалены: нативный скролл честно скроллится везде.
-function scrollHome(dir) {
-    const wrapper = document.getElementById('homeRoomWrapper');
-    if (!wrapper) {
-        return;
-    }
-    const delta = wrapper.clientWidth * 0.5;
-    wrapper.scrollBy({ left: dir === 'left' ? -delta : delta, behavior: 'smooth' });
-}
+// Раунд 114: стрелки ⬅/➡ и scrollHome удалены (решение пользователя) —
+// комната едет колёсиком отовсюду (initHomeWheel ниже) + свайпом на таче.
 
 // Кровать: сон — полное восстановление HP (POST /api/player/<id>/home/sleep).
 // Обновляем данные на месте, как зелье (usePotion): без перезагрузки.
@@ -1008,16 +981,16 @@ let homeDragMoved = false;
 let homeSuppressClick = false;
 let homeClickGuardArmed = false;
 
-function toggleHomeEdit() {
-    homeEditMode = !homeEditMode;
+function setHomeEditMode(on) {
+    // Раунд 114 (решение пользователя): ручной кнопки ✏️ больше нет —
+    // режим расстановки включается сам при открытой вкладке «Мебель»
+    // и выключается при её закрытии (тапы снова открывают действия).
+    homeEditMode = on;
     const room = document.getElementById('homeRoom');
     if (room) {
         room.classList.toggle('editing', homeEditMode);
     }
     syncHomeEditButtons();
-    showToast(homeEditMode
-        ? '✏️ Таскай мебель, клики выключены'
-        : 'Готово, расстановка сохранена');
 }
 
 function syncHomeEditButtons() {
@@ -3815,6 +3788,7 @@ function toggleBottomTab(tab) {
         activeBottomTab = null;
         panel.classList.remove('open');
         document.body.classList.remove('panel-open');
+        setHomeEditMode(false);
         // hidden — после анимации уезжания (0.35s), иначе закроется рывком
         setTimeout(() => {
             if (!activeBottomTab) {
@@ -3840,6 +3814,8 @@ function toggleBottomTab(tab) {
         void panel.offsetWidth;
         panel.classList.add('open');
         document.body.classList.add('panel-open');
+        // Раунд 114: вкладка «Мебель» = режим расстановки (кнопки ✏️ нет)
+        setHomeEditMode(tab === 'furniture');
         syncPanelHeight();
     }
     document.querySelectorAll('#bottomTabs .bottom-tab').forEach((btn) => {
@@ -3919,6 +3895,12 @@ function initBottomTabs() {
         btn.addEventListener('click', () => toggleBottomTab(btn.dataset.tab));
     });
     syncHomeFurnitureVisibility();
+    // Сброс расстановки — кнопка ↺ в шапке вкладки «Мебель» (раунд 114:
+    // замена кнопки из удалённой строки статуса)
+    const furnReset = document.getElementById('furnitureResetBtn');
+    if (furnReset) {
+        furnReset.onclick = resetHomeLayout;
+    }
     // Высота панели плывёт от ширины (сетки auto-fill) — при ресайзе
     // открытого меню пересчитываем подъём иконок (раунд 113)
     window.addEventListener('resize', () => {
@@ -3926,6 +3908,37 @@ function initBottomTabs() {
             syncPanelHeight();
         }
     });
+}
+
+// ---------- Скролл комнаты колёсиком (раунд 114) ----------
+// Ползунок скрыт, стрелок нет — комната едет вертикальным колесом
+// из любой точки (шапка, сцена, табы) и свайпом на таче. Свои скроллы
+// (панель, модалки) не трогаем — колесо над ними работает как обычно.
+function initHomeWheel() {
+    document.addEventListener('wheel', (e) => {
+        if (typeof resolveScene !== 'function' || resolveScene() !== 'home') {
+            return;
+        }
+        const world = document.getElementById('screen-world');
+        if (!world || !world.classList.contains('active')) {
+            return;
+        }
+        const target = e.target;
+        if (target && target.closest
+                && target.closest('#bottom-panel, .modal, .trib-modal, .craft-material-modal')) {
+            return;
+        }
+        const wrapper = document.getElementById('homeRoomWrapper');
+        if (!wrapper || wrapper.scrollWidth <= wrapper.clientWidth + 1) {
+            return;
+        }
+        e.preventDefault();
+        let delta = e.deltaY || e.deltaX || 0;
+        if (e.deltaMode === 1) {
+            delta *= 16;
+        }
+        wrapper.scrollLeft += delta;
+    }, { passive: false });
 }
 
 // ---------- Переключение вкладок ----------
@@ -3967,6 +3980,7 @@ function initTabs() {
 function init() {
     initTabs();
     initBottomTabs();
+    initHomeWheel();
     initItemSizes();
     initItemTooltip();
 

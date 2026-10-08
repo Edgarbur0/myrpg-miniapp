@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=115">
+    <link rel="stylesheet" href="style.css?v=116">
 </head>
 <body>
 
@@ -191,16 +191,13 @@
                 <div class="village-chibi home-chibi" id="homeChibi" title="Ты"></div>
                 </div>
                 </div>
-                <button class="home-scroll" type="button" data-scroll="left" title="Комната: влево">⬅</button>
-                <button class="home-scroll" type="button" data-scroll="right" title="Комната: вправо">➡</button>
+                <!-- Стрелки панорамы убраны (раунд 114, решение пользователя):
+                     комната едет колёсиком отовсюду + свайпом на таче -->
             </div>
-            <div class="village-info">
-                <span class="camp-loc" id="homeLocName">📍 —</span>
-                <span class="camp-status">🏠 Жилище</span>
-                <!-- Режим расстановки мебели (раунд 110): двигать / сброс -->
-                <button class="icon-btn" id="homeEditBtn" type="button" aria-label="Расставить мебель" title="Расставить мебель">✏️</button>
-                <button class="icon-btn hidden" id="homeResetBtn" type="button" aria-label="Вернуть мебель" title="Вернуть мебель">↺</button>
-            </div>
+            <!-- Строка статуса убрана (раунд 114, решение пользователя):
+                 надпись + стрелки удалены, ручная ✏️ заменена авто-режимом
+                 при открытой вкладке «Мебель»; сброс мест — кнопка ↺
+                 в шапке вкладки «Мебель» -->
         </div>
         <!-- НИЗ (раунд 111, тамагочи-стиль): сцена — основная зона (~70%),
              внизу только полоска иконок 60px; большие панели выезжают
@@ -253,6 +250,9 @@
                 <div class="card-title-row">
                     <span class="card-title">Мебель</span>
                     <span class="card-sub">тап — поставить/снять</span>
+                    <!-- Сброс расстановки (раунд 114): замена кнопки ↺
+                         из удалённой строки статуса -->
+                    <button class="icon-btn" id="furnitureResetBtn" type="button" aria-label="Вернуть мебель на места" title="Вернуть мебель на места">↺</button>
                 </div>
                 <div class="furniture-list" id="furnitureList"></div>
             </div>
@@ -526,5 +526,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=115"></script></body>
+    <script src="app.js?v=116"></script></body>
 </html>
