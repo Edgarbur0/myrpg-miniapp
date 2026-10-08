@@ -5626,3 +5626,80 @@ body.panel-open #screen-world .bottom-tabs {
     width: 0;
     height: 0;
 }
+
+/* ================= РАУНД 115: прозрачные слои + персонаж ==================
+   Три фикса по скриншотам (иконок решено оставить 2 — ответ пользователя).
+   Только добавления, позже по файлу = сильнее каскадом.
+   - Подложки: шапка 0.85→0.4, иконки 0.9→0.4, меню 0.95→0.6 — комната
+     просвечивает сквозь; blur усилен (12/12/16), золотая кромка тоньше
+     (0.15) — текст читается за счёт blur, а не темноты.
+   - Иконки: space-around→flex-end + gap (справа, под большой палец).
+   - Вкладка «Персонаж»: сверху read-only полоска 6 статов (#panelStatsRow
+     рисует renderPanelStats), ниже 2 колонки — слева экипировка, справа
+     инвентарь; mobile-first: стопкой, от 600px — рядом. */
+body.scene-mode .header {
+    background: rgba(26, 26, 46, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+}
+.bottom-tabs {
+    justify-content: flex-end;
+    gap: 16px;
+    padding: 8px 16px;
+    background: rgba(26, 26, 46, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(212, 175, 55, 0.15);
+}
+.bottom-panel {
+    background: rgba(26, 26, 46, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+.panel-character {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+}
+.stats-row {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.panel-stat {
+    min-width: 80px;
+    flex: 1 1 0;
+    text-align: center;
+    padding: 8px;
+    background: rgba(22, 33, 62, 0.6);
+    border-radius: 8px;
+}
+.panel-stat span {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+}
+.panel-stat b {
+    font-size: 15px;
+    color: var(--accent);
+}
+.character-bottom {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+.equipment-panel,
+.inventory-panel {
+    background: rgba(22, 33, 62, 0.4);
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 0;
+}
+@media (min-width: 600px) {
+    .character-bottom {
+        grid-template-columns: 1fr 1fr;
+    }
+}

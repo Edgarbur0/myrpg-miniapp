@@ -417,8 +417,24 @@ function renderCharacter() {
         });
     });
 
+    renderPanelStats();
     renderInventoryPanel();
     renderEquipment();
+}
+
+// Полоска статов вкладки «Персонаж» (раунд 115): read-only дубликат
+// #statsGrid — те же 6 характеристик из STATS, без кнопок «+»/«!»
+// (прокачка за БП и подсказки живут на экране персонажа).
+function renderPanelStats() {
+    const box = document.getElementById('panelStatsRow');
+    if (!box || !playerData) {
+        return;
+    }
+    box.innerHTML = STATS.map((stat) => `
+        <div class="panel-stat">
+            <span>${STAT_DETAILS[stat.key].label}</span>
+            <b>${esc(playerData[stat.key] ?? 0)}</b>
+        </div>`).join('');
 }
 
 // ---------- Трата БП на стат ----------

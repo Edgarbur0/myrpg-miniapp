@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=116">
+    <link rel="stylesheet" href="style.css?v=117">
 </head>
 <body>
 
@@ -208,8 +208,12 @@
             <button class="bottom-tab" type="button" data-tab="furniture">🪑<span>Мебель</span></button>
         </div>
         <div id="bottom-panel" class="bottom-panel hidden">
-            <div class="bottom-panel-inner" id="characterPanel">
-                <div class="card">
+            <div class="bottom-panel-inner panel-character" id="characterPanel">
+                <!-- Полоска статов (раунд 115): read-only дубликат #statsGrid,
+                     рисует renderPanelStats; кнопки +/! живут на экране персонажа -->
+                <div class="stats-row" id="panelStatsRow"></div>
+                <div class="character-bottom">
+                <div class="equipment-panel card">
                     <div class="card-title-row card-title-row-tight">
                         <button class="card-title card-title-btn" id="equipTitleBtn" type="button" title="Настроить размер иконок">Экипировка</button>
                         <span id="equipBonuses" class="card-sub"></span>
@@ -227,7 +231,7 @@
                          Раньше книги жили в #equipmentTechSlots ниже сетки. -->
                     <div class="equipment-slots" id="equipmentSlots"></div>
                 </div>
-                <div class="card">
+                <div class="inventory-panel card">
                     <div class="card-title-row">
                         <button class="card-title card-title-btn" id="invTitleBtn" type="button" title="Настроить размер иконок">Инвентарь</button>
                         <span id="invEmpty" class="card-sub hidden">пусто</span>
@@ -243,6 +247,7 @@
                     <div class="inventory-grid" id="inventoryGrid">
                         <div class="item tile-empty"></div>
                     </div>
+                </div>
                 </div>
             </div>
             <!-- Вкладка «Мебель» (раунд 111): каталог из home_furniture + снять/поставить -->
@@ -526,5 +531,5 @@
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="app.js?v=116"></script></body>
+    <script src="app.js?v=117"></script></body>
 </html>
