@@ -5819,3 +5819,35 @@ body.scene-mode {
         min-height: 80vh;
     }
 }
+
+/* ================= РАУНД 120: окно жмёт VK, не CSS =========================
+   Урок р.118/119: уменьшать надо САМ фрейм мини-аппа в браузере VK
+   ( Brug VKWebAppResizeWindow просит высоту 80% — см. expandDesktopWindow),
+   а не вёрстку внутри: CSS-хак дал чёрную полосу сверху и срезал низ.
+   Откат хака тем же приёмом (поздние правила побеждают): тело снова
+   100% фрейма без отступа, тем html прозрачный как было, шапка скрыта
+   (это решение в силе). Если VK отклонит ресайз — игра просто займёт
+   исходный фрейм целиком (как до р.118). */
+html {
+    background: transparent;
+}
+body {
+    height: 100vh;
+    height: 100dvh;
+    margin-top: 0;
+}
+@supports not (height: 100dvh) {
+    body {
+        height: 100vh;
+        margin-top: 0;
+    }
+}
+body.scene-mode {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+@supports not (height: 100dvh) {
+    body.scene-mode {
+        min-height: 100vh;
+    }
+}

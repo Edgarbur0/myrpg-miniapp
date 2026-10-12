@@ -198,13 +198,16 @@ async function ensureUserId() {
     return userId;
 }
 
-// Широкий фрейм на десктопе (раунд 74): VK показывает мини-аппы в узкой
-// колонке ~600px; VKWebAppResizeWindow просит у клиента окно пошире.
+// Размер фрейма на десктопе (раунд 74 — широкий фрейм, раунд 120 —
+// ниже на 20%): VK показывает мини-аппы в узкой колонке ~600px;
+// VKWebAppResizeWindow просит у клиента окно пошире и покороче.
 // Десктоп only (на мобильных событие игнорируется, но лишний вызов
-// не нужен — отсекаем по vk_platform). Высота — не меньше текущей,
-// чтобы не обрезать контент; итоговые значения всё равно клампит VK.
+// не нужен — отсекаем по vk_platform). Высота — 80% текущей, с полом
+// 500px чтобы не схлопнуть контент; итоговые значения всё равно
+// клампит VK. Внутренняя вёрстка — 100% фрейма (р.120 откатил CSS-хак
+// р.118/119 с чёрной полосой), так что ужатие фрейма = ужатие окна.
 // Всё в try/catch: моста может не быть (отладка вне VK), запрос могут
-// отклонить — игра обязана работать и в узком фрейме (резина р.73).
+// отклонить — игра обязана работать и в исходном фрейме (резина р.73).
 function expandDesktopWindow() {
     if (!window.vkBridge) {
         return;
@@ -215,7 +218,7 @@ function expandDesktopWindow() {
         if (platform && platform.indexOf('desktop') !== 0) {
             return;
         }
-        const height = Math.max(window.innerHeight || 0, 900);
+        const height = Math.max(500, Math.round((window.innerHeight || 0) * 0.8));
         vkBridge.send('VKWebAppResizeWindow', { width: 1000, height })
             .catch((error) => console.warn('VKWebAppResizeWindow:', error));
     } catch (error) {
